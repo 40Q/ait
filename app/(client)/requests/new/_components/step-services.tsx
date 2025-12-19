@@ -132,7 +132,7 @@ export function StepServices({ data, onChange }: StepServicesProps) {
               key={service.id}
               className={isChecked ? "border-primary" : ""}
             >
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-3 py-0">
                 <div className="flex items-start gap-4">
                   <Checkbox
                     id={service.id}
@@ -162,27 +162,6 @@ export function StepServices({ data, onChange }: StepServicesProps) {
                   </div>
                 </div>
               </CardHeader>
-              {service.hasSubOption && isChecked && (
-                <CardContent className="pt-0">
-                  <div className="ml-8 space-y-2">
-                    <Label htmlFor="hdDestructionType">Destruction Location</Label>
-                    <Select
-                      value={data.hdDestructionType || ""}
-                      onValueChange={(value: "onsite" | "offsite") =>
-                        onChange({ hdDestructionType: value })
-                      }
-                    >
-                      <SelectTrigger id="hdDestructionType" className="w-full max-w-xs">
-                        <SelectValue placeholder="Select location" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="onsite">On-site (at your location)</SelectItem>
-                        <SelectItem value="offsite">Off-site (at AIT facility)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              )}
             </Card>
           );
         })}

@@ -86,14 +86,14 @@ export default function NewRequestPage() {
 
       {/* Step Indicator */}
       <Card>
-        <CardContent className="p-6">
+        <CardContent>
           <StepIndicator currentStep={currentStep} />
         </CardContent>
       </Card>
 
       {/* Form Content */}
       <Card>
-        <CardContent className="p-6">{renderStep()}</CardContent>
+        <CardContent>{renderStep()}</CardContent>
         <CardFooter className="flex justify-between border-t px-6 py-4">
           <Button
             variant="outline"

@@ -184,7 +184,7 @@ export default function InvoicesPage() {
       </div>
 
       {/* Invoices Table */}
-      <Card>
+      <Card className="p-0">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full">

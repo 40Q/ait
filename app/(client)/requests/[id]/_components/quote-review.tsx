@@ -72,8 +72,8 @@ export function QuoteReview({ quote }: QuoteReviewProps) {
 
   return (
     <>
-      <Card className="border-primary/20">
-        <CardHeader className="bg-primary/5">
+      <Card className="border-primary/20 pt-0">
+        <CardHeader className="bg-primary/5 py-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">Quote #{quote.id}</CardTitle>
             <Badge variant="secondary">Ready for Review</Badge>
@@ -86,7 +86,7 @@ export function QuoteReview({ quote }: QuoteReviewProps) {
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-6 pt-6">
+        <CardContent className="space-y-6">
           {/* Confirmed Schedule */}
           <div className="rounded-lg bg-muted/50 p-4">
             <h4 className="mb-2 font-medium">Confirmed Pickup Schedule</h4>

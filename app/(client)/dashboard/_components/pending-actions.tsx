@@ -29,7 +29,7 @@ export function PendingActions() {
     <div className="space-y-3">
       {pendingActions.map((action) => (
         <Card key={action.id} className="border-primary/20 bg-primary/5">
-          <CardContent className="flex items-center justify-between p-4">
+          <CardContent className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="rounded-full bg-primary/10 p-2">
                 <FileText className="h-5 w-5 text-primary" />

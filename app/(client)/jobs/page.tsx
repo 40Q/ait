@@ -95,7 +95,7 @@ const jobs: Job[] = [
 function JobCard({ job }: { job: Job }) {
   return (
     <Card className="transition-colors hover:bg-muted/50">
-      <CardContent className="p-4">
+      <CardContent>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
