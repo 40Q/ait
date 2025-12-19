@@ -2,8 +2,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { ArrowLeft, Calendar, MapPin, FileCheck, Receipt } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, FileCheck, Receipt, Truck, Clock, User, Phone, Mail } from "lucide-react";
 import { JobTimeline } from "./_components/job-timeline";
 import { DocumentsList } from "./_components/documents-list";
 import { InvoicesList } from "./_components/invoices-list";
@@ -16,12 +17,15 @@ const jobData: {
   name: string;
   status: ClientJobStatus;
   pickupDate: string;
+  pickupTime: string;
   createdAt: string;
   quoteId: string;
   requestId: string;
   location: { address: string; city: string; state: string; zipCode: string };
+  contact: { name: string; phone: string; email: string };
   equipment: { type: string; quantity: number }[];
   services: string[];
+  serviceType: "pickup" | "dropoff";
   timeline: {
     pickupScheduled?: string;
     pickupComplete?: string;
@@ -33,6 +37,7 @@ const jobData: {
   name: "Q4 Office Equipment Recycling",
   status: "processing",
   pickupDate: "December 10, 2024",
+  pickupTime: "10:00 AM",
   createdAt: "December 8, 2024",
   quoteId: "Q-2024-0042",
   requestId: "REQ-2024-0045",
@@ -42,12 +47,18 @@ const jobData: {
     state: "CA",
     zipCode: "90001",
   },
+  contact: {
+    name: "John Smith",
+    phone: "(555) 123-4567",
+    email: "john.smith@company.com",
+  },
   equipment: [
     { type: "Laptops", quantity: 15 },
     { type: "Desktop Computers", quantity: 8 },
     { type: "Hard Drives (loose)", quantity: 20 },
   ],
   services: ["HD Destruction (Off-site)", "Certificate of Destruction"],
+  serviceType: "pickup",
   timeline: {
     pickupScheduled: "Dec 8, 2024",
     pickupComplete: "Dec 10, 2024",
@@ -85,21 +96,6 @@ const certificates = [
     name: "Warehouse Processing Report - W2512003.pdf",
     type: "certificate" as const,
     uploadedAt: "Dec 15, 2024",
-  },
-];
-
-const pickupDocs = [
-  {
-    id: "2",
-    name: "Bill of Lading - W2512003.pdf",
-    type: "pickup" as const,
-    uploadedAt: "Dec 10, 2024",
-  },
-  {
-    id: "3",
-    name: "Equipment Manifest - W2512003.pdf",
-    type: "pickup" as const,
-    uploadedAt: "Dec 10, 2024",
   },
 ];
 
@@ -183,12 +179,8 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
             )}
           </TabsTrigger>
           <TabsTrigger value="pickup" className="gap-2">
+            <Truck className="h-4 w-4" />
             Pickup Details
-            {pickupDocs.length > 0 && (
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
-                {pickupDocs.length}
-              </span>
-            )}
           </TabsTrigger>
           <TabsTrigger value="invoices" className="gap-2">
             <Receipt className="h-4 w-4" />
@@ -218,13 +210,78 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
         <TabsContent value="pickup" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Pickup Documents</CardTitle>
+              <CardTitle className="text-base">
+                {jobData.serviceType === "pickup" ? "Pickup" : "Drop-off"} Details
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <DocumentsList
-                documents={pickupDocs}
-                emptyMessage="Pickup documents will be uploaded after pickup"
-              />
+            <CardContent className="space-y-4">
+              {/* Schedule */}
+              <div className="rounded-lg border p-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">Scheduled Date & Time</p>
+                    <div className="flex items-center gap-3">
+                      <span className="flex items-center gap-1.5">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">{jobData.pickupDate}</span>
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">{jobData.pickupTime}</span>
+                      </span>
+                    </div>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={
+                      jobData.status === "pickup_complete" || jobData.status === "processing" || jobData.status === "complete"
+                        ? "border-green-200 bg-green-50 text-green-700"
+                        : "border-yellow-200 bg-yellow-50 text-yellow-700"
+                    }
+                  >
+                    {jobData.status === "pickup_complete" || jobData.status === "processing" || jobData.status === "complete"
+                      ? "Completed"
+                      : "Scheduled"}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Location */}
+              <div className="rounded-lg border p-4 space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">
+                  {jobData.serviceType === "pickup" ? "Pickup" : "Drop-off"} Location
+                </p>
+                <div className="flex items-start gap-1.5">
+                  <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="font-medium">{jobData.location.address}</p>
+                    <p className="text-muted-foreground">
+                      {jobData.location.city}, {jobData.location.state} {jobData.location.zipCode}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact */}
+              <div className="rounded-lg border p-4 space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">On-site Contact</p>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{jobData.contact.name}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1.5">
+                      <Phone className="h-3.5 w-3.5" />
+                      {jobData.contact.phone}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <Mail className="h-3.5 w-3.5" />
+                      {jobData.contact.email}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
