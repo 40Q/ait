@@ -19,14 +19,14 @@ const requestData: {
     state: string;
     zipCode: string;
     contactName: string;
+    contactEmail: string;
     contactPhone: string;
     accessInstructions: string;
+    poNumber: string;
   };
   schedule: {
     preferredDate: string;
-    alternateDate: string | null;
-    timeWindow: string;
-    urgency: string;
+    serviceType: "pickup" | "dropoff";
   };
   equipment: { type: string; quantity: number }[];
   services: string[];
@@ -42,15 +42,15 @@ const requestData: {
     state: "CA",
     zipCode: "90001",
     contactName: "John Smith",
+    contactEmail: "john.smith@company.com",
     contactPhone: "(555) 123-4567",
     accessInstructions:
       "Use loading dock on east side. Check in with security at front desk.",
+    poNumber: "PO-2024-1234",
   },
   schedule: {
     preferredDate: "December 20, 2024",
-    alternateDate: "December 22, 2024",
-    timeWindow: "morning",
-    urgency: "standard",
+    serviceType: "pickup",
   },
   equipment: [
     { type: "Laptops", quantity: 15 },

@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Calendar, Package, Settings, Clock } from "lucide-react";
+import { MapPin, Package, Settings, Clock, Truck } from "lucide-react";
 
 interface RequestDetailsProps {
   request: {
@@ -12,14 +12,14 @@ interface RequestDetailsProps {
       state: string;
       zipCode: string;
       contactName: string;
+      contactEmail: string;
       contactPhone: string;
       accessInstructions: string;
+      poNumber: string;
     };
     schedule: {
       preferredDate: string;
-      alternateDate: string | null;
-      timeWindow: string;
-      urgency: string;
+      serviceType: "pickup" | "dropoff";
     };
     equipment: {
       type: string;
@@ -38,7 +38,7 @@ export function RequestDetails({ request }: RequestDetailsProps) {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <MapPin className="h-4 w-4" />
-            Pickup Location
+            {request.schedule.serviceType === "pickup" ? "Pickup" : "Drop-off"} Location
           </CardTitle>
         </CardHeader>
         <CardContent className="text-sm">
@@ -50,12 +50,23 @@ export function RequestDetails({ request }: RequestDetailsProps) {
             {request.location.city}, {request.location.state}{" "}
             {request.location.zipCode}
           </p>
+          {request.location.poNumber && (
+            <div className="mt-3 border-t pt-3">
+              <p className="text-muted-foreground">PO #</p>
+              <p className="font-medium">{request.location.poNumber}</p>
+            </div>
+          )}
           <div className="mt-3 border-t pt-3">
             <p className="text-muted-foreground">Contact</p>
             <p className="font-medium">{request.location.contactName}</p>
             <p className="text-muted-foreground">
               {request.location.contactPhone}
             </p>
+            {request.location.contactEmail && (
+              <p className="text-muted-foreground">
+                {request.location.contactEmail}
+              </p>
+            )}
           </div>
           {request.location.accessInstructions && (
             <div className="mt-3 border-t pt-3">
@@ -70,41 +81,21 @@ export function RequestDetails({ request }: RequestDetailsProps) {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Calendar className="h-4 w-4" />
+            <Truck className="h-4 w-4" />
             Schedule
           </CardTitle>
         </CardHeader>
         <CardContent className="text-sm">
           <div className="space-y-3">
             <div>
+              <p className="text-muted-foreground">Service Type</p>
+              <Badge variant="outline" className="capitalize">
+                {request.schedule.serviceType}
+              </Badge>
+            </div>
+            <div>
               <p className="text-muted-foreground">Preferred Date</p>
               <p className="font-medium">{request.schedule.preferredDate}</p>
-            </div>
-            {request.schedule.alternateDate && (
-              <div>
-                <p className="text-muted-foreground">Alternate Date</p>
-                <p className="font-medium">{request.schedule.alternateDate}</p>
-              </div>
-            )}
-            <div className="flex gap-4">
-              <div>
-                <p className="text-muted-foreground">Time Window</p>
-                <p className="font-medium capitalize">
-                  {request.schedule.timeWindow}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Urgency</p>
-                <Badge
-                  variant={
-                    request.schedule.urgency === "rush"
-                      ? "destructive"
-                      : "secondary"
-                  }
-                >
-                  {request.schedule.urgency}
-                </Badge>
-              </div>
             </div>
           </div>
         </CardContent>
