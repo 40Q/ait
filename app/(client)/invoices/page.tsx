@@ -127,7 +127,7 @@ export default function InvoicesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Invoices"
-        description="View and manage all your invoices from QuickBooks"
+        description="View and manage all your invoices"
       ></PageHeader>
 
       {/* Summary Stats */}
