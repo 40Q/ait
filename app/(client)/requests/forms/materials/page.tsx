@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Check, TreeDeciduous, Cpu, Box } from "lucide-react";
 
-interface CyrusOneMaterialsFormData {
+interface MaterialsFormData {
   // Material Types
   hasWood: boolean;
   hasMetal: boolean;
@@ -29,7 +29,7 @@ interface CyrusOneMaterialsFormData {
   materialsDescription: string;
 }
 
-const initialFormData: CyrusOneMaterialsFormData = {
+const initialFormData: MaterialsFormData = {
   hasWood: false,
   hasMetal: false,
   hasElectronics: false,
@@ -40,12 +40,12 @@ const initialFormData: CyrusOneMaterialsFormData = {
   materialsDescription: "",
 };
 
-export default function CyrusOneMaterialsPage() {
+export default function MaterialsPage() {
   const router = useRouter();
-  const [formData, setFormData] = useState<CyrusOneMaterialsFormData>(initialFormData);
+  const [formData, setFormData] = useState<MaterialsFormData>(initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleChange = (data: Partial<CyrusOneMaterialsFormData>) => {
+  const handleChange = (data: Partial<MaterialsFormData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
   };
 
@@ -63,7 +63,7 @@ export default function CyrusOneMaterialsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <PageHeader
-        title="CyrusOne Materials Pickup"
+        title="Materials Pickup"
         description="Request pickup for wood, metal, or electronics materials"
       />
 
@@ -181,7 +181,7 @@ export default function CyrusOneMaterialsPage() {
                 type="email"
                 value={formData.siteContactEmail}
                 onChange={(e) => handleChange({ siteContactEmail: e.target.value })}
-                placeholder="john.smith@cyrusone.com"
+                placeholder="john.smith@example.com"
               />
             </div>
           </div>

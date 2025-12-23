@@ -23,7 +23,7 @@ import { Loader2, Check, CalendarIcon, Truck } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
-interface CyrusOneLogisticsFormData {
+interface LogisticsFormData {
   // Contact Information
   authorizedPersonName: string;
   contactPhone: string;
@@ -52,7 +52,7 @@ interface CyrusOneLogisticsFormData {
   additionalComments: string;
 }
 
-const initialFormData: CyrusOneLogisticsFormData = {
+const initialFormData: LogisticsFormData = {
   authorizedPersonName: "",
   contactPhone: "",
   contactEmail: "",
@@ -72,13 +72,13 @@ const initialFormData: CyrusOneLogisticsFormData = {
   additionalComments: "",
 };
 
-export default function CyrusOneLogisticsPage() {
+export default function LogisticsPage() {
   const router = useRouter();
   const [formData, setFormData] =
-    useState<CyrusOneLogisticsFormData>(initialFormData);
+    useState<LogisticsFormData>(initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleChange = (data: Partial<CyrusOneLogisticsFormData>) => {
+  const handleChange = (data: Partial<LogisticsFormData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
   };
 
@@ -101,7 +101,7 @@ export default function CyrusOneLogisticsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <PageHeader
-        title="CyrusOne Logistics Request"
+        title="Logistics Request"
         description="Request logistics services for material transportation"
       />
 
@@ -151,7 +151,7 @@ export default function CyrusOneLogisticsPage() {
                 type="email"
                 value={formData.contactEmail}
                 onChange={(e) => handleChange({ contactEmail: e.target.value })}
-                placeholder="email@cyrusone.com"
+                placeholder="email@example.com"
               />
             </div>
           </div>
@@ -219,7 +219,6 @@ export default function CyrusOneLogisticsPage() {
                     handleChange({ pickupDateRequested: date || null })
                   }
                   disabled={(date) => date < new Date()}
-                  initialFocus
                 />
               </PopoverContent>
             </Popover>

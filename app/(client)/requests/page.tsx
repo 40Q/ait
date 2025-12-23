@@ -149,9 +149,9 @@ function NewRequestButton() {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel>CyrusOne Forms</DropdownMenuLabel>
+        <DropdownMenuLabel>Additional Forms</DropdownMenuLabel>
         <DropdownMenuItem asChild>
-          <Link href="/requests/cyrusone/materials" className="cursor-pointer">
+          <Link href="/requests/forms/materials" className="cursor-pointer">
             <Recycle className="mr-2 h-4 w-4" />
             Materials Pickup
             <span className="ml-auto text-xs text-muted-foreground">
@@ -160,7 +160,7 @@ function NewRequestButton() {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/requests/cyrusone/logistics" className="cursor-pointer">
+          <Link href="/requests/forms/logistics" className="cursor-pointer">
             <Box className="mr-2 h-4 w-4" />
             Logistics Request
           </Link>
