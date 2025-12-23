@@ -23,11 +23,11 @@ import {
 
 interface Job {
   id: string;
-  name: string;
   status: JobStatus;
   pickupDate: string;
   createdAt: string;
   documentsCount: number;
+  equipmentSummary: string;
   invoiceAmount?: number;
   invoiceStatus?: "paid" | "unpaid";
 }
@@ -36,57 +36,57 @@ interface Job {
 const jobs: Job[] = [
   {
     id: "W2512003",
-    name: "Q4 Office Equipment Recycling",
     status: "processing",
     pickupDate: "Dec 10, 2024",
     createdAt: "Dec 8, 2024",
     documentsCount: 2,
+    equipmentSummary: "15 Laptops, 8 Desktops, 20 Hard Drives",
     invoiceAmount: 1250,
     invoiceStatus: "unpaid",
   },
   {
     id: "W2512002",
-    name: "Server Room Decommission",
     status: "complete",
     pickupDate: "Dec 5, 2024",
     createdAt: "Dec 1, 2024",
     documentsCount: 4,
+    equipmentSummary: "3 Servers, Networking Equipment",
     invoiceAmount: 3500,
     invoiceStatus: "paid",
   },
   {
     id: "W2512001",
-    name: "Laptop Trade-in Program",
     status: "complete",
     pickupDate: "Nov 28, 2024",
     createdAt: "Nov 25, 2024",
     documentsCount: 3,
+    equipmentSummary: "25 Laptops",
     invoiceAmount: 890,
     invoiceStatus: "paid",
   },
   {
     id: "W2511004",
-    name: "Hard Drive Destruction",
     status: "pickup_scheduled",
     pickupDate: "Dec 18, 2024",
     createdAt: "Dec 15, 2024",
     documentsCount: 0,
+    equipmentSummary: "50 Hard Drives",
   },
   {
     id: "W2511003",
-    name: "E-waste Collection",
     status: "pickup_complete",
     pickupDate: "Dec 12, 2024",
     createdAt: "Dec 10, 2024",
     documentsCount: 1,
+    equipmentSummary: "Mixed E-waste",
   },
   {
     id: "W2511002",
-    name: "Monitor Recycling Batch",
     status: "complete",
     pickupDate: "Nov 20, 2024",
     createdAt: "Nov 15, 2024",
     documentsCount: 3,
+    equipmentSummary: "12 Monitors",
     invoiceAmount: 450,
     invoiceStatus: "paid",
   },
@@ -99,12 +99,12 @@ function JobCard({ job }: { job: Job }) {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-sm text-muted-foreground">
-                {job.id}
+              <span className="font-mono font-medium">
+                Job #{job.id}
               </span>
               <StatusBadge status={job.status} />
             </div>
-            <p className="font-medium">{job.name}</p>
+            <p className="text-sm text-muted-foreground">{job.equipmentSummary}</p>
             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
@@ -163,7 +163,7 @@ export default function JobsPage() {
       <div className="flex flex-col gap-4 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search by job ID or name..." className="pl-9" />
+          <Input placeholder="Search by Job ID..." className="pl-9" />
         </div>
         <Select defaultValue="all">
           <SelectTrigger className="w-full sm:w-48">

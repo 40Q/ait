@@ -35,7 +35,7 @@ export function RequestDetails({ request }: RequestDetailsProps) {
     <div className="grid gap-4 md:grid-cols-2">
       {/* Location */}
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <MapPin className="h-4 w-4" />
             {request.schedule.serviceType === "pickup" ? "Pickup" : "Drop-off"} Location
@@ -79,7 +79,7 @@ export function RequestDetails({ request }: RequestDetailsProps) {
 
       {/* Schedule */}
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Truck className="h-4 w-4" />
             Schedule
@@ -103,7 +103,7 @@ export function RequestDetails({ request }: RequestDetailsProps) {
 
       {/* Equipment */}
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Package className="h-4 w-4" />
             Equipment
@@ -123,7 +123,7 @@ export function RequestDetails({ request }: RequestDetailsProps) {
 
       {/* Services */}
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Settings className="h-4 w-4" />
             Services Requested
@@ -147,7 +147,7 @@ export function RequestDetails({ request }: RequestDetailsProps) {
       {/* Notes */}
       {request.additionalNotes && (
         <Card className="md:col-span-2">
-          <CardHeader className="pb-3">
+          <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Clock className="h-4 w-4" />
               Additional Notes

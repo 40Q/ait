@@ -5,10 +5,10 @@ import { ArrowRight, FileText, Receipt } from "lucide-react";
 
 interface Job {
   id: string;
-  name: string;
   status: JobStatus;
   pickupDate: string;
   documentsCount: number;
+  equipmentSummary: string;
   invoiceAmount?: number;
 }
 
@@ -16,41 +16,41 @@ interface Job {
 const recentJobs: Job[] = [
   {
     id: "W2512003",
-    name: "Q4 Office Equipment Recycling",
     status: "processing",
     pickupDate: "Dec 10, 2024",
     documentsCount: 2,
+    equipmentSummary: "15 Laptops, 8 Desktops, 20 Hard Drives",
     invoiceAmount: 1250,
   },
   {
     id: "W2512002",
-    name: "Server Room Decommission",
     status: "complete",
     pickupDate: "Dec 5, 2024",
     documentsCount: 4,
+    equipmentSummary: "3 Servers, Networking Equipment",
     invoiceAmount: 3500,
   },
   {
     id: "W2512001",
-    name: "Laptop Trade-in Program",
     status: "complete",
     pickupDate: "Nov 28, 2024",
     documentsCount: 3,
+    equipmentSummary: "25 Laptops",
     invoiceAmount: 890,
   },
   {
     id: "W2511004",
-    name: "Hard Drive Destruction",
     status: "pickup_scheduled",
     pickupDate: "Dec 18, 2024",
     documentsCount: 0,
+    equipmentSummary: "50 Hard Drives",
   },
   {
     id: "W2511003",
-    name: "E-waste Collection",
     status: "pickup_complete",
     pickupDate: "Dec 12, 2024",
     documentsCount: 1,
+    equipmentSummary: "Mixed E-waste",
   },
 ];
 
@@ -65,12 +65,12 @@ export function RecentJobsList() {
           <div className="flex items-center gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-mono text-sm text-muted-foreground">
-                  {job.id}
+                <span className="font-mono font-medium">
+                  Job #{job.id}
                 </span>
                 <StatusBadge status={job.status} />
               </div>
-              <p className="mt-1 font-medium">{job.name}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{job.equipmentSummary}</p>
               <p className="text-sm text-muted-foreground">
                 Pickup: {job.pickupDate}
               </p>

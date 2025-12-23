@@ -43,7 +43,7 @@ export function Sidebar({ className }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "flex h-screen w-64 flex-col bg-sidebar text-sidebar-foreground",
+        "sticky top-0 flex h-screen w-64 flex-col bg-sidebar text-sidebar-foreground",
         className
       )}
     >

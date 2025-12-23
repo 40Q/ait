@@ -9,58 +9,14 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { HardDrive, ListOrdered, FileCheck, Disc, Leaf, Sparkles, Truck, Building2 } from "lucide-react";
-import type { PickupRequestFormData } from "./types";
+import { HardDrive, Sparkles, Truck, Building2, Package } from "lucide-react";
+import type { PickupRequestFormData, DataDestructionService, PackingService } from "./types";
+import { dataDestructionOptions, packingServiceOptions } from "./types";
 
 interface StepServicesProps {
   data: PickupRequestFormData;
   onChange: (data: Partial<PickupRequestFormData>) => void;
 }
-
-const services = [
-  {
-    id: "hdDestruction",
-    title: "Hard Drive Destruction",
-    description: "Physical destruction of hard drives with certification",
-    icon: HardDrive,
-    hasSubOption: true,
-  },
-  {
-    id: "dataTapesDestruction",
-    title: "Data Tapes Destruction",
-    description: "Physical destruction of data tapes with certification",
-    icon: Disc,
-    hasSubOption: false,
-  },
-  {
-    id: "serialization",
-    title: "Serialization / Asset Tracking",
-    description: "Record serial numbers and asset tags for your records",
-    icon: ListOrdered,
-    hasSubOption: false,
-  },
-  {
-    id: "certificateOfDestruction",
-    title: "Certificate of Destruction",
-    description: "Official documentation certifying proper data destruction",
-    icon: FileCheck,
-    hasSubOption: false,
-  },
-  {
-    id: "certificateOfRecycling",
-    title: "Certificate of Recycling",
-    description: "Official documentation certifying responsible recycling",
-    icon: Leaf,
-    hasSubOption: false,
-  },
-  {
-    id: "whiteGloveService",
-    title: "White Glove Service",
-    description: "Premium handling with extra care and dedicated support",
-    icon: Sparkles,
-    hasSubOption: false,
-  },
-] as const;
 
 export function StepServices({ data, onChange }: StepServicesProps) {
   return (
@@ -115,57 +71,115 @@ export function StepServices({ data, onChange }: StepServicesProps) {
         </div>
       </RadioGroup>
 
-      <div>
-        <h2 className="text-lg font-semibold">Additional Services</h2>
-        <p className="text-sm text-muted-foreground">
-          Select any additional services you require.
-        </p>
-      </div>
-
-      <div className="grid gap-4">
-        {services.map((service) => {
-          const isChecked = data[service.id as keyof PickupRequestFormData] as boolean;
-          const Icon = service.icon;
-
-          return (
-            <Card
-              key={service.id}
-              className={isChecked ? "border-primary" : ""}
-            >
-              <CardHeader className="pb-3 py-0">
-                <div className="flex items-start gap-4">
-                  <Checkbox
-                    id={service.id}
-                    checked={isChecked}
-                    onCheckedChange={(checked) => {
-                      const updates: Partial<PickupRequestFormData> = {
-                        [service.id]: checked === true,
-                      };
-                      if (service.id === "hdDestruction" && !checked) {
-                        updates.hdDestructionType = null;
-                      }
-                      onChange(updates);
-                    }}
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <Icon className="h-4 w-4 text-muted-foreground" />
-                      <CardTitle className="text-base">
-                        <Label htmlFor={service.id} className="cursor-pointer">
-                          {service.title}
-                        </Label>
-                      </CardTitle>
-                    </div>
-                    <CardDescription className="mt-1">
-                      {service.description}
-                    </CardDescription>
+      {/* Data Destruction Services */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <HardDrive className="h-4 w-4" />
+            Data Destruction Services
+          </CardTitle>
+          <CardDescription>
+            Select the type of data destruction service you require, if any.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Select
+            value={data.dataDestructionService}
+            onValueChange={(value: DataDestructionService) =>
+              onChange({ dataDestructionService: value })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select data destruction service" />
+            </SelectTrigger>
+            <SelectContent>
+              {dataDestructionOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  <div className="flex flex-col">
+                    <span>{option.label}</span>
                   </div>
-                </div>
-              </CardHeader>
-            </Card>
-          );
-        })}
-      </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {data.dataDestructionService !== "none" && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              {dataDestructionOptions.find(
+                (opt) => opt.value === data.dataDestructionService
+              )?.description}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Packing Services */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Package className="h-4 w-4" />
+            Packing / Palletizing Services
+          </CardTitle>
+          <CardDescription>
+            How is the equipment currently prepared?
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Select
+            value={data.packingService}
+            onValueChange={(value: PackingService) =>
+              onChange({ packingService: value })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select packing service" />
+            </SelectTrigger>
+            <SelectContent>
+              {packingServiceOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  <div className="flex flex-col">
+                    <span>{option.label}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {data.packingService !== "none" && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              {packingServiceOptions.find(
+                (opt) => opt.value === data.packingService
+              )?.description}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* White Glove Service */}
+      <Card className={data.whiteGloveService ? "border-primary" : ""}>
+        <CardHeader>
+          <div className="flex items-start gap-4">
+            <Checkbox
+              id="whiteGloveService"
+              checked={data.whiteGloveService}
+              onCheckedChange={(checked) =>
+                onChange({ whiteGloveService: checked === true })
+              }
+            />
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">
+                  <Label htmlFor="whiteGloveService" className="cursor-pointer">
+                    White Glove Services
+                  </Label>
+                </CardTitle>
+              </div>
+              <CardDescription className="mt-1">
+                Our team handles the complete process: uninstallation, wrapping, packing, and palletizing of your equipment. Ideal for clients who need full-service handling without involving their own staff.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
     </div>
   );
 }

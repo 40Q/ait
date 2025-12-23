@@ -5,7 +5,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge, type RequestStatus } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
-import { Truck, MapPin, Calendar, ArrowRight } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Truck, MapPin, Calendar, ArrowRight, ChevronDown, Recycle, Box } from "lucide-react";
+import { isCyrusOneUser } from "@/lib/user";
 
 interface Request {
   id: string;
@@ -108,6 +117,59 @@ function RequestCard({ request }: { request: Request }) {
   );
 }
 
+function NewRequestButton() {
+  const isCyrusOne = isCyrusOneUser();
+
+  if (!isCyrusOne) {
+    return (
+      <Button asChild>
+        <Link href="/requests/new">
+          <Truck className="mr-2 h-4 w-4" />
+          New Request
+        </Link>
+      </Button>
+    );
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button>
+          <Truck className="mr-2 h-4 w-4" />
+          New Request
+          <ChevronDown className="ml-2 h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>Standard Forms</DropdownMenuLabel>
+        <DropdownMenuItem asChild>
+          <Link href="/requests/new" className="cursor-pointer">
+            <Truck className="mr-2 h-4 w-4" />
+            Pickup Request
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>CyrusOne Forms</DropdownMenuLabel>
+        <DropdownMenuItem asChild>
+          <Link href="/requests/cyrusone/materials" className="cursor-pointer">
+            <Recycle className="mr-2 h-4 w-4" />
+            Materials Pickup
+            <span className="ml-auto text-xs text-muted-foreground">
+              Wood/Metal/E-Waste
+            </span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/requests/cyrusone/logistics" className="cursor-pointer">
+            <Box className="mr-2 h-4 w-4" />
+            Logistics Request
+          </Link>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export default function RequestsPage() {
   const statusCounts = {
     all: requests.length,
@@ -123,12 +185,7 @@ export default function RequestsPage() {
         title="My Requests"
         description="View and manage your pickup requests"
       >
-        <Button asChild>
-          <Link href="/requests/new">
-            <Truck className="mr-2 h-4 w-4" />
-            New Request
-          </Link>
-        </Button>
+        <NewRequestButton />
       </PageHeader>
 
       <Tabs defaultValue="all">

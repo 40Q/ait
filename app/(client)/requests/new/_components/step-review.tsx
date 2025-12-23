@@ -4,8 +4,26 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Calendar, Package, Settings, Truck, Building2 } from "lucide-react";
-import { equipmentTypeOptions, type PickupRequestFormData } from "./types";
+import {
+  MapPin,
+  Calendar,
+  Package,
+  Settings,
+  Truck,
+  Building2,
+  User,
+  AlertTriangle,
+  CheckCircle2,
+} from "lucide-react";
+import {
+  equipmentTypeOptions,
+  dataDestructionOptions,
+  packingServiceOptions,
+  dockTypeOptions,
+  truckSizeOptions,
+  prePickupCallOptions,
+  type PickupRequestFormData,
+} from "./types";
 
 interface StepReviewProps {
   data: PickupRequestFormData;
@@ -24,13 +42,37 @@ export function StepReview({
     data.equipmentTypes.includes(eq.id)
   );
 
+  const selectedDataDestruction = dataDestructionOptions.find(
+    (opt) => opt.value === data.dataDestructionService
+  );
+
+  const selectedPacking = packingServiceOptions.find(
+    (opt) => opt.value === data.packingService
+  );
+
+  const selectedDock = dockTypeOptions.find(
+    (opt) => opt.value === data.dockType
+  );
+
+  const selectedTruck = truckSizeOptions.find(
+    (opt) => opt.value === data.maxTruckSize
+  );
+
+  const selectedPrePickupCall = prePickupCallOptions.find(
+    (opt) => opt.value === data.prePickupCall
+  );
+
   const activeServices = [
-    data.hdDestruction && `HD Destruction (${data.hdDestructionType || "TBD"})`,
-    data.dataTapesDestruction && "Data Tapes Destruction",
-    data.serialization && "Serialization",
-    data.certificateOfDestruction && "Certificate of Destruction",
-    data.certificateOfRecycling && "Certificate of Recycling",
-    data.whiteGloveService && "White Glove Service",
+    data.dataDestructionService !== "none" && selectedDataDestruction?.label,
+    data.packingService !== "none" && selectedPacking?.label,
+    data.whiteGloveService && "White Glove Services",
+  ].filter(Boolean);
+
+  const importantFlags = [
+    data.hasHeavyEquipment && "Heavy equipment requiring special handling",
+    data.hasHazmatOrBatteries && "Contains batteries or hazmat materials",
+    data.coiRequired && "COI required",
+    data.protectiveFloorCovering && "Protective floor covering required",
   ].filter(Boolean);
 
   return (
@@ -45,43 +87,100 @@ export function StepReview({
       <div className="grid gap-4">
         {/* Location Summary */}
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <MapPin className="h-4 w-4" />
               {data.serviceType === "pickup" ? "Pickup Location" : "Your Location"}
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-sm">
-            <p>{data.address}</p>
-            {data.buildingInfo && <p>{data.buildingInfo}</p>}
-            <p>
-              {data.city}, {data.state} {data.zipCode}
-            </p>
+          <CardContent className="text-sm space-y-3">
+            {data.clientName && (
+              <p className="font-medium">{data.clientName}</p>
+            )}
+            {data.locationName && (
+              <p className="text-muted-foreground">{data.locationName}</p>
+            )}
+            <div>
+              <p>{data.address}</p>
+              {data.buildingInfo && <p>{data.buildingInfo}</p>}
+              <p>
+                {data.city}, {data.state} {data.zipCode}
+              </p>
+            </div>
+            {data.equipmentLocation && (
+              <p className="text-muted-foreground">
+                <span className="font-medium">Equipment location:</span> {data.equipmentLocation}
+              </p>
+            )}
             {data.poNumber && (
-              <p className="mt-2">
+              <p>
                 <span className="text-muted-foreground">PO #:</span> {data.poNumber}
               </p>
             )}
-            <p className="mt-2 text-muted-foreground">
-              Contact: {data.contactName}
-            </p>
-            {data.contactPhone && (
-              <p className="text-muted-foreground">Phone: {data.contactPhone}</p>
-            )}
-            {data.contactEmail && (
-              <p className="text-muted-foreground">Email: {data.contactEmail}</p>
-            )}
+
+            {/* Facility Info */}
+            <div className="flex flex-wrap gap-2 pt-2">
+              {selectedDock && data.dockType !== "none" && (
+                <Badge variant="outline">
+                  {selectedDock.label}
+                  {data.dockHoursStart && data.dockHoursEnd && (
+                    <span className="ml-1">({data.dockHoursStart} - {data.dockHoursEnd})</span>
+                  )}
+                </Badge>
+              )}
+              {data.hasFreightElevator && (
+                <Badge variant="outline">Freight Elevator</Badge>
+              )}
+              {data.hasPassengerElevator && (
+                <Badge variant="outline">Passenger Elevator</Badge>
+              )}
+              {selectedTruck && (
+                <Badge variant="outline">Max: {selectedTruck.label}</Badge>
+              )}
+            </div>
+
             {data.accessInstructions && (
-              <p className="mt-2 text-muted-foreground">
-                Access: {data.accessInstructions}
+              <p className="text-muted-foreground pt-2">
+                <span className="font-medium">Access:</span> {data.accessInstructions}
               </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Contacts Summary */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <User className="h-4 w-4" />
+              Contact Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm space-y-4">
+            <div>
+              <p className="text-muted-foreground text-xs uppercase tracking-wide mb-1">
+                On-Site Contact
+              </p>
+              <p className="font-medium">{data.onSiteContactName || "Not provided"}</p>
+              {data.onSiteContactPhone && <p>{data.onSiteContactPhone}</p>}
+              {data.onSiteContactEmail && <p>{data.onSiteContactEmail}</p>}
+              {selectedPrePickupCall && data.prePickupCall !== "none" && (
+                <p className="text-muted-foreground mt-1">{selectedPrePickupCall.label}</p>
+              )}
+            </div>
+            {data.accountsPayableEmail && (
+              <div>
+                <p className="text-muted-foreground text-xs uppercase tracking-wide mb-1">
+                  Accounts Payable
+                </p>
+                <p>{data.accountsPayableEmail}</p>
+              </div>
             )}
           </CardContent>
         </Card>
 
         {/* Schedule Summary */}
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               {data.serviceType === "pickup" ? (
                 <Truck className="h-4 w-4" />
@@ -105,15 +204,23 @@ export function StepReview({
                   {data.preferredDate
                     ? format(data.preferredDate, "PPP")
                     : "Not selected"}
+                  {data.preferredDateRangeEnd && (
+                    <span> - {format(data.preferredDateRangeEnd, "PPP")}</span>
+                  )}
                 </p>
               </div>
             </div>
+            {data.unavailableDates && (
+              <p className="mt-2 text-muted-foreground">
+                <span className="font-medium">Not available:</span> {data.unavailableDates}
+              </p>
+            )}
           </CardContent>
         </Card>
 
         {/* Equipment Summary */}
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Package className="h-4 w-4" />
               Equipment
@@ -139,12 +246,45 @@ export function StepReview({
             ) : (
               <p className="text-muted-foreground">No equipment selected</p>
             )}
+
+            {data.equipmentUnpluggedConfirmed && (
+              <div className="flex items-center gap-2 mt-3 text-green-600">
+                <CheckCircle2 className="h-4 w-4" />
+                <span className="text-sm">Equipment will be unplugged and powered down</span>
+              </div>
+            )}
           </CardContent>
         </Card>
 
+        {/* Important Flags */}
+        {importantFlags.length > 0 && (
+          <Card className="border-yellow-200 bg-yellow-50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base text-yellow-800">
+                <AlertTriangle className="h-4 w-4" />
+                Important Notes
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm">
+              <ul className="space-y-1">
+                {importantFlags.map((flag, index) => (
+                  <li key={index} className="text-yellow-800">
+                    {flag}
+                  </li>
+                ))}
+              </ul>
+              {data.coiRequired && data.coiSampleFile && (
+                <p className="mt-2 text-yellow-700">
+                  Sample COI uploaded: {data.coiSampleFile}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Services Summary */}
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Settings className="h-4 w-4" />
               Services
@@ -152,15 +292,15 @@ export function StepReview({
           </CardHeader>
           <CardContent className="text-sm">
             {activeServices.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
+              <div className="space-y-2">
                 {activeServices.map((service, index) => (
-                  <Badge key={index} variant="outline">
+                  <Badge key={index} variant="outline" className="mr-2">
                     {service}
                   </Badge>
                 ))}
               </div>
             ) : (
-              <p className="text-muted-foreground">No additional services</p>
+              <p className="text-muted-foreground">No additional services selected</p>
             )}
           </CardContent>
         </Card>

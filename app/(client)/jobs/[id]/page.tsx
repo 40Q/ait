@@ -14,7 +14,6 @@ type ClientJobStatus = "pickup_scheduled" | "pickup_complete" | "processing" | "
 // Mock data
 const jobData: {
   id: string;
-  name: string;
   status: ClientJobStatus;
   pickupDate: string;
   pickupTime: string;
@@ -34,7 +33,6 @@ const jobData: {
   };
 } = {
   id: "W2512003",
-  name: "Q4 Office Equipment Recycling",
   status: "processing",
   pickupDate: "December 10, 2024",
   pickupTime: "10:00 AM",
@@ -128,10 +126,9 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
         </Button>
         <div className="flex-1">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-bold">{id}</h1>
+            <h1 className="text-2xl font-bold">Job #{id}</h1>
             <StatusBadge status={jobData.status} />
           </div>
-          <p className="mt-1 text-lg">{jobData.name}</p>
           <div className="mt-2 flex flex-wrap gap-4 text-sm text-muted-foreground">
             <span className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />

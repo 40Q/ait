@@ -1,6 +1,8 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AlertTriangle, Weight } from "lucide-react";
 import { equipmentTypeOptions, type PickupRequestFormData } from "./types";
 
 interface StepEquipmentProps {
@@ -97,6 +99,71 @@ export function StepEquipment({ data, onChange }: StepEquipmentProps) {
           />
         </div>
       </div>
+
+      {/* General Questions */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <AlertTriangle className="h-4 w-4" />
+            Important Questions
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id="hasHeavyEquipment"
+              checked={data.hasHeavyEquipment}
+              onCheckedChange={(checked) =>
+                onChange({ hasHeavyEquipment: checked === true })
+              }
+            />
+            <div>
+              <Label htmlFor="hasHeavyEquipment" className="cursor-pointer">
+                There is equipment too large or heavy for one person to handle
+              </Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                This helps us plan appropriate staffing and equipment for the pickup.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id="hasHazmatOrBatteries"
+              checked={data.hasHazmatOrBatteries}
+              onCheckedChange={(checked) =>
+                onChange({ hasHazmatOrBatteries: checked === true })
+              }
+            />
+            <div>
+              <Label htmlFor="hasHazmatOrBatteries" className="cursor-pointer">
+                There are batteries or hazardous materials (hazmat) included
+              </Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                Special handling may be required for batteries, chemicals, or other hazardous materials.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id="equipmentUnpluggedConfirmed"
+              checked={data.equipmentUnpluggedConfirmed}
+              onCheckedChange={(checked) =>
+                onChange({ equipmentUnpluggedConfirmed: checked === true })
+              }
+            />
+            <div>
+              <Label htmlFor="equipmentUnpluggedConfirmed" className="cursor-pointer">
+                All equipment will be unplugged and powered down before pickup
+              </Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                Please confirm that all equipment will be disconnected and ready for removal.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
