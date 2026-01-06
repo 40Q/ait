@@ -1,8 +1,10 @@
+import { useRef } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, Weight } from "lucide-react";
+import { AlertTriangle, Upload, X, FileText, Image } from "lucide-react";
 import { equipmentTypeOptions, type PickupRequestFormData } from "./types";
 
 interface StepEquipmentProps {
@@ -11,6 +13,32 @@ interface StepEquipmentProps {
 }
 
 export function StepEquipment({ data, onChange }: StepEquipmentProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      const newFiles = Array.from(files);
+      onChange({ equipmentFiles: [...data.equipmentFiles, ...newFiles] });
+    }
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleRemoveFile = (index: number) => {
+    const newFiles = data.equipmentFiles.filter((_, i) => i !== index);
+    onChange({ equipmentFiles: newFiles });
+  };
+
+  const getFileIcon = (file: File) => {
+    if (file.type.startsWith("image/")) {
+      return <Image className="h-4 w-4" />;
+    }
+    return <FileText className="h-4 w-4" />;
+  };
+
   const handleEquipmentToggle = (equipmentId: string, checked: boolean) => {
     const newTypes = checked
       ? [...data.equipmentTypes, equipmentId]
@@ -97,6 +125,63 @@ export function StepEquipment({ data, onChange }: StepEquipmentProps) {
             onChange={(e) => onChange({ estimatedWeight: e.target.value })}
             placeholder="e.g., 500 lbs or 10 pallets"
           />
+        </div>
+
+        {/* File Upload Section */}
+        <div className="space-y-3">
+          <Label>Upload Photo or Inventory List (Optional)</Label>
+          <p className="text-sm text-muted-foreground">
+            Upload photos of equipment or an inventory spreadsheet to help us
+            provide an accurate quote.
+          </p>
+          <div className="flex flex-col gap-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,.pdf,.xlsx,.xls,.csv"
+              multiple
+              onChange={handleFileChange}
+              className="hidden"
+              id="equipment-files"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full sm:w-auto"
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Choose Files
+            </Button>
+
+            {data.equipmentFiles.length > 0 && (
+              <div className="space-y-2">
+                {data.equipmentFiles.map((file, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between rounded-lg border p-3"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {getFileIcon(file)}
+                      <span className="text-sm truncate">{file.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        ({(file.size / 1024).toFixed(1)} KB)
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveFile(index)}
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

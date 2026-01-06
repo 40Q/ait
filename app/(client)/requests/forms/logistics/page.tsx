@@ -19,7 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Loader2, Check, CalendarIcon, Truck } from "lucide-react";
+import { Loader2, Check, CalendarIcon, Truck, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +35,9 @@ interface LogisticsFormData {
   pickupAddress: string;
   destinationAddress: string;
 
+  // COI
+  coiRequired: boolean | null;
+
   // Material Preparation
   isMaterialPrepared: boolean | null;
   materialFitsOnPallets: string;
@@ -48,6 +51,9 @@ interface LogisticsFormData {
   needsShrinkWrap: boolean;
   needsPalletStrap: boolean;
 
+  // White Glove Services
+  whiteGloveService: boolean;
+
   // Additional
   additionalComments: string;
 }
@@ -60,6 +66,7 @@ const initialFormData: LogisticsFormData = {
   pickupDateRequested: null,
   pickupAddress: "",
   destinationAddress: "",
+  coiRequired: null,
   isMaterialPrepared: null,
   materialFitsOnPallets: "",
   numberOfPallets: "",
@@ -69,6 +76,7 @@ const initialFormData: LogisticsFormData = {
   needsPalletizing: false,
   needsShrinkWrap: false,
   needsPalletStrap: false,
+  whiteGloveService: false,
   additionalComments: "",
 };
 
@@ -251,6 +259,36 @@ export default function LogisticsPage() {
               rows={2}
             />
           </div>
+
+          <div className="space-y-2">
+            <Label>COI Required?</Label>
+            <RadioGroup
+              value={
+                formData.coiRequired === null
+                  ? ""
+                  : formData.coiRequired
+                  ? "yes"
+                  : "no"
+              }
+              onValueChange={(value) =>
+                handleChange({ coiRequired: value === "yes" })
+              }
+              className="flex gap-4"
+            >
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="yes" id="coi-yes" />
+                <Label htmlFor="coi-yes" className="cursor-pointer">
+                  Yes
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="no" id="coi-no" />
+                <Label htmlFor="coi-no" className="cursor-pointer">
+                  No
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
         </CardContent>
       </Card>
 
@@ -404,6 +442,34 @@ export default function LogisticsPage() {
             </div>
           )}
         </CardContent>
+      </Card>
+
+      {/* White Glove Services */}
+      <Card className={formData.whiteGloveService ? "border-primary" : ""}>
+        <CardHeader>
+          <div className="flex items-start gap-4">
+            <Checkbox
+              id="whiteGloveService"
+              checked={formData.whiteGloveService}
+              onCheckedChange={(checked) =>
+                handleChange({ whiteGloveService: checked === true })
+              }
+            />
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">
+                  <Label htmlFor="whiteGloveService" className="cursor-pointer">
+                    White Glove Services Needed?
+                  </Label>
+                </CardTitle>
+              </div>
+              <CardDescription className="mt-1">
+                Full pack, palletize and wrapping services available.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
       </Card>
 
       <Card>

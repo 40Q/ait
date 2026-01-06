@@ -81,6 +81,7 @@ export interface PickupRequestFormData {
   quantities: Record<string, number>;
   equipmentDetails: Record<string, string>; // Additional details per equipment type
   estimatedWeight: string;
+  equipmentFiles: File[]; // Photo or inventory list uploads
 
   // General Questions
   hasHeavyEquipment: boolean; // Equipment too large/heavy for one person
@@ -166,6 +167,7 @@ export const initialFormData: PickupRequestFormData = {
   quantities: {},
   equipmentDetails: {},
   estimatedWeight: "",
+  equipmentFiles: [],
 
   // General Questions
   hasHeavyEquipment: false,
