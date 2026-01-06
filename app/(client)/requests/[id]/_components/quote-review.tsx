@@ -14,7 +14,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Calendar, Clock, Check, X, MessageSquare, Loader2 } from "lucide-react";
+import { Calendar, Clock, Check, X, MessageSquare, Loader2, PenLine } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface QuoteLineItem {
   description: string;
@@ -47,6 +50,8 @@ export function QuoteReview({ quote }: QuoteReviewProps) {
   const [revisionMessage, setRevisionMessage] = useState("");
   const [declineReason, setDeclineReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [signature, setSignature] = useState("");
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const handleAccept = async () => {
     setIsSubmitting(true);
@@ -188,27 +193,74 @@ export function QuoteReview({ quote }: QuoteReviewProps) {
       </Card>
 
       {/* Accept Dialog */}
-      <Dialog open={showAcceptDialog} onOpenChange={setShowAcceptDialog}>
-        <DialogContent>
+      <Dialog open={showAcceptDialog} onOpenChange={(open) => {
+        setShowAcceptDialog(open);
+        if (!open) {
+          setSignature("");
+          setAgreedToTerms(false);
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Accept Quote</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <PenLine className="h-5 w-5" />
+              Sign and Agree to Quote
+            </DialogTitle>
             <DialogDescription>
-              By accepting this quote, a job will be created and scheduled for
-              pickup on {quote.pickupDate}. You will receive a confirmation
-              email shortly.
+              Please review and sign below to accept this quote. A job will be
+              scheduled for pickup on {quote.pickupDate}.
             </DialogDescription>
           </DialogHeader>
-          <div className="rounded-lg bg-muted/50 p-4">
-            <p className="text-sm text-muted-foreground">Quote Total</p>
-            <p className="text-2xl font-bold">${quote.total.toFixed(2)}</p>
+
+          <div className="space-y-4">
+            <div className="rounded-lg bg-muted/50 p-4">
+              <p className="text-sm text-muted-foreground">Quote Total</p>
+              <p className="text-2xl font-bold">${quote.total.toFixed(2)}</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="signature">
+                Type your full name to sign <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="signature"
+                value={signature}
+                onChange={(e) => setSignature(e.target.value)}
+                placeholder="Your full name"
+                className="font-medium"
+              />
+              {signature && (
+                <p className="text-sm text-muted-foreground italic">
+                  Signed: <span className="font-medium">{signature}</span>
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-start gap-3">
+              <Checkbox
+                id="agreeTerms"
+                checked={agreedToTerms}
+                onCheckedChange={(checked) => setAgreedToTerms(checked === true)}
+              />
+              <div>
+                <Label htmlFor="agreeTerms" className="cursor-pointer text-sm">
+                  I agree to the terms and conditions outlined in this quote and
+                  authorize the scheduled pickup service.
+                </Label>
+              </div>
+            </div>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAcceptDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAccept} disabled={isSubmitting}>
+            <Button
+              onClick={handleAccept}
+              disabled={isSubmitting || !signature.trim() || !agreedToTerms}
+            >
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Confirm & Accept
+              Sign & Accept Quote
             </Button>
           </DialogFooter>
         </DialogContent>
