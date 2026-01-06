@@ -473,7 +473,7 @@ export default function LogisticsPage() {
       </Card>
 
       <Card>
-        <CardContent className="pt-6">
+        <CardContent>
           <div className="space-y-2">
             <Label htmlFor="additionalComments">
               Any additional comments that might help us assess your logistics

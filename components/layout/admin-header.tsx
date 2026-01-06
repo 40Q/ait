@@ -39,22 +39,6 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" className="hidden sm:flex">
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Sync QuickBooks
-        </Button>
-
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          <Badge
-            className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-xs"
-            variant="default"
-          >
-            5
-          </Badge>
-          <span className="sr-only">Notifications</span>
-        </Button>
-
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-9 w-9 rounded-full">
@@ -74,9 +58,6 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                 </p>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Account Settings</DropdownMenuItem>
-            <DropdownMenuItem>QuickBooks Settings</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive">
               Sign Out
