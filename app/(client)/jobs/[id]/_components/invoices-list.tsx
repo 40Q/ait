@@ -35,30 +35,30 @@ export function InvoicesList({ invoices }: InvoicesListProps) {
       {invoices.map((invoice) => (
         <div
           key={invoice.id}
-          className="flex items-center justify-between rounded-lg border p-4"
+          className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="font-mono font-medium">{invoice.number}</span>
               <StatusBadge status={invoice.status} />
             </div>
-            <div className="flex gap-4 text-sm text-muted-foreground">
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
               <span>Date: {invoice.date}</span>
               <span>Due: {invoice.dueDate}</span>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between gap-4 sm:justify-end">
             <span className="text-lg font-bold">
               ${invoice.amount.toLocaleString()}
             </span>
             <div className="flex gap-2">
               <Button variant="outline" size="sm">
-                <ExternalLink className="mr-2 h-4 w-4" />
-                View
+                <ExternalLink className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">View</span>
               </Button>
               <Button variant="outline" size="sm">
-                <Download className="mr-2 h-4 w-4" />
-                PDF
+                <Download className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">PDF</span>
               </Button>
             </div>
           </div>

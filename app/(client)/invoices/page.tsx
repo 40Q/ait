@@ -2,7 +2,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -16,10 +16,10 @@ import {
   Search,
   Download,
   ExternalLink,
-  RefreshCw,
   DollarSign,
   CheckCircle,
   Clock,
+  Calendar,
 } from "lucide-react";
 
 interface Invoice {
@@ -83,42 +83,54 @@ const totalPaid = invoices
   .reduce((sum, inv) => sum + inv.amount, 0);
 const totalOutstanding = totalInvoiced - totalPaid;
 
-function InvoiceRow({ invoice }: { invoice: Invoice }) {
+function InvoiceCard({ invoice }: { invoice: Invoice }) {
   return (
-    <tr className="border-b transition-colors hover:bg-muted/50">
-      <td className="p-4">
-        <span className="font-mono font-medium">{invoice.number}</span>
-      </td>
-      <td className="p-4">
-        <Link
-          href={`/jobs/${invoice.jobId}`}
-          className="hover:text-primary hover:underline"
-        >
-          {invoice.jobId}
-        </Link>
-        <p className="text-sm text-muted-foreground">{invoice.jobName}</p>
-      </td>
-      <td className="p-4 text-muted-foreground">{invoice.date}</td>
-      <td className="p-4 text-muted-foreground">{invoice.dueDate}</td>
-      <td className="p-4 text-right font-medium">
-        ${invoice.amount.toLocaleString()}
-      </td>
-      <td className="p-4">
-        <StatusBadge status={invoice.status} />
-      </td>
-      <td className="p-4">
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" size="icon">
-            <ExternalLink className="h-4 w-4" />
-            <span className="sr-only">View</span>
-          </Button>
-          <Button variant="ghost" size="icon">
-            <Download className="h-4 w-4" />
-            <span className="sr-only">Download</span>
-          </Button>
+    <Card className="transition-colors hover:bg-muted/50">
+      <CardContent>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-mono font-medium">{invoice.number}</span>
+              <StatusBadge status={invoice.status} />
+            </div>
+            <div>
+              <Link
+                href={`/jobs/${invoice.jobId}`}
+                className="text-sm hover:text-primary hover:underline"
+              >
+                {invoice.jobId}
+              </Link>
+              <span className="text-sm text-muted-foreground"> - {invoice.jobName}</span>
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Calendar className="h-3.5 w-3.5" />
+                {invoice.date}
+              </span>
+              <span className={invoice.status === "overdue" ? "text-destructive" : ""}>
+                Due: {invoice.dueDate}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 sm:justify-end">
+            <span className="text-lg font-bold">
+              ${invoice.amount.toLocaleString()}
+            </span>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm">
+                <ExternalLink className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">View</span>
+              </Button>
+              <Button variant="outline" size="sm">
+                <Download className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">PDF</span>
+              </Button>
+            </div>
+          </div>
         </div>
-      </td>
-    </tr>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -183,31 +195,25 @@ export default function InvoicesPage() {
         </Select>
       </div>
 
-      {/* Invoices Table */}
-      <Card className="p-0">
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="p-4 text-left font-medium">Invoice #</th>
-                  <th className="p-4 text-left font-medium">Job</th>
-                  <th className="p-4 text-left font-medium">Date</th>
-                  <th className="p-4 text-left font-medium">Due Date</th>
-                  <th className="p-4 text-right font-medium">Amount</th>
-                  <th className="p-4 text-left font-medium">Status</th>
-                  <th className="p-4 text-right font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoices.map((invoice) => (
-                  <InvoiceRow key={invoice.id} invoice={invoice} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Invoices List */}
+      <div className="space-y-3">
+        {invoices.map((invoice) => (
+          <InvoiceCard key={invoice.id} invoice={invoice} />
+        ))}
+      </div>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <span>Showing 1-{invoices.length} of {invoices.length} invoices</span>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" disabled>
+            Previous
+          </Button>
+          <Button variant="outline" size="sm" disabled>
+            Next
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

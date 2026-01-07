@@ -110,8 +110,8 @@ export function QuoteReview({ quote }: QuoteReviewProps) {
           {/* Line Items */}
           <div>
             <h4 className="mb-3 font-medium">Pricing Breakdown</h4>
-            <div className="rounded-lg border">
-              <table className="w-full text-sm">
+            <div className="rounded-lg border overflow-x-auto">
+              <table className="w-full text-sm min-w-[400px]">
                 <thead>
                   <tr className="border-b bg-muted/50">
                     <th className="px-4 py-2 text-left font-medium">

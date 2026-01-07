@@ -243,7 +243,7 @@ export default function AdminJobsPage() {
         {["all", "pickup_scheduled", "pickup_complete", "processing", "complete"].map(
           (status) => (
             <TabsContent key={status} value={status} className="mt-4">
-              <div className="rounded-md border">
+              <div className="rounded-md border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
