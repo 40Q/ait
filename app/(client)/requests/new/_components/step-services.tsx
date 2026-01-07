@@ -1,5 +1,6 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -9,7 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { HardDrive, Sparkles, Truck, Building2, Package } from "lucide-react";
+import { HardDrive, Sparkles, Truck, Building2, Package, PackageCheck } from "lucide-react";
 import type { PickupRequestFormData, DataDestructionService, PackingService } from "./types";
 import { dataDestructionOptions, packingServiceOptions } from "./types";
 
@@ -71,6 +72,119 @@ export function StepServices({ data, onChange }: StepServicesProps) {
         </div>
       </RadioGroup>
 
+      {/* Material Prepared for Pickup */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <PackageCheck className="h-4 w-4" />
+            Material Prepared for Pickup?
+          </CardTitle>
+          <CardDescription>
+            Is the material palletized, wrapped, and secured for transport?
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <RadioGroup
+            value={data.materialPrepared === null ? "" : data.materialPrepared ? "yes" : "no"}
+            onValueChange={(value) =>
+              onChange({
+                materialPrepared: value === "yes",
+                // Clear details if switching to Yes
+                materialNotPreparedDetails: value === "yes" ? "" : data.materialNotPreparedDetails
+              })
+            }
+            className="flex gap-4"
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="yes" id="material-yes" />
+              <Label htmlFor="material-yes">Yes</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="no" id="material-no" />
+              <Label htmlFor="material-no">No</Label>
+            </div>
+          </RadioGroup>
+
+          {data.materialPrepared === false && (
+            <div className="space-y-2">
+              <Label htmlFor="materialNotPreparedDetails">
+                Please describe the current state of the material
+              </Label>
+              <Textarea
+                id="materialNotPreparedDetails"
+                placeholder="e.g., Equipment is loose on shelves, items need to be boxed, etc."
+                value={data.materialNotPreparedDetails}
+                onChange={(e) =>
+                  onChange({ materialNotPreparedDetails: e.target.value })
+                }
+                rows={3}
+              />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Packing/Palletizing Services Required */}
+      <Card className={data.packingServicesRequired ? "border-primary" : ""}>
+        <CardHeader>
+          <div className="flex items-start gap-4">
+            <Checkbox
+              id="packingServicesRequired"
+              checked={data.packingServicesRequired}
+              onCheckedChange={(checked) =>
+                onChange({ packingServicesRequired: checked === true })
+              }
+            />
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <Package className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">
+                  <Label htmlFor="packingServicesRequired" className="cursor-pointer">
+                    Packing/Palletizing Services Required
+                  </Label>
+                </CardTitle>
+              </div>
+              <CardDescription className="mt-1">
+                Check this if you need our team to pack, palletize, or wrap your equipment for transport.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        {data.packingServicesRequired && (
+          <CardContent>
+            <div className="space-y-2">
+              <Label>Select Packing Service Level</Label>
+              <Select
+                value={data.packingService}
+                onValueChange={(value: PackingService) =>
+                  onChange({ packingService: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select packing service" />
+                </SelectTrigger>
+                <SelectContent>
+                  {packingServiceOptions
+                    .filter((opt) => opt.value !== "none")
+                    .map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              {data.packingService !== "none" && (
+                <p className="text-sm text-muted-foreground">
+                  {packingServiceOptions.find(
+                    (opt) => opt.value === data.packingService
+                  )?.description}
+                </p>
+              )}
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
       {/* Data Destruction Services */}
       <Card>
         <CardHeader>
@@ -106,47 +220,6 @@ export function StepServices({ data, onChange }: StepServicesProps) {
             <p className="mt-2 text-sm text-muted-foreground">
               {dataDestructionOptions.find(
                 (opt) => opt.value === data.dataDestructionService
-              )?.description}
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Packing Services */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Package className="h-4 w-4" />
-            Packing / Palletizing Services
-          </CardTitle>
-          <CardDescription>
-            How is the equipment currently prepared?
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Select
-            value={data.packingService}
-            onValueChange={(value: PackingService) =>
-              onChange({ packingService: value })
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select packing service" />
-            </SelectTrigger>
-            <SelectContent>
-              {packingServiceOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  <div className="flex flex-col">
-                    <span>{option.label}</span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {data.packingService !== "none" && (
-            <p className="mt-2 text-sm text-muted-foreground">
-              {packingServiceOptions.find(
-                (opt) => opt.value === data.packingService
               )?.description}
             </p>
           )}

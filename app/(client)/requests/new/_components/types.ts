@@ -93,6 +93,11 @@ export interface PickupRequestFormData {
   packingService: PackingService;
   whiteGloveService: boolean;
 
+  // Material Preparation
+  materialPrepared: boolean | null; // Is material prepared for pickup? (palletized, wrapped, secured)
+  materialNotPreparedDetails: string; // Explanation if not prepared
+  packingServicesRequired: boolean; // Do they need packing/palletizing services?
+
   // Legacy fields (keeping for backward compatibility, to be removed later)
   contactName: string;
   contactEmail: string;
@@ -178,6 +183,11 @@ export const initialFormData: PickupRequestFormData = {
   dataDestructionService: "none",
   packingService: "none",
   whiteGloveService: false,
+
+  // Material Preparation
+  materialPrepared: null,
+  materialNotPreparedDetails: "",
+  packingServicesRequired: false,
 
   // Legacy fields
   contactName: "",
