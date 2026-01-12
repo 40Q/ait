@@ -4,9 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/logo";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { LogOut } from "lucide-react";
+import { SignOutButton } from "@/components/auth/sign-out-button";
 import { adminNavItems, type AdminNavItem } from "./admin-nav-items";
 
 interface AdminSidebarProps {
@@ -84,13 +83,10 @@ export function AdminSidebar({
       </nav>
 
       <div className="border-t border-white/10 p-3">
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-3 text-white/70 hover:bg-white/5 hover:text-white"
-        >
-          <LogOut className="h-4 w-4" />
-          Sign Out
-        </Button>
+        <SignOutButton
+          className="text-white/70 hover:bg-white/5 hover:text-white"
+          redirectTo="/login"
+        />
       </div>
     </aside>
   );

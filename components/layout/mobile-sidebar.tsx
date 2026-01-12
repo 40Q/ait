@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/logo";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
@@ -12,7 +11,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { LogOut } from "lucide-react";
+import { SignOutButton } from "@/components/auth/sign-out-button";
 import { clientNavItems, type NavItem } from "./nav-items";
 
 interface MobileSidebarProps {
@@ -82,13 +81,7 @@ export function MobileSidebar({ open, onOpenChange }: MobileSidebarProps) {
         </nav>
 
         <div className="absolute bottom-0 left-0 right-0 border-t p-4">
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground"
-          >
-            <LogOut className="h-5 w-5" />
-            Sign Out
-          </Button>
+          <SignOutButton className="text-muted-foreground hover:text-foreground" />
         </div>
       </SheetContent>
     </Sheet>
