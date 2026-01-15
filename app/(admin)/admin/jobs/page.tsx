@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -22,160 +22,67 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { StatusBadge, type JobStatus } from "@/components/ui/status-badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import {
   Search,
-  MoreHorizontal,
   Eye,
-  Upload,
   FileText,
-  AlertCircle,
+  Loader2,
 } from "lucide-react";
-
-interface JobListItem {
-  id: string;
-  companyId: string;
-  companyName: string;
-  status: JobStatus;
-  pickupDate: string;
-  createdAt: string;
-  equipmentSummary: string;
-  documentsCount: number;
-  needsDocuments: boolean;
-  invoiceNumber?: string;
-  invoiceAmount?: number;
-  invoiceStatus?: "paid" | "unpaid";
-}
-
-// Mock data
-const jobs: JobListItem[] = [
-  {
-    id: "W2512008",
-    companyId: "2",
-    companyName: "TechStart Inc",
-    status: "pickup_scheduled",
-    pickupDate: "Dec 18, 2024",
-    createdAt: "Dec 14, 2024",
-    equipmentSummary: "5 Servers, 100 Hard Drives",
-    documentsCount: 0,
-    needsDocuments: false,
-  },
-  {
-    id: "W2512007",
-    companyId: "1",
-    companyName: "Acme Corporation",
-    status: "pickup_complete",
-    pickupDate: "Dec 15, 2024",
-    createdAt: "Dec 10, 2024",
-    equipmentSummary: "25 Laptops, 10 Desktops",
-    documentsCount: 1,
-    needsDocuments: true,
-  },
-  {
-    id: "W2512006",
-    companyId: "3",
-    companyName: "Global Systems",
-    status: "processing",
-    pickupDate: "Dec 12, 2024",
-    createdAt: "Dec 8, 2024",
-    equipmentSummary: "15 Monitors, 8 Printers, 30 Hard Drives",
-    documentsCount: 2,
-    needsDocuments: true,
-  },
-  {
-    id: "W2512005",
-    companyId: "4",
-    companyName: "DataFlow LLC",
-    status: "complete",
-    pickupDate: "Dec 10, 2024",
-    createdAt: "Dec 5, 2024",
-    equipmentSummary: "50 Laptops, 20 Desktops, 100 Hard Drives",
-    documentsCount: 5,
-    needsDocuments: false,
-    invoiceNumber: "INV-2024-1250",
-    invoiceAmount: 3200,
-    invoiceStatus: "unpaid",
-  },
-  {
-    id: "W2512004",
-    companyId: "1",
-    companyName: "Acme Corporation",
-    status: "complete",
-    pickupDate: "Dec 5, 2024",
-    createdAt: "Dec 1, 2024",
-    equipmentSummary: "10 Servers, 200 Hard Drives",
-    documentsCount: 4,
-    needsDocuments: false,
-    invoiceNumber: "INV-2024-1245",
-    invoiceAmount: 4500,
-    invoiceStatus: "paid",
-  },
-];
+import { useJobList, useJobStatusCounts, useRealtimeJobs } from "@/lib/hooks";
+import { formatDateShort } from "@/lib/utils/date";
+import type { JobStatus } from "@/lib/database/types";
 
 export default function AdminJobsPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [companyFilter, setCompanyFilter] = useState("all");
   const [invoiceFilter, setInvoiceFilter] = useState("all");
+  const [activeTab, setActiveTab] = useState("all");
 
-  const statusCounts = {
-    all: jobs.length,
-    pickup_scheduled: jobs.filter((j) => j.status === "pickup_scheduled").length,
-    pickup_complete: jobs.filter((j) => j.status === "pickup_complete").length,
-    processing: jobs.filter((j) => j.status === "processing").length,
-    complete: jobs.filter((j) => j.status === "complete" || j.status === "completed").length,
-  };
+  // Enable real-time updates
+  useRealtimeJobs();
 
-  const filterJobs = (status: string) => {
-    let filtered = jobs;
+  // Fetch jobs with filters
+  const filters = useMemo(() => ({
+    status: activeTab !== "all" ? (activeTab as JobStatus) : undefined,
+  }), [activeTab]);
 
-    if (status !== "all") {
-      if (status === "complete") {
-        filtered = filtered.filter(
-          (j) => j.status === "complete" || j.status === "completed"
-        );
-      } else {
-        filtered = filtered.filter((j) => j.status === status);
-      }
-    }
+  const { data: jobs = [], isLoading, error } = useJobList(filters);
+  const { data: statusCounts } = useJobStatusCounts();
 
+  // Client-side filtering for search (by job ID or company name) and invoice status
+  const filteredJobs = useMemo(() => {
+    let result = jobs;
+
+    // Filter by search query (job number or company name)
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (j) =>
-          j.id.toLowerCase().includes(query) ||
-          j.companyName.toLowerCase().includes(query)
+      result = result.filter(j =>
+        j.job_number.toLowerCase().includes(query) ||
+        j.company_name.toLowerCase().includes(query)
       );
     }
 
-    if (companyFilter !== "all") {
-      filtered = filtered.filter((j) => j.companyId === companyFilter);
+    // Filter by invoice status
+    if (invoiceFilter === "invoiced") {
+      result = result.filter(j => j.invoice_total !== null);
+    } else if (invoiceFilter === "not_invoiced") {
+      result = result.filter(j => j.invoice_total === null);
+    } else if (invoiceFilter === "paid") {
+      result = result.filter(j => j.invoice_status === "paid");
+    } else if (invoiceFilter === "unpaid") {
+      result = result.filter(j => j.invoice_status === "unpaid" || j.invoice_status === "overdue");
     }
 
-    if (invoiceFilter !== "all") {
-      if (invoiceFilter === "invoiced") {
-        filtered = filtered.filter((j) => j.invoiceNumber);
-      } else if (invoiceFilter === "not_invoiced") {
-        filtered = filtered.filter((j) => !j.invoiceNumber);
-      } else if (invoiceFilter === "paid") {
-        filtered = filtered.filter((j) => j.invoiceStatus === "paid");
-      } else if (invoiceFilter === "unpaid") {
-        filtered = filtered.filter((j) => j.invoiceStatus === "unpaid");
-      }
-    }
+    return result;
+  }, [jobs, searchQuery, invoiceFilter]);
 
-    return filtered;
-  };
-
-  // Get unique companies for filter
-  const companies = Array.from(
-    new Map(jobs.map((j) => [j.companyId, j.companyName])).entries()
-  );
+  if (error) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <p className="text-destructive">Failed to load jobs: {error.message}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -195,19 +102,6 @@ export default function AdminJobsPage() {
             className="pl-9"
           />
         </div>
-        <Select value={companyFilter} onValueChange={setCompanyFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="All Companies" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Companies</SelectItem>
-            {companies.map(([id, name]) => (
-              <SelectItem key={id} value={id}>
-                {name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
         <Select value={invoiceFilter} onValueChange={setInvoiceFilter}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Invoice Status" />
@@ -223,20 +117,20 @@ export default function AdminJobsPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="all">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="all">All ({statusCounts.all})</TabsTrigger>
+          <TabsTrigger value="all">All ({statusCounts?.all ?? 0})</TabsTrigger>
           <TabsTrigger value="pickup_scheduled">
-            Scheduled ({statusCounts.pickup_scheduled})
+            Scheduled ({statusCounts?.pickup_scheduled ?? 0})
           </TabsTrigger>
           <TabsTrigger value="pickup_complete">
-            Picked Up ({statusCounts.pickup_complete})
+            Picked Up ({statusCounts?.pickup_complete ?? 0})
           </TabsTrigger>
           <TabsTrigger value="processing">
-            Processing ({statusCounts.processing})
+            Processing ({statusCounts?.processing ?? 0})
           </TabsTrigger>
           <TabsTrigger value="complete">
-            Complete ({statusCounts.complete})
+            Complete ({statusCounts?.complete ?? 0})
           </TabsTrigger>
         </TabsList>
 
@@ -258,108 +152,93 @@ export default function AdminJobsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filterJobs(status).map((job) => (
-                      <TableRow key={job.id}>
-                        <TableCell>
-                          <Link
-                            href={`/admin/jobs/${job.id}`}
-                            className="font-mono text-sm font-medium hover:underline"
-                          >
-                            {job.id}
-                          </Link>
-                        </TableCell>
-                        <TableCell>
-                          <Link
-                            href={`/admin/companies/${job.companyId}`}
-                            className="hover:underline"
-                          >
-                            {job.companyName}
-                          </Link>
-                        </TableCell>
-                        <TableCell>{job.pickupDate}</TableCell>
-                        <TableCell className="max-w-[200px] truncate">
-                          {job.equipmentSummary}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <FileText className="h-4 w-4 text-muted-foreground" />
-                            <span>{job.documentsCount}</span>
-                            {job.needsDocuments && (
-                              <AlertCircle className="h-4 w-4 text-orange-500" />
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {job.invoiceNumber ? (
-                            <div>
-                              <Link
-                                href={`/admin/invoices/${job.invoiceNumber}`}
-                                className="font-mono text-xs hover:underline"
-                              >
-                                {job.invoiceNumber}
-                              </Link>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-xs">
-                                  ${job.invoiceAmount?.toLocaleString()}
-                                </span>
-                                <Badge
-                                  variant={
-                                    job.invoiceStatus === "paid"
-                                      ? "default"
-                                      : "secondary"
-                                  }
-                                  className={
-                                    job.invoiceStatus === "paid"
-                                      ? "bg-green-100 text-green-800 hover:bg-green-100"
-                                      : ""
-                                  }
-                                >
-                                  {job.invoiceStatus}
-                                </Badge>
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">
-                              Not invoiced
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge status={job.status} />
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem asChild>
-                                <Link href={`/admin/jobs/${job.id}`}>
-                                  <Eye className="mr-2 h-4 w-4" />
-                                  View Details
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem asChild>
-                                <Link href={`/admin/jobs/${job.id}#documents`}>
-                                  <Upload className="mr-2 h-4 w-4" />
-                                  Upload Documents
-                                </Link>
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-12">
+                          <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : filteredJobs.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-12">
+                          <p className="text-muted-foreground">No jobs found</p>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredJobs.map((job) => (
+                        <TableRow key={job.id}>
+                          <TableCell>
+                            <Link
+                              href={`/admin/jobs/${job.id}`}
+                              className="font-mono text-sm font-medium hover:underline"
+                            >
+                              {job.job_number}
+                            </Link>
+                          </TableCell>
+                          <TableCell>
+                            <Link
+                              href={`/admin/companies/${job.company_id}`}
+                              className="hover:underline"
+                            >
+                              {job.company_name}
+                            </Link>
+                          </TableCell>
+                          <TableCell>{job.pickup_date ? formatDateShort(job.pickup_date) : "Not scheduled"}</TableCell>
+                          <TableCell className="max-w-[200px] truncate">
+                            {job.equipment_summary || `${job.equipment_count} items`}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <FileText className="h-4 w-4 text-muted-foreground" />
+                              <span>{job.document_count}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {job.invoice_total ? (
+                              <div>
+                                <span className="text-xs">
+                                  ${job.invoice_total.toLocaleString()}
+                                </span>
+                                {job.invoice_status && (
+                                  <Badge
+                                    variant={
+                                      job.invoice_status === "paid"
+                                        ? "default"
+                                        : "secondary"
+                                    }
+                                    className={
+                                      job.invoice_status === "paid"
+                                        ? "bg-green-100 text-green-800 hover:bg-green-100 ml-2"
+                                        : "ml-2"
+                                    }
+                                  >
+                                    {job.invoice_status}
+                                  </Badge>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                Not invoiced
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={job.status} />
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="sm" asChild>
+                              <Link href={`/admin/jobs/${job.id}`}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View
+                              </Link>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>
-              {filterJobs(status).length === 0 && (
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground">No jobs found</p>
-                </div>
-              )}
             </TabsContent>
           )
         )}

@@ -2,12 +2,10 @@
 
 import { useState, use, useRef } from "react";
 import Link from "next/link";
-import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { StatusBadge, type JobStatus } from "@/components/ui/status-badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Separator } from "@/components/ui/separator";
 import {
   Select,
@@ -35,97 +33,25 @@ import {
   Package,
   Upload,
   FileText,
-  Download,
-  Trash2,
   CheckCircle2,
   Clock,
   Loader2,
   Link as LinkIcon,
   ExternalLink,
 } from "lucide-react";
-import type { JobDocument, LinkedInvoice } from "../../_types";
+import { Badge } from "@/components/ui/badge";
+import { useJob, useUpdateJobStatus, useRealtimeJob, useCreateDocument, useDeleteDocument, useCurrentUser } from "@/lib/hooks";
+import { jobStatusLabels, type JobStatus, type DocumentType } from "@/lib/database/types";
+import { createClient } from "@/lib/supabase/client";
+import { uploadFile, getSignedUrl, STORAGE_BUCKETS } from "@/lib/storage/upload";
+import { DocumentList } from "@/components/ui/document-list";
 
-// Mock data
-const jobData = {
-  id: "W2512007",
-  companyId: "1",
-  companyName: "Acme Corporation",
-  quoteId: "Q-2024-0055",
-  requestId: "REQ-2024-0042",
-  status: "pickup_complete" as JobStatus,
-  createdAt: "December 10, 2024",
-  pickupDate: "December 15, 2024",
-  pickupTime: "9:00 AM - 12:00 PM",
-  serviceType: "pickup" as const,
-
-  location: {
-    address: "123 Main Street",
-    city: "Los Angeles",
-    state: "CA",
-    zipCode: "90001",
-    buildingInfo: "Suite 400, 4th Floor",
-  },
-
-  contact: {
-    name: "John Smith",
-    email: "john.smith@acme.com",
-    phone: "(555) 123-4567",
-  },
-
-  equipment: [
-    { type: "Laptops", quantity: 25 },
-    { type: "Desktop Computers", quantity: 10 },
-    { type: "Hard Drives (loose)", quantity: 50 },
-  ],
-
-  services: [
-    "Equipment Pickup & Transport",
-    "HD Serialization & Destruction",
-    "Certificate of Destruction",
-    "Palletizing & Wrap",
-  ],
-
-  timeline: {
-    pickupScheduled: "Dec 10, 2024 at 3:00 PM",
-    pickupComplete: "Dec 15, 2024 at 11:30 AM",
-    processing: null,
-    complete: null,
-  },
-
-  documents: [
-    {
-      id: "1",
-      name: "Pickup Manifest.pdf",
-      type: "pickup_document" as const,
-      uploadedAt: "Dec 15, 2024",
-      uploadedBy: "Admin",
-      fileSize: "245 KB",
-      url: "#",
-    },
-  ] as JobDocument[],
-
-  invoices: [] as LinkedInvoice[],
-};
-
-const statusTransitions: Record<JobStatus, JobStatus[]> = {
-  pickup_scheduled: ["pickup_complete"],
-  pickup_complete: ["processing"],
-  processing: ["complete"],
-  complete: [],
-  completed: [],
-  in_progress: ["processing", "complete"],
-  pending_cod: ["complete"],
-};
-
-const statusLabels: Record<JobStatus, string> = {
-  pickup_scheduled: "Pickup Scheduled",
-  pickup_complete: "Pickup Complete",
-  in_progress: "In Progress",
-  processing: "Processing",
-  pending_cod: "Pending COD",
-  complete: "Complete",
-  completed: "Completed",
-};
+const allJobStatuses: JobStatus[] = [
+  "pickup_scheduled",
+  "pickup_complete",
+  "processing",
+  "complete",
+];
 
 const documentTypes = [
   { value: "certificate_of_destruction", label: "Certificate of Destruction" },
@@ -143,83 +69,142 @@ interface JobDetailPageProps {
 export default function JobDetailPage({ params }: JobDetailPageProps) {
   const { id } = use(params);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const supabase = createClient();
 
-  const [status, setStatus] = useState<JobStatus>(jobData.status);
-  const [documents, setDocuments] = useState<JobDocument[]>(jobData.documents);
+  const { data: job, isLoading, error } = useJob(id);
+  const { data: currentUser } = useCurrentUser();
+  const updateJobStatus = useUpdateJobStatus();
+  const createDocument = useCreateDocument();
+  const deleteDocument = useDeleteDocument();
+
+  // Subscribe to real-time updates
+  useRealtimeJob(id);
+
   const [showStatusDialog, setShowStatusDialog] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<JobStatus | null>(null);
-  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const [selectedDocType, setSelectedDocType] = useState<string>("");
 
-  const nextStatuses = statusTransitions[status] || [];
+  const isUploading = createDocument.isPending;
 
   const handleStatusChange = (newStatus: JobStatus) => {
+    // Skip if selecting the same status
+    if (job && newStatus === job.status) return;
+
     setPendingStatus(newStatus);
     setShowStatusDialog(true);
   };
 
   const confirmStatusChange = async () => {
-    if (!pendingStatus) return;
+    if (!pendingStatus || !job) return;
 
-    setIsUpdatingStatus(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setStatus(pendingStatus);
-    setIsUpdatingStatus(false);
-    setShowStatusDialog(false);
-    setPendingStatus(null);
+    updateJobStatus.mutate(
+      { id: job.id, status: pendingStatus },
+      {
+        onSuccess: () => {
+          setShowStatusDialog(false);
+          setPendingStatus(null);
+        },
+        onError: (error) => {
+          console.error("Failed to update status:", error);
+          alert(`Failed to update status: ${error.message}`);
+        },
+      }
+    );
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !selectedDocType) return;
+    if (!file || !selectedDocType || !job || !currentUser?.id) return;
 
-    setIsUploading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      // Upload file to storage
+      const result = await uploadFile(supabase, file, {
+        bucket: STORAGE_BUCKETS.DOCUMENTS,
+        folder: job.company_id,
+      });
 
-    const newDoc: JobDocument = {
-      id: Date.now().toString(),
-      name: file.name,
-      type: selectedDocType as JobDocument["type"],
-      uploadedAt: new Date().toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      }),
-      uploadedBy: "Admin",
-      fileSize: `${(file.size / 1024).toFixed(0)} KB`,
-      url: "#",
-    };
-
-    setDocuments((prev) => [...prev, newDoc]);
-    setIsUploading(false);
-    setSelectedDocType("");
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+      // Create document record in database
+      createDocument.mutate({
+        job_id: job.id,
+        company_id: job.company_id,
+        name: file.name,
+        document_type: selectedDocType as DocumentType,
+        file_url: result.path,
+        file_size: result.size,
+        mime_type: file.type,
+        uploaded_by: currentUser.id,
+      }, {
+        onSuccess: () => {
+          setSelectedDocType("");
+          if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+          }
+        },
+      });
+    } catch (error) {
+      console.error("Upload failed:", error);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
-  const handleDeleteDocument = async (docId: string) => {
-    setDocuments((prev) => prev.filter((d) => d.id !== docId));
+  const handleDeleteDocument = async (docId: string, filePath: string) => {
+    if (!job) return;
+    deleteDocument.mutate({
+      id: docId,
+      jobId: job.id,
+      filePath,
+    });
+  };
+
+  const handleViewDocument = async (filePath: string) => {
+    try {
+      const signedUrl = await getSignedUrl(supabase, STORAGE_BUCKETS.DOCUMENTS, filePath, 60);
+      window.open(signedUrl, "_blank");
+    } catch (error) {
+      console.error("Failed to view document:", error);
+    }
   };
 
   const timelineSteps = [
-    { key: "pickupScheduled", label: "Pickup Scheduled", status: "pickup_scheduled" },
-    { key: "pickupComplete", label: "Pickup Complete", status: "pickup_complete" },
-    { key: "processing", label: "Processing", status: "processing" },
-    { key: "complete", label: "Complete", status: "complete" },
+    { key: "pickup_scheduled_at", label: "Pickup Scheduled", status: "pickup_scheduled" },
+    { key: "pickup_complete_at", label: "Pickup Complete", status: "pickup_complete" },
+    { key: "processing_started_at", label: "Processing", status: "processing" },
+    { key: "completed_at", label: "Complete", status: "complete" },
   ];
 
   const getStepStatus = (stepStatus: string) => {
+    if (!job) return "upcoming";
     const statusOrder = ["pickup_scheduled", "pickup_complete", "processing", "complete"];
-    const currentIndex = statusOrder.indexOf(status);
+    const currentIndex = statusOrder.indexOf(job.status);
     const stepIndex = statusOrder.indexOf(stepStatus);
 
     if (stepIndex < currentIndex) return "complete";
     if (stepIndex === currentIndex) return "current";
     return "upcoming";
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !job) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 gap-4">
+        <p className="text-destructive">
+          {error ? `Failed to load job: ${error.message}` : "Job not found"}
+        </p>
+        <Button variant="outline" asChild>
+          <Link href="/admin/jobs">Back to Jobs</Link>
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -232,40 +217,43 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">{id}</h1>
-            <StatusBadge status={status} />
+            <h1 className="text-2xl font-bold">{job.job_number}</h1>
+            <StatusBadge status={job.status} />
           </div>
           <p className="text-sm text-muted-foreground">
-            Created on {jobData.createdAt}
+            Created on {new Date(job.created_at).toLocaleDateString()}
           </p>
         </div>
       </div>
 
       {/* Status Update */}
-      {nextStatuses.length > 0 && (
-        <Card className="border-primary/20 bg-primary/5">
-          <CardContent>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="font-medium">Update Job Status</p>
-                <p className="text-sm text-muted-foreground">
-                  Current status: {statusLabels[status]}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                {nextStatuses.map((nextStatus) => (
-                  <Button
-                    key={nextStatus}
-                    onClick={() => handleStatusChange(nextStatus)}
-                  >
-                    Mark as {statusLabels[nextStatus]}
-                  </Button>
-                ))}
-              </div>
+      <Card>
+        <CardContent>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-medium">Update Job Status</p>
+              <p className="text-sm text-muted-foreground">
+                Change the current job status
+              </p>
             </div>
-          </CardContent>
-        </Card>
-      )}
+            <Select
+              value={job.status}
+              onValueChange={(value) => handleStatusChange(value as JobStatus)}
+            >
+              <SelectTrigger className="w-[200px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {allJobStatuses.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {jobStatusLabels[status]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Progress Timeline */}
       <Card>
@@ -303,9 +291,9 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                     >
                       {step.label}
                     </p>
-                    {jobData.timeline[step.key as keyof typeof jobData.timeline] && (
+                    {job[step.key as keyof typeof job] && (
                       <p className="text-xs text-muted-foreground">
-                        {jobData.timeline[step.key as keyof typeof jobData.timeline]}
+                        {new Date(job[step.key as keyof typeof job] as string).toLocaleString()}
                       </p>
                     )}
                   </div>
@@ -331,7 +319,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
           <Tabs defaultValue="documents">
             <TabsList>
               <TabsTrigger value="documents">
-                Documents ({documents.length})
+                Documents ({job.documents.length})
               </TabsTrigger>
               <TabsTrigger value="details">Job Details</TabsTrigger>
               <TabsTrigger value="invoices">Invoices</TabsTrigger>
@@ -393,43 +381,12 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                   <Separator />
 
                   {/* Documents List */}
-                  {documents.length > 0 ? (
-                    <div className="space-y-2">
-                      {documents.map((doc) => (
-                        <div
-                          key={doc.id}
-                          className="flex items-center justify-between rounded-lg border p-4"
-                        >
-                          <div className="flex items-center gap-3">
-                            <FileText className="h-8 w-8 text-muted-foreground" />
-                            <div>
-                              <p className="font-medium">{doc.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {documentTypes.find((t) => t.value === doc.type)?.label} | {doc.fileSize} | Uploaded {doc.uploadedAt}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="icon">
-                              <Download className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteDocument(doc.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <FileText className="mx-auto h-12 w-12 mb-2 opacity-50" />
-                      <p>No documents uploaded yet</p>
-                    </div>
-                  )}
+                  <DocumentList
+                    documents={job.documents}
+                    onView={handleViewDocument}
+                    onDelete={handleDeleteDocument}
+                    isDeleting={deleteDocument.isPending}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -444,14 +401,14 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="font-medium">{jobData.location.address}</p>
+                  <p className="font-medium">{job.location.address}</p>
                   <p>
-                    {jobData.location.city}, {jobData.location.state}{" "}
-                    {jobData.location.zipCode}
+                    {job.location.city}, {job.location.state}{" "}
+                    {job.location.zip_code}
                   </p>
-                  {jobData.location.buildingInfo && (
+                  {job.location.building_info && (
                     <p className="text-muted-foreground">
-                      {jobData.location.buildingInfo}
+                      {job.location.building_info}
                     </p>
                   )}
                 </CardContent>
@@ -465,14 +422,14 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <p className="font-medium">{jobData.contact.name}</p>
+                  <p className="font-medium">{job.contact.name}</p>
                   <p className="flex items-center gap-2 text-sm">
                     <Mail className="h-4 w-4 text-muted-foreground" />
-                    {jobData.contact.email}
+                    {job.contact.email}
                   </p>
                   <p className="flex items-center gap-2 text-sm">
                     <Phone className="h-4 w-4 text-muted-foreground" />
-                    {jobData.contact.phone}
+                    {job.contact.phone}
                   </p>
                 </CardContent>
               </Card>
@@ -487,7 +444,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-1">
-                      {jobData.equipment.map((item, i) => (
+                      {job.equipment.map((item, i) => (
                         <li key={i} className="flex justify-between text-sm">
                           <span>{item.type}</span>
                           <Badge variant="secondary">{item.quantity}</Badge>
@@ -503,7 +460,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-1 text-sm">
-                      {jobData.services.map((service, i) => (
+                      {job.services.map((service, i) => (
                         <li key={i} className="flex items-center gap-2">
                           <CheckCircle2 className="h-3 w-3 text-green-500" />
                           {service}
@@ -533,19 +490,19 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {jobData.invoices.length > 0 ? (
+                  {job.invoices.length > 0 ? (
                     <div className="space-y-2">
-                      {jobData.invoices.map((invoice) => (
+                      {job.invoices.map((invoice) => (
                         <div
                           key={invoice.id}
                           className="flex items-center justify-between rounded-lg border p-4"
                         >
                           <div>
                             <p className="font-mono font-medium">
-                              {invoice.invoiceNumber}
+                              {invoice.invoice_number}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              {invoice.date} | Due: {invoice.dueDate}
+                              Due: {new Date(invoice.due_date).toLocaleDateString()}
                             </p>
                           </div>
                           <div className="flex items-center gap-4">
@@ -599,28 +556,28 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                   Company
                 </p>
                 <Link
-                  href={`/admin/companies/${jobData.companyId}`}
+                  href={`/admin/companies/${job.company_id}`}
                   className="font-medium hover:underline"
                 >
-                  {jobData.companyName}
+                  {job.company?.name || "Unknown Company"}
                 </Link>
               </div>
               <div>
                 <p className="text-muted-foreground">Quote</p>
                 <Link
-                  href={`/admin/quotes/${jobData.quoteId}`}
+                  href={`/admin/quotes/${job.quote_id}`}
                   className="font-mono hover:underline"
                 >
-                  {jobData.quoteId}
+                  {job.quote?.quote_number || job.quote_id}
                 </Link>
               </div>
               <div>
                 <p className="text-muted-foreground">Request</p>
                 <Link
-                  href={`/admin/requests/${jobData.requestId}`}
+                  href={`/admin/requests/${job.request_id}`}
                   className="font-mono hover:underline"
                 >
-                  {jobData.requestId}
+                  {job.request?.request_number || job.request_id}
                 </Link>
               </div>
             </CardContent>
@@ -636,16 +593,18 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <p className="text-muted-foreground">Pickup Date</p>
-                  <p className="font-medium">{jobData.pickupDate}</p>
+                  <p className="font-medium">{new Date(job.pickup_date).toLocaleDateString()}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-muted-foreground">Time Window</p>
-                  <p className="font-medium">{jobData.pickupTime}</p>
+              {job.pickup_time_window && (
+                <div className="flex items-center gap-3">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-muted-foreground">Time Window</p>
+                    <p className="font-medium">{job.pickup_time_window}</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -658,8 +617,8 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
             <DialogTitle>Update Job Status</DialogTitle>
             <DialogDescription>
               Are you sure you want to change the status from{" "}
-              <strong>{statusLabels[status]}</strong> to{" "}
-              <strong>{pendingStatus ? statusLabels[pendingStatus] : ""}</strong>?
+              <strong>{jobStatusLabels[job.status]}</strong> to{" "}
+              <strong>{pendingStatus ? jobStatusLabels[pendingStatus] : ""}</strong>?
               This will send a notification to the client.
             </DialogDescription>
           </DialogHeader>
@@ -670,8 +629,8 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
             >
               Cancel
             </Button>
-            <Button onClick={confirmStatusChange} disabled={isUpdatingStatus}>
-              {isUpdatingStatus && (
+            <Button onClick={confirmStatusChange} disabled={updateJobStatus.isPending}>
+              {updateJobStatus.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
               Confirm

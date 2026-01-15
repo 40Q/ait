@@ -6,7 +6,6 @@ export type JobStatus =
   | "pickup_complete"
   | "in_progress"
   | "processing"
-  | "pending_cod"
   | "complete"
   | "completed";
 
@@ -44,10 +43,6 @@ const statusConfig: Record<
   processing: {
     label: "Processing",
     className: "bg-amber-100 text-amber-700 hover:bg-amber-100",
-  },
-  pending_cod: {
-    label: "Pending COD",
-    className: "bg-purple-100 text-purple-700 hover:bg-purple-100",
   },
   complete: {
     label: "Complete",

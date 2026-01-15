@@ -1,3 +1,6 @@
+"use client";
+
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -10,8 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { StatusBadge, type JobStatus } from "@/components/ui/status-badge";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import {
   Search,
   FileText,
@@ -19,116 +21,42 @@ import {
   ArrowRight,
   Calendar,
   Truck,
+  Loader2,
 } from "lucide-react";
+import { useJobList } from "@/lib/hooks";
+import { jobStatusLabels, type JobListItem, type JobStatus } from "@/lib/database/types";
+import { formatDateShort } from "@/lib/utils/date";
 
-interface Job {
-  id: string;
-  status: JobStatus;
-  pickupDate: string;
-  createdAt: string;
-  documentsCount: number;
-  equipmentSummary: string;
-  invoiceAmount?: number;
-  invoiceStatus?: "paid" | "unpaid";
-}
+const allStatuses = Object.keys(jobStatusLabels) as JobStatus[];
 
-// Mock data
-const jobs: Job[] = [
-  {
-    id: "W2512003",
-    status: "processing",
-    pickupDate: "Dec 10, 2024",
-    createdAt: "Dec 8, 2024",
-    documentsCount: 2,
-    equipmentSummary: "15 Laptops, 8 Desktops, 20 Hard Drives",
-    invoiceAmount: 1250,
-    invoiceStatus: "unpaid",
-  },
-  {
-    id: "W2512002",
-    status: "complete",
-    pickupDate: "Dec 5, 2024",
-    createdAt: "Dec 1, 2024",
-    documentsCount: 4,
-    equipmentSummary: "3 Servers, Networking Equipment",
-    invoiceAmount: 3500,
-    invoiceStatus: "paid",
-  },
-  {
-    id: "W2512001",
-    status: "complete",
-    pickupDate: "Nov 28, 2024",
-    createdAt: "Nov 25, 2024",
-    documentsCount: 3,
-    equipmentSummary: "25 Laptops",
-    invoiceAmount: 890,
-    invoiceStatus: "paid",
-  },
-  {
-    id: "W2511004",
-    status: "pickup_scheduled",
-    pickupDate: "Dec 18, 2024",
-    createdAt: "Dec 15, 2024",
-    documentsCount: 0,
-    equipmentSummary: "50 Hard Drives",
-  },
-  {
-    id: "W2511003",
-    status: "pickup_complete",
-    pickupDate: "Dec 12, 2024",
-    createdAt: "Dec 10, 2024",
-    documentsCount: 1,
-    equipmentSummary: "Mixed E-waste",
-  },
-  {
-    id: "W2511002",
-    status: "complete",
-    pickupDate: "Nov 20, 2024",
-    createdAt: "Nov 15, 2024",
-    documentsCount: 3,
-    equipmentSummary: "12 Monitors",
-    invoiceAmount: 450,
-    invoiceStatus: "paid",
-  },
-];
-
-function JobCard({ job }: { job: Job }) {
+function JobCard({ job }: { job: JobListItem }) {
   return (
     <Card className="transition-colors hover:bg-muted/50">
       <CardContent>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <span className="font-mono font-medium">
-                Job #{job.id}
-              </span>
+              <span className="font-mono font-medium">Job #{job.job_number}</span>
               <StatusBadge status={job.status} />
             </div>
-            <p className="text-sm text-muted-foreground">{job.equipmentSummary}</p>
+            <p className="text-sm text-muted-foreground">
+              {job.equipment_summary || `${job.equipment_count} items`}
+            </p>
             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
-                Pickup: {job.pickupDate}
+                Pickup: {formatDateShort(job.pickup_date)}
               </span>
               <span className="flex items-center gap-1">
                 <FileText className="h-3.5 w-3.5" />
-                {job.documentsCount} docs
+                {job.document_count} docs
               </span>
-              {job.invoiceAmount && (
+              {job.invoice_total && (
                 <span className="flex items-center gap-1">
-                  <Receipt className="h-3.5 w-3.5" />$
-                  {job.invoiceAmount.toLocaleString()}
-                  {job.invoiceStatus && (
-                    <Badge
-                      variant="outline"
-                      className={
-                        job.invoiceStatus === "paid"
-                          ? "border-green-200 bg-green-50 text-green-700"
-                          : "border-yellow-200 bg-yellow-50 text-yellow-700"
-                      }
-                    >
-                      {job.invoiceStatus}
-                    </Badge>
+                  <Receipt className="h-3.5 w-3.5" />
+                  ${job.invoice_total.toLocaleString()}
+                  {job.invoice_status && (
+                    <StatusBadge status={job.invoice_status as "paid" | "unpaid" | "overdue"} />
                   )}
                 </span>
               )}
@@ -148,6 +76,19 @@ function JobCard({ job }: { job: Job }) {
 }
 
 export default function JobsPage() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const filters = useMemo(
+    () => ({
+      search: searchQuery || undefined,
+      status: statusFilter !== "all" ? (statusFilter as JobStatus) : undefined,
+    }),
+    [searchQuery, statusFilter]
+  );
+
+  const { data: jobs = [], isLoading } = useJobList(filters);
+
   return (
     <div className="space-y-6">
       <PageHeader title="Jobs" description="View all your recycling jobs">
@@ -163,52 +104,51 @@ export default function JobsPage() {
       <div className="flex flex-col gap-4 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search by Job ID..." className="pl-9" />
+          <Input
+            placeholder="Search by Job ID..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
         </div>
-        <Select defaultValue="all">
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="pickup_scheduled">Pickup Scheduled</SelectItem>
-            <SelectItem value="pickup_complete">Pickup Complete</SelectItem>
-            <SelectItem value="processing">Processing</SelectItem>
-            <SelectItem value="complete">Complete</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select defaultValue="all">
-          <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="Invoice" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Invoices</SelectItem>
-            <SelectItem value="paid">Paid</SelectItem>
-            <SelectItem value="unpaid">Unpaid</SelectItem>
-            <SelectItem value="none">No Invoice</SelectItem>
+            {allStatuses.map((status) => (
+              <SelectItem key={status} value={status}>
+                {jobStatusLabels[status]}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
 
       {/* Jobs List */}
-      <div className="space-y-3">
-        {jobs.map((job) => (
-          <JobCard key={job.id} job={job} />
-        ))}
-      </div>
-
-      {/* Pagination placeholder */}
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>Showing 1-6 of 6 jobs</span>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" disabled>
-            Previous
-          </Button>
-          <Button variant="outline" size="sm" disabled>
-            Next
-          </Button>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
-      </div>
+      ) : jobs.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">No jobs found</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {jobs.map((job) => (
+            <JobCard key={job.id} job={job} />
+          ))}
+        </div>
+      )}
+
+      {/* Results Count */}
+      {!isLoading && jobs.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          Showing {jobs.length} job{jobs.length !== 1 ? "s" : ""}
+        </p>
+      )}
     </div>
   );
 }

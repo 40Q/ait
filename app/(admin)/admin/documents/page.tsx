@@ -1,19 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -21,92 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Search,
-  Download,
-  FileText,
-  Trash2,
-  Upload,
-} from "lucide-react";
+import { Search, Upload, Loader2 } from "lucide-react";
+import { useDocumentList, useDeleteDocument } from "@/lib/hooks";
+import { type DocumentType } from "@/lib/database/types";
+import { DocumentList } from "@/components/ui/document-list";
+import { createClient } from "@/lib/supabase/client";
+import { getSignedUrl, STORAGE_BUCKETS } from "@/lib/storage/upload";
 
-interface DocumentItem {
-  id: string;
-  name: string;
-  type: string;
-  typeLabel: string;
-  jobId: string;
-  companyId: string;
-  companyName: string;
-  uploadedAt: string;
-  uploadedBy: string;
-  fileSize: string;
-}
-
-// Mock data
-const documents: DocumentItem[] = [
-  {
-    id: "1",
-    name: "Certificate_of_Destruction_W2512005.pdf",
-    type: "certificate_of_destruction",
-    typeLabel: "Certificate of Destruction",
-    jobId: "W2512005",
-    companyId: "4",
-    companyName: "DataFlow LLC",
-    uploadedAt: "Dec 12, 2024",
-    uploadedBy: "Admin",
-    fileSize: "156 KB",
-  },
-  {
-    id: "2",
-    name: "HD_Serialization_Report_W2512005.pdf",
-    type: "hd_serialization",
-    typeLabel: "HD Serialization Report",
-    jobId: "W2512005",
-    companyId: "4",
-    companyName: "DataFlow LLC",
-    uploadedAt: "Dec 12, 2024",
-    uploadedBy: "Admin",
-    fileSize: "245 KB",
-  },
-  {
-    id: "3",
-    name: "Pickup_Manifest_W2512007.pdf",
-    type: "pickup_document",
-    typeLabel: "Pickup Document",
-    jobId: "W2512007",
-    companyId: "1",
-    companyName: "Acme Corporation",
-    uploadedAt: "Dec 15, 2024",
-    uploadedBy: "Admin",
-    fileSize: "89 KB",
-  },
-  {
-    id: "4",
-    name: "Certificate_of_Recycling_W2512004.pdf",
-    type: "certificate_of_recycling",
-    typeLabel: "Certificate of Recycling",
-    jobId: "W2512004",
-    companyId: "1",
-    companyName: "Acme Corporation",
-    uploadedAt: "Dec 8, 2024",
-    uploadedBy: "Admin",
-    fileSize: "134 KB",
-  },
-  {
-    id: "5",
-    name: "Asset_Serialization_W2512004.pdf",
-    type: "asset_serialization",
-    typeLabel: "Asset Serialization Report",
-    jobId: "W2512004",
-    companyId: "1",
-    companyName: "Acme Corporation",
-    uploadedAt: "Dec 8, 2024",
-    uploadedBy: "Admin",
-    fileSize: "312 KB",
-  },
-];
-
-const documentTypes = [
+const documentTypes: { value: string; label: string }[] = [
   { value: "all", label: "All Types" },
   { value: "certificate_of_destruction", label: "Certificate of Destruction" },
   { value: "certificate_of_recycling", label: "Certificate of Recycling" },
@@ -119,25 +32,42 @@ const documentTypes = [
 export default function DocumentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
-  const [companyFilter, setCompanyFilter] = useState("all");
+  const supabase = createClient();
 
-  const filteredDocuments = documents.filter((doc) => {
-    const matchesSearch =
-      doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.jobId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.companyName.toLowerCase().includes(searchQuery.toLowerCase());
+  // Fetch documents with filters
+  const filters = useMemo(() => ({
+    search: searchQuery || undefined,
+    document_type: typeFilter !== "all" ? (typeFilter as DocumentType) : undefined,
+  }), [searchQuery, typeFilter]);
 
-    const matchesType = typeFilter === "all" || doc.type === typeFilter;
-    const matchesCompany =
-      companyFilter === "all" || doc.companyId === companyFilter;
+  const { data: documents = [], isLoading, error } = useDocumentList(filters);
+  const deleteDocument = useDeleteDocument();
 
-    return matchesSearch && matchesType && matchesCompany;
-  });
+  const handleView = async (filePath: string) => {
+    try {
+      const signedUrl = await getSignedUrl(supabase, STORAGE_BUCKETS.DOCUMENTS, filePath, 60);
+      window.open(signedUrl, "_blank");
+    } catch (error) {
+      console.error("Failed to view document:", error);
+    }
+  };
 
-  // Get unique companies for filter
-  const companies = Array.from(
-    new Map(documents.map((d) => [d.companyId, d.companyName])).entries()
-  );
+  const handleDelete = (id: string, filePath: string) => {
+    const doc = documents.find((d) => d.id === id);
+    if (!doc) return;
+
+    if (confirm("Are you sure you want to delete this document?")) {
+      deleteDocument.mutate({ id, jobId: doc.job_id, filePath });
+    }
+  };
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <p className="text-destructive">Failed to load documents: {error.message}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -176,101 +106,33 @@ export default function DocumentsPage() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={companyFilter} onValueChange={setCompanyFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="All Companies" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Companies</SelectItem>
-            {companies.map(([id, name]) => (
-              <SelectItem key={id} value={id}>
-                {name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
-      {/* Table */}
-      <div className="rounded-md border overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Document</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Job</TableHead>
-              <TableHead>Company</TableHead>
-              <TableHead>Uploaded</TableHead>
-              <TableHead>Size</TableHead>
-              <TableHead className="w-[100px]"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredDocuments.map((doc) => (
-              <TableRow key={doc.id}>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{doc.name}</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline">{doc.typeLabel}</Badge>
-                </TableCell>
-                <TableCell>
-                  <Link
-                    href={`/admin/jobs/${doc.jobId}`}
-                    className="font-mono text-sm hover:underline"
-                  >
-                    {doc.jobId}
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  <Link
-                    href={`/admin/companies/${doc.companyId}`}
-                    className="hover:underline"
-                  >
-                    {doc.companyName}
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  <div>
-                    <p className="text-sm">{doc.uploadedAt}</p>
-                    <p className="text-xs text-muted-foreground">
-                      by {doc.uploadedBy}
-                    </p>
-                  </div>
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {doc.fileSize}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon">
-                      <Download className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon">
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
-      {filteredDocuments.length === 0 && (
-        <div className="text-center py-12">
-          <FileText className="mx-auto h-12 w-12 text-muted-foreground opacity-50" />
-          <p className="mt-2 text-muted-foreground">No documents found</p>
+      {/* Documents List */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
+      ) : (
+        <DocumentList
+          documents={documents}
+          onView={handleView}
+          onDelete={handleDelete}
+          isDeleting={deleteDocument.isPending}
+          showJob
+          showCompany
+          showSize
+          showUploader
+          emptyMessage="No documents found"
+        />
       )}
 
       {/* Results Count */}
-      <p className="text-sm text-muted-foreground">
-        Showing {filteredDocuments.length} of {documents.length} documents
-      </p>
+      {!isLoading && documents.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          Showing {documents.length} documents
+        </p>
+      )}
     </div>
   );
 }

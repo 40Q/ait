@@ -43,6 +43,8 @@ import {
 } from "lucide-react";
 import { useRequest, useDeclineRequest, useQuoteByRequestId, useRequestFullTimeline, useJobByRequestId } from "@/lib/hooks";
 import { Timeline } from "@/components/ui/timeline";
+import { FileList } from "@/components/ui/file-list";
+import { STORAGE_BUCKETS } from "@/lib/storage/upload";
 import type { LogisticsFormData, MaterialsFormData } from "@/lib/database/types";
 
 const dataDestructionLabels: Record<string, string> = {
@@ -348,6 +350,13 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
                       </div>
                     )}
                   </div>
+
+                  {request.equipment_file_paths && request.equipment_file_paths.length > 0 && (
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-2">Attached Files</p>
+                      <FileList paths={request.equipment_file_paths} bucket={STORAGE_BUCKETS.REQUEST_FILES} />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -684,7 +693,7 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
                 <CardHeader>
                   <CardTitle className="text-base">Insurance</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-3">
                   <div className="flex items-center gap-2">
                     {request.coi_required ? (
                       <>
@@ -698,6 +707,12 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
                       </>
                     )}
                   </div>
+                  {request.coi_required && request.coi_sample_path && (
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-2">COI Sample</p>
+                      <FileList paths={[request.coi_sample_path]} bucket={STORAGE_BUCKETS.REQUEST_FILES} />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </>

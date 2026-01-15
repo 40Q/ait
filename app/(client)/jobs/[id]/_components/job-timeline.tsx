@@ -1,37 +1,43 @@
 import { cn } from "@/lib/utils";
 import { Check, Clock } from "lucide-react";
-
-type ClientJobStatus = "pickup_scheduled" | "pickup_complete" | "processing" | "complete";
+import { formatDateShort } from "@/lib/utils/date";
+import type { JobStatus } from "@/lib/database/types";
 
 interface TimelineStep {
-  id: ClientJobStatus;
+  id: JobStatus;
   label: string;
-  date?: string;
+  date?: string | null;
 }
 
 interface JobTimelineProps {
-  currentStatus: ClientJobStatus;
+  currentStatus: JobStatus;
   timeline: {
-    quoteAccepted?: string;
-    pickupScheduled?: string;
-    pickupComplete?: string;
-    processing?: string;
-    complete?: string;
+    pickup_scheduled_at: string | null;
+    pickup_complete_at: string | null;
+    processing_started_at: string | null;
+    completed_at: string | null;
   };
 }
 
-const statusOrder: ClientJobStatus[] = [
+const statusOrder: JobStatus[] = [
   "pickup_scheduled",
   "pickup_complete",
   "processing",
   "complete",
 ];
 
-const statusLabels: Record<ClientJobStatus, string> = {
+const statusLabels: Record<JobStatus, string> = {
   pickup_scheduled: "Pickup Scheduled",
   pickup_complete: "Pickup Complete",
   processing: "Processing",
   complete: "Complete",
+};
+
+const statusToTimelineKey: Record<JobStatus, keyof JobTimelineProps["timeline"]> = {
+  pickup_scheduled: "pickup_scheduled_at",
+  pickup_complete: "pickup_complete_at",
+  processing: "processing_started_at",
+  complete: "completed_at",
 };
 
 export function JobTimeline({ currentStatus, timeline }: JobTimelineProps) {
@@ -40,14 +46,7 @@ export function JobTimeline({ currentStatus, timeline }: JobTimelineProps) {
   const steps: TimelineStep[] = statusOrder.map((status) => ({
     id: status,
     label: statusLabels[status],
-    date:
-      timeline[
-        status === "pickup_scheduled"
-          ? "pickupScheduled"
-          : status === "pickup_complete"
-          ? "pickupComplete"
-          : status
-      ],
+    date: timeline[statusToTimelineKey[status]],
   }));
 
   return (
@@ -96,7 +95,7 @@ export function JobTimeline({ currentStatus, timeline }: JobTimelineProps) {
                   {step.label}
                 </p>
                 {step.date && (
-                  <p className="text-xs text-muted-foreground">{step.date}</p>
+                  <p className="text-xs text-muted-foreground">{formatDateShort(step.date)}</p>
                 )}
               </div>
             </div>

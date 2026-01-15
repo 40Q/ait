@@ -23,6 +23,28 @@ export {
   useRespondToQuote,
 } from "./use-quotes";
 
+// Job hooks
+export {
+  useJobList,
+  useJob,
+  useJobByQuoteId,
+  useJobByRequestId,
+  useJobStatusCounts,
+  useUpdateJob,
+  useUpdateJobStatus,
+  useRealtimeJobs,
+  useRealtimeJob,
+} from "./use-jobs";
+
+// Document hooks
+export {
+  useDocumentList,
+  useJobDocuments,
+  useDocumentTypeCounts,
+  useCreateDocument,
+  useDeleteDocument,
+} from "./use-documents";
+
 // Company hooks
 export {
   useCompanyList,

@@ -13,7 +13,6 @@ export type JobStatus =
   | "pickup_scheduled"
   | "pickup_complete"
   | "processing"
-  | "pending_cod"
   | "complete";
 
 export type InvoiceStatus = "paid" | "unpaid" | "overdue";

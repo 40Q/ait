@@ -1,14 +1,14 @@
 import { Button } from "@/components/ui/button";
-import { StatusBadge, type InvoiceStatus } from "@/components/ui/status-badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Download, ExternalLink, Receipt } from "lucide-react";
+import { formatDateShort } from "@/lib/utils/date";
 
 interface Invoice {
   id: string;
-  number: string;
-  date: string;
-  dueDate: string;
+  invoice_number: string;
   amount: number;
-  status: InvoiceStatus;
+  status: string;
+  due_date: string;
 }
 
 interface InvoicesListProps {
@@ -39,12 +39,11 @@ export function InvoicesList({ invoices }: InvoicesListProps) {
         >
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="font-mono font-medium">{invoice.number}</span>
-              <StatusBadge status={invoice.status} />
+              <span className="font-mono font-medium">{invoice.invoice_number}</span>
+              <StatusBadge status={invoice.status as "paid" | "unpaid" | "overdue"} />
             </div>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-              <span>Date: {invoice.date}</span>
-              <span>Due: {invoice.dueDate}</span>
+              <span>Due: {formatDateShort(invoice.due_date)}</span>
             </div>
           </div>
           <div className="flex items-center justify-between gap-4 sm:justify-end">
