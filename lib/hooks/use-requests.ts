@@ -6,7 +6,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import { RequestRepository } from "@/lib/database/repositories";
+import { RequestRepository, TimelineRepository } from "@/lib/database/repositories";
 import {
   queryKeys,
   type RequestFilters,
@@ -66,6 +66,7 @@ export function useCreateRequest() {
   const repo = new RequestRepository(supabase);
 
   return useMutation({
+    // Timeline event is created automatically by database trigger
     mutationFn: (data: RequestInsert) => repo.create(data),
     onSuccess: () => {
       // Invalidate all request queries
@@ -107,6 +108,37 @@ export function useDeleteRequest() {
     mutationFn: (id: string) => repo.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.requests.all });
+    },
+  });
+}
+
+/**
+ * Hook to decline a request
+ */
+export function useDeclineRequest() {
+  const queryClient = useQueryClient();
+  const supabase = createClient();
+  const requestRepo = new RequestRepository(supabase);
+  const timelineRepo = new TimelineRepository(supabase);
+
+  return useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason?: string }) => {
+      // Update request status (triggers auto-create status_change timeline event)
+      await requestRepo.update(id, { status: "declined" });
+
+      // Create declined event with reason (separate from status change)
+      if (reason) {
+        await timelineRepo.createDeclinedEvent("request", id, reason);
+      }
+    },
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.requests.all });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.requests.detail(id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["timeline", "request", id],
+      });
     },
   });
 }

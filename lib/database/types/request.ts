@@ -135,6 +135,7 @@ export interface RequestListItem {
   company_id: string;
   company_name: string;
   status: RequestStatus;
+  form_type: FormType;
   preferred_date: string | null;
   location_summary: string;
   equipment_summary: string;

@@ -2,10 +2,10 @@
 
 import { use } from "react";
 import Link from "next/link";
-import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Timeline } from "@/components/ui/timeline";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { RequestDetails } from "./_components/request-details";
 import { QuoteReview } from "./_components/quote-review";
@@ -73,6 +73,7 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
               <span className="ml-2 h-2 w-2 rounded-full bg-primary" />
             )}
           </TabsTrigger>
+          <TabsTrigger value="timeline">Timeline</TabsTrigger>
         </TabsList>
 
         <TabsContent value="details" className="mt-4">
@@ -101,6 +102,15 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
               }}
             />
           )}
+        </TabsContent>
+
+        <TabsContent value="timeline" className="mt-4">
+          <Timeline
+            entityType="request"
+            entityId={id}
+            title="Request Timeline"
+            showActors={false}
+          />
         </TabsContent>
       </Tabs>
     </div>

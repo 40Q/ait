@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
-import { StatusBadge, type RequestStatus } from "@/components/ui/status-badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import {
   Select,
   SelectContent,
@@ -23,110 +23,14 @@ import {
   ArrowRight,
   HardDrive,
   FileText,
-  Package,
   Sparkles,
+  Loader2,
 } from "lucide-react";
+import { useRequestList, useRequestStatusCounts, useCompanyList } from "@/lib/hooks";
+import { formatDate } from "@/lib/utils/date";
+import type { RequestListItem, RequestStatus } from "@/lib/database/types";
 
-interface AdminRequestListItem {
-  id: string;
-  companyId: string;
-  companyName: string;
-  submittedAt: string;
-  preferredDate: string;
-  location: string;
-  equipmentSummary: string;
-  status: RequestStatus;
-  hasDataDestruction: boolean;
-  hasSerialization: boolean;
-  hasWhiteGlove: boolean;
-  quoteAmount?: number;
-}
-
-// Mock data
-const requests: AdminRequestListItem[] = [
-  {
-    id: "REQ-2024-0048",
-    companyId: "1",
-    companyName: "Acme Corporation",
-    submittedAt: "Dec 18, 2024 at 9:15 AM",
-    preferredDate: "Dec 22, 2024",
-    location: "123 Main St, Los Angeles, CA",
-    equipmentSummary: "25 Laptops, 10 Desktops, 50 Hard Drives",
-    status: "pending",
-    hasDataDestruction: true,
-    hasSerialization: true,
-    hasWhiteGlove: false,
-  },
-  {
-    id: "REQ-2024-0047",
-    companyId: "2",
-    companyName: "TechStart Inc",
-    submittedAt: "Dec 17, 2024 at 3:30 PM",
-    preferredDate: "Dec 20, 2024",
-    location: "456 Oak Ave, San Diego, CA",
-    equipmentSummary: "5 Servers, 100 Hard Drives",
-    status: "pending",
-    hasDataDestruction: true,
-    hasSerialization: true,
-    hasWhiteGlove: true,
-  },
-  {
-    id: "REQ-2024-0046",
-    companyId: "3",
-    companyName: "Global Systems",
-    submittedAt: "Dec 16, 2024 at 11:00 AM",
-    preferredDate: "Dec 19, 2024",
-    location: "789 Pine Rd, San Francisco, CA",
-    equipmentSummary: "15 Monitors, 8 Printers",
-    status: "pending",
-    hasDataDestruction: false,
-    hasSerialization: false,
-    hasWhiteGlove: false,
-  },
-  {
-    id: "REQ-2024-0045",
-    companyId: "1",
-    companyName: "Acme Corporation",
-    submittedAt: "Dec 15, 2024 at 10:30 AM",
-    preferredDate: "Dec 20, 2024",
-    location: "123 Main St, Los Angeles, CA",
-    equipmentSummary: "15 Laptops, 8 Desktops, 20 Hard Drives",
-    status: "quote_ready",
-    hasDataDestruction: true,
-    hasSerialization: false,
-    hasWhiteGlove: false,
-    quoteAmount: 2450,
-  },
-  {
-    id: "REQ-2024-0044",
-    companyId: "4",
-    companyName: "DataFlow LLC",
-    submittedAt: "Dec 12, 2024 at 2:15 PM",
-    preferredDate: "Dec 18, 2024",
-    location: "321 Elm St, Sacramento, CA",
-    equipmentSummary: "3 Servers, 50 Hard Drives",
-    status: "accepted",
-    hasDataDestruction: true,
-    hasSerialization: true,
-    hasWhiteGlove: false,
-    quoteAmount: 1850,
-  },
-  {
-    id: "REQ-2024-0043",
-    companyId: "5",
-    companyName: "SmallBiz Co",
-    submittedAt: "Dec 10, 2024 at 9:00 AM",
-    preferredDate: "Dec 15, 2024",
-    location: "555 Maple Dr, Fresno, CA",
-    equipmentSummary: "5 Laptops, 2 Printers",
-    status: "declined",
-    hasDataDestruction: false,
-    hasSerialization: false,
-    hasWhiteGlove: false,
-  },
-];
-
-function RequestCard({ request }: { request: AdminRequestListItem }) {
+function RequestCard({ request }: { request: RequestListItem }) {
   return (
     <Card className="transition-colors hover:bg-muted/50">
       <CardContent>
@@ -137,54 +41,59 @@ function RequestCard({ request }: { request: AdminRequestListItem }) {
                 href={`/admin/requests/${request.id}`}
                 className="font-mono text-sm font-medium hover:underline"
               >
-                {request.id}
+                {request.request_number}
               </Link>
               <StatusBadge status={request.status} />
-              {request.quoteAmount && (
+              {request.form_type !== "standard" && (
+                <Badge variant="outline" className="capitalize">
+                  {request.form_type}
+                </Badge>
+              )}
+              {request.quote_total && (
                 <Badge variant="outline" className="font-mono">
-                  ${request.quoteAmount.toLocaleString()}
+                  ${request.quote_total.toLocaleString()}
                 </Badge>
               )}
             </div>
 
             <div>
               <Link
-                href={`/admin/companies/${request.companyId}`}
+                href={`/admin/companies/${request.company_id}`}
                 className="font-medium hover:underline"
               >
-                {request.companyName}
+                {request.company_name}
               </Link>
               <p className="text-sm text-muted-foreground">
-                {request.equipmentSummary}
+                {request.equipment_summary || `${request.equipment_count} items`}
               </p>
             </div>
 
             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <MapPin className="h-3.5 w-3.5" />
-                {request.location}
+                {request.location_summary}
               </span>
               <span className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
-                Requested: {request.preferredDate}
+                Requested: {formatDate(request.preferred_date) || "Not specified"}
               </span>
             </div>
 
             {/* Service Icons */}
             <div className="flex gap-2">
-              {request.hasDataDestruction && (
+              {request.has_data_destruction && (
                 <Badge variant="secondary" className="gap-1">
                   <HardDrive className="h-3 w-3" />
                   Data Destruction
                 </Badge>
               )}
-              {request.hasSerialization && (
+              {request.has_serialization && (
                 <Badge variant="secondary" className="gap-1">
                   <FileText className="h-3 w-3" />
                   Serialization
                 </Badge>
               )}
-              {request.hasWhiteGlove && (
+              {request.has_white_glove && (
                 <Badge variant="secondary" className="gap-1">
                   <Sparkles className="h-3 w-3" />
                   White Glove
@@ -215,42 +124,26 @@ function RequestCard({ request }: { request: AdminRequestListItem }) {
 export default function AdminRequestsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [companyFilter, setCompanyFilter] = useState("all");
+  const [activeTab, setActiveTab] = useState("all");
 
-  const statusCounts = {
-    all: requests.length,
-    pending: requests.filter((r) => r.status === "pending").length,
-    quote_ready: requests.filter((r) => r.status === "quote_ready").length,
-    accepted: requests.filter((r) => r.status === "accepted").length,
-    declined: requests.filter((r) => r.status === "declined").length,
-  };
+  // Fetch requests with filters
+  const filters = useMemo(() => ({
+    search: searchQuery || undefined,
+    company_id: companyFilter !== "all" ? companyFilter : undefined,
+    status: activeTab !== "all" ? (activeTab as RequestStatus) : undefined,
+  }), [searchQuery, companyFilter, activeTab]);
 
-  const filterRequests = (status: string) => {
-    let filtered = requests;
+  const { data: requests = [], isLoading, error } = useRequestList(filters);
+  const { data: statusCounts } = useRequestStatusCounts();
+  const { data: companies = [] } = useCompanyList();
 
-    if (status !== "all") {
-      filtered = filtered.filter((r) => r.status === status);
-    }
-
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (r) =>
-          r.id.toLowerCase().includes(query) ||
-          r.companyName.toLowerCase().includes(query)
-      );
-    }
-
-    if (companyFilter !== "all") {
-      filtered = filtered.filter((r) => r.companyId === companyFilter);
-    }
-
-    return filtered;
-  };
-
-  // Get unique companies for filter
-  const companies = Array.from(
-    new Map(requests.map((r) => [r.companyId, r.companyName])).entries()
-  );
+  if (error) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <p className="text-destructive">Failed to load requests: {error.message}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -264,7 +157,7 @@ export default function AdminRequestsPage() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search by ID or company..."
+            placeholder="Search by ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -276,9 +169,9 @@ export default function AdminRequestsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Companies</SelectItem>
-            {companies.map(([id, name]) => (
-              <SelectItem key={id} value={id}>
-                {name}
+            {companies.map((company) => (
+              <SelectItem key={company.id} value={company.id}>
+                {company.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -286,33 +179,40 @@ export default function AdminRequestsPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="all">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="all">All ({statusCounts.all})</TabsTrigger>
+          <TabsTrigger value="all">
+            All ({statusCounts?.all ?? 0})
+          </TabsTrigger>
           <TabsTrigger value="pending">
-            Pending ({statusCounts.pending})
+            Pending ({statusCounts?.pending ?? 0})
           </TabsTrigger>
           <TabsTrigger value="quote_ready">
-            Quoted ({statusCounts.quote_ready})
+            Quoted ({statusCounts?.quote_ready ?? 0})
           </TabsTrigger>
           <TabsTrigger value="accepted">
-            Accepted ({statusCounts.accepted})
+            Accepted ({statusCounts?.accepted ?? 0})
           </TabsTrigger>
           <TabsTrigger value="declined">
-            Declined ({statusCounts.declined})
+            Declined ({statusCounts?.declined ?? 0})
           </TabsTrigger>
         </TabsList>
 
         {["all", "pending", "quote_ready", "accepted", "declined"].map(
           (status) => (
             <TabsContent key={status} value={status} className="mt-4 space-y-3">
-              {filterRequests(status).map((request) => (
-                <RequestCard key={request.id} request={request} />
-              ))}
-              {filterRequests(status).length === 0 && (
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : requests.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-muted-foreground">No requests found</p>
                 </div>
+              ) : (
+                requests.map((request) => (
+                  <RequestCard key={request.id} request={request} />
+                ))
               )}
             </TabsContent>
           )

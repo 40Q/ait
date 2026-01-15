@@ -4,17 +4,16 @@ import { AdminSidebar } from "./admin-sidebar";
 import { AdminHeader } from "./admin-header";
 import { useState } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { useRequestStatusCounts } from "@/lib/hooks";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
-  pendingRequestsCount?: number;
 }
 
-export function AdminLayout({
-  children,
-  pendingRequestsCount = 0,
-}: AdminLayoutProps) {
+export function AdminLayout({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { data: statusCounts } = useRequestStatusCounts();
+  const pendingRequestsCount = statusCounts?.pending ?? 0;
 
   return (
     <div className="flex h-screen overflow-hidden">
