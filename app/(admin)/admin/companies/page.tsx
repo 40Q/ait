@@ -15,89 +15,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Plus,
   Search,
-  MoreHorizontal,
   Pencil,
-  Trash2,
-  Key,
   CheckCircle2,
   AlertCircle,
   XCircle,
+  Loader2,
 } from "lucide-react";
-import type { Company } from "../_types";
+import { useCompanyList } from "@/lib/hooks";
+import type { CompanyListItem } from "@/lib/database/types";
 
-// Mock data
-const companies: Company[] = [
-  {
-    id: "1",
-    name: "Acme Corporation",
-    contactEmail: "contact@acme.com",
-    loginEmail: "portal@acme.com",
-    quickbooksCustomerId: "QB-12345",
-    quickbooksStatus: "connected",
-    status: "active",
-    createdAt: "2024-01-15",
-    jobCount: 12,
-    invoiceCount: 8,
-  },
-  {
-    id: "2",
-    name: "TechStart Inc",
-    contactEmail: "admin@techstart.io",
-    loginEmail: "recycling@techstart.io",
-    quickbooksCustomerId: "QB-12346",
-    quickbooksStatus: "connected",
-    status: "active",
-    createdAt: "2024-02-20",
-    jobCount: 8,
-    invoiceCount: 5,
-  },
-  {
-    id: "3",
-    name: "Global Systems",
-    contactEmail: "ops@globalsystems.com",
-    loginEmail: "it@globalsystems.com",
-    quickbooksCustomerId: "QB-12347",
-    quickbooksStatus: "error",
-    status: "active",
-    createdAt: "2024-03-10",
-    jobCount: 15,
-    invoiceCount: 12,
-  },
-  {
-    id: "4",
-    name: "SmallBiz Co",
-    contactEmail: "owner@smallbiz.co",
-    loginEmail: "owner@smallbiz.co",
-    quickbooksStatus: "not_connected",
-    status: "active",
-    createdAt: "2024-06-01",
-    jobCount: 3,
-    invoiceCount: 2,
-  },
-  {
-    id: "5",
-    name: "Legacy Corp",
-    contactEmail: "info@legacy.com",
-    loginEmail: "admin@legacy.com",
-    quickbooksCustomerId: "QB-10001",
-    quickbooksStatus: "connected",
-    status: "inactive",
-    createdAt: "2023-05-15",
-    jobCount: 25,
-    invoiceCount: 25,
-  },
-];
+type QuickBooksStatus = "connected" | "error" | "not_connected";
 
-function QuickBooksStatusBadge({ status }: { status: Company["quickbooksStatus"] }) {
+function QuickBooksStatusBadge({ status }: { status: QuickBooksStatus }) {
   switch (status) {
     case "connected":
       return (
@@ -125,10 +56,15 @@ function QuickBooksStatusBadge({ status }: { status: Company["quickbooksStatus"]
 
 export default function CompaniesPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const { data: companies = [], isLoading, error } = useCompanyList({ search: searchQuery || undefined });
 
-  const filteredCompanies = companies.filter((company) =>
-    company.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  if (error) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <p className="text-destructive">Failed to load companies: {error.message}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -166,86 +102,65 @@ export default function CompaniesPage() {
               <TableHead>Contact Email</TableHead>
               <TableHead>QuickBooks</TableHead>
               <TableHead className="text-center">Jobs</TableHead>
-              <TableHead className="text-center">Invoices</TableHead>
+              <TableHead className="text-center">Pending Requests</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-[70px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredCompanies.map((company) => (
-              <TableRow key={company.id}>
-                <TableCell>
-                  <div>
-                    <Link
-                      href={`/admin/companies/${company.id}`}
-                      className="font-medium hover:underline"
-                    >
-                      {company.name}
-                    </Link>
-                    <p className="text-xs text-muted-foreground">
-                      Login: {company.loginEmail}
-                    </p>
-                  </div>
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {company.contactEmail}
-                </TableCell>
-                <TableCell>
-                  <div>
-                    <QuickBooksStatusBadge status={company.quickbooksStatus} />
-                    {company.quickbooksCustomerId && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {company.quickbooksCustomerId}
-                      </p>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="text-center">{company.jobCount}</TableCell>
-                <TableCell className="text-center">{company.invoiceCount}</TableCell>
-                <TableCell>
-                  <Badge
-                    variant={company.status === "active" ? "default" : "secondary"}
-                  >
-                    {company.status}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem asChild>
-                        <Link href={`/admin/companies/${company.id}`}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Edit
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Key className="mr-2 h-4 w-4" />
-                        Reset Password
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-destructive">
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                 </TableCell>
               </TableRow>
-            ))}
+            ) : companies.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-12">
+                  <p className="text-muted-foreground">No companies found</p>
+                </TableCell>
+              </TableRow>
+            ) : (
+              companies.map((company) => (
+                <TableRow key={company.id}>
+                  <TableCell>
+                    <div>
+                      <Link
+                        href={`/admin/companies/${company.id}`}
+                        className="font-medium hover:underline"
+                      >
+                        {company.name}
+                      </Link>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {company.contact_email || "-"}
+                  </TableCell>
+                  <TableCell>
+                    <QuickBooksStatusBadge status={company.quickbooks_status} />
+                  </TableCell>
+                  <TableCell className="text-center">{company.job_count}</TableCell>
+                  <TableCell className="text-center">{company.pending_request_count}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={company.status === "active" ? "default" : "secondary"}
+                    >
+                      {company.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="icon" asChild>
+                      <Link href={`/admin/companies/${company.id}`}>
+                        <Pencil className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
-
-      {filteredCompanies.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No companies found</p>
-        </div>
-      )}
     </div>
   );
 }

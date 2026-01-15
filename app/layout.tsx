@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { QueryProvider } from "@/lib/providers/query-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,7 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased" style={{ fontFamily: "'Glacial Indifference', sans-serif" }}>
-        {children}
+        <QueryProvider>{children}</QueryProvider>
       </body>
     </html>
   );

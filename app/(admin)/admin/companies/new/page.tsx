@@ -7,7 +7,6 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import {
   Card,
@@ -16,76 +15,77 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ArrowLeft, Loader2, RefreshCw, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Loader2, CheckCircle2 } from "lucide-react";
+import { useCreateCompany } from "@/lib/hooks";
+import type { CompanyStatus } from "@/lib/database/types";
 
 interface CompanyFormData {
   name: string;
   contactEmail: string;
-  loginEmail: string;
-  password: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
   quickbooksCustomerId: string;
-  status: "active" | "inactive";
-  notes: string;
+  status: CompanyStatus;
 }
 
 const initialFormData: CompanyFormData = {
   name: "",
   contactEmail: "",
-  loginEmail: "",
-  password: "",
+  phone: "",
+  address: "",
+  city: "",
+  state: "",
+  zip: "",
   quickbooksCustomerId: "",
   status: "active",
-  notes: "",
 };
 
 export default function NewCompanyPage() {
   const router = useRouter();
+  const createCompany = useCreateCompany();
+
   const [formData, setFormData] = useState<CompanyFormData>(initialFormData);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTestingQB, setIsTestingQB] = useState(false);
   const [qbTestResult, setQbTestResult] = useState<"success" | "error" | null>(null);
 
   const handleChange = (data: Partial<CompanyFormData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
-    // Reset QB test result when customer ID changes
     if (data.quickbooksCustomerId !== undefined) {
       setQbTestResult(null);
     }
   };
 
-  const generatePassword = () => {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%";
-    let password = "";
-    for (let i = 0; i < 12; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    handleChange({ password });
-  };
-
   const testQuickBooksConnection = async () => {
     if (!formData.quickbooksCustomerId) return;
-
     setIsTestingQB(true);
-    // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1500));
-    // Mock: 80% success rate
     setQbTestResult(Math.random() > 0.2 ? "success" : "error");
     setIsTestingQB(false);
   };
 
-  const handleSubmit = async () => {
-    setIsSubmitting(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsSubmitting(false);
-    router.push("/admin/companies");
+  const handleSubmit = () => {
+    createCompany.mutate(
+      {
+        name: formData.name,
+        contact_email: formData.contactEmail || null,
+        phone: formData.phone || null,
+        address: formData.address || null,
+        city: formData.city || null,
+        state: formData.state || null,
+        zip: formData.zip || null,
+        quickbooks_customer_id: formData.quickbooksCustomerId || null,
+        status: formData.status,
+      },
+      {
+        onSuccess: (company) => router.push(`/admin/companies/${company.id}`),
+      }
+    );
   };
 
-  const canSubmit =
-    formData.name &&
-    formData.contactEmail &&
-    formData.loginEmail &&
-    formData.password;
+  const canSubmit = formData.name.trim() !== "";
 
   return (
     <div className="space-y-6">
@@ -123,38 +123,74 @@ export default function NewCompanyPage() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="contactEmail">
-                Contact Email <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="contactEmail"
-                type="email"
-                value={formData.contactEmail}
-                onChange={(e) => handleChange({ contactEmail: e.target.value })}
-                placeholder="contact@company.com"
-              />
-              <p className="text-xs text-muted-foreground">
-                Primary contact for notifications and communications
-              </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="contactEmail">Contact Email</Label>
+                <Input
+                  id="contactEmail"
+                  type="email"
+                  value={formData.contactEmail}
+                  onChange={(e) => handleChange({ contactEmail: e.target.value })}
+                  placeholder="contact@company.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => handleChange({ phone: e.target.value })}
+                  placeholder="(555) 123-4567"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="notes">Notes (Optional)</Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) => handleChange({ notes: e.target.value })}
-                placeholder="Any additional notes about this company..."
-                rows={3}
+              <Label htmlFor="address">Address</Label>
+              <Input
+                id="address"
+                value={formData.address}
+                onChange={(e) => handleChange({ address: e.target.value })}
+                placeholder="123 Main Street"
               />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="city">City</Label>
+                <Input
+                  id="city"
+                  value={formData.city}
+                  onChange={(e) => handleChange({ city: e.target.value })}
+                  placeholder="Los Angeles"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="state">State</Label>
+                <Input
+                  id="state"
+                  value={formData.state}
+                  onChange={(e) => handleChange({ state: e.target.value })}
+                  placeholder="CA"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="zip">ZIP Code</Label>
+                <Input
+                  id="zip"
+                  value={formData.zip}
+                  onChange={(e) => handleChange({ zip: e.target.value })}
+                  placeholder="90001"
+                />
+              </div>
             </div>
 
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>Status</Label>
                 <p className="text-xs text-muted-foreground">
-                  Inactive companies cannot log in
+                  Inactive companies cannot access the portal
                 </p>
               </div>
               <Switch
@@ -164,56 +200,12 @@ export default function NewCompanyPage() {
                 }
               />
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Portal Login Credentials */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Portal Login Credentials</CardTitle>
-            <CardDescription>
-              Credentials for the company to access the client portal
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="loginEmail">
-                Login Email <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="loginEmail"
-                type="email"
-                value={formData.loginEmail}
-                onChange={(e) => handleChange({ loginEmail: e.target.value })}
-                placeholder="portal@company.com"
-              />
-              <p className="text-xs text-muted-foreground">
-                This email will be used to log into the client portal
+            {createCompany.error && (
+              <p className="text-sm text-destructive">
+                {createCompany.error.message}
               </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">
-                Password <span className="text-destructive">*</span>
-              </Label>
-              <div className="flex gap-2">
-                <Input
-                  id="password"
-                  type="text"
-                  value={formData.password}
-                  onChange={(e) => handleChange({ password: e.target.value })}
-                  placeholder="Enter or generate password"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={generatePassword}
-                >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Generate
-                </Button>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
@@ -250,7 +242,7 @@ export default function NewCompanyPage() {
                   ) : (
                     <CheckCircle2 className="mr-2 h-4 w-4" />
                   )}
-                  Test Connection
+                  Test
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -276,9 +268,9 @@ export default function NewCompanyPage() {
         <div className="flex gap-4">
           <Button
             onClick={handleSubmit}
-            disabled={!canSubmit || isSubmitting}
+            disabled={!canSubmit || createCompany.isPending}
           >
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {createCompany.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Create Company
           </Button>
           <Button variant="outline" asChild>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/brand/logo";
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Eye, EyeOff, Loader2, AlertCircle, Shield } from "lucide-react";
+import { getUserProfile, getDashboardPath } from "@/lib/auth/helpers";
 
 type LoginStep = "credentials" | "mfa" | "mfa_setup";
 
@@ -28,6 +29,7 @@ export default function LoginPage() {
   const [step, setStep] = useState<LoginStep>("credentials");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingHash, setIsCheckingHash] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mfaCode, setMfaCode] = useState("");
@@ -35,6 +37,54 @@ export default function LoginPage() {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Handle invite/recovery tokens in URL hash (implicit flow)
+  useEffect(() => {
+    const handleHashTokens = async () => {
+      const hash = window.location.hash;
+      if (!hash) {
+        setIsCheckingHash(false);
+        return;
+      }
+
+      // Parse hash parameters
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
+      const type = params.get("type");
+
+      if (accessToken && refreshToken) {
+        // Set the session from the tokens
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+
+        if (!error) {
+          // Clear the hash from URL
+          window.history.replaceState(null, "", window.location.pathname);
+
+          // If this is an invite or recovery, redirect to set password
+          if (type === "invite" || type === "recovery") {
+            router.push("/auth/set-password");
+            return;
+          }
+
+          // Otherwise, check role and redirect to dashboard
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const profile = await getUserProfile(supabase, user.id);
+            router.push(getDashboardPath(profile?.role));
+            return;
+          }
+        }
+      }
+
+      setIsCheckingHash(false);
+    };
+
+    handleHashTokens();
+  }, [supabase, router]);
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,17 +181,8 @@ export default function LoginPage() {
       // Check role and redirect accordingly
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", user.id)
-          .single();
-
-        if (profile?.role === "admin") {
-          router.push("/admin/dashboard");
-        } else {
-          router.push("/dashboard");
-        }
+        const profile = await getUserProfile(supabase, user.id);
+        router.push(getDashboardPath(profile?.role));
         router.refresh();
       }
     } catch {
@@ -186,17 +227,8 @@ export default function LoginPage() {
       // Check role and redirect accordingly
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", user.id)
-          .single();
-
-        if (profile?.role === "admin") {
-          router.push("/admin/dashboard");
-        } else {
-          router.push("/dashboard");
-        }
+        const profile = await getUserProfile(supabase, user.id);
+        router.push(getDashboardPath(profile?.role));
         router.refresh();
       }
     } catch {
@@ -204,6 +236,15 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
+
+  // Show loading while checking for hash tokens
+  if (isCheckingHash) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/30">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">

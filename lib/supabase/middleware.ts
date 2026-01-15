@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { getUserProfile, getDashboardPath } from "@/lib/auth/helpers";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -35,9 +36,16 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
+  // API routes handle their own authentication - don't redirect
+  const isApiRoute = pathname.startsWith("/api/");
+  if (isApiRoute) {
+    return supabaseResponse;
+  }
+
   // Public routes that don't require authentication
-  const publicRoutes = ["/login", "/auth/callback"];
+  const publicRoutes = ["/login", "/auth/callback", "/auth/set-password"];
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
+  const isSetPasswordPage = pathname === "/auth/set-password";
 
   // If user is not authenticated and trying to access protected route
   if (!user && !isPublicRoute && pathname !== "/") {
@@ -63,12 +71,7 @@ export async function updateSession(request: NextRequest) {
       url.pathname = "/login";
       return NextResponse.redirect(url);
     }
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
+    const profile = await getUserProfile(supabase, user.id);
     const isAdmin = profile?.role === "admin";
     const isAdminRoute = pathname.startsWith("/admin") && !pathname.startsWith("/admin/login");
     const isLoginPage = pathname === "/login" || pathname === "/admin/login";
@@ -88,10 +91,15 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
+    // Allow set-password page for authenticated users who need to set their password
+    if (isSetPasswordPage) {
+      return supabaseResponse;
+    }
+
     if (isLoginPage) {
       // Authenticated user on login page - redirect to their dashboard
       const url = request.nextUrl.clone();
-      url.pathname = isAdmin ? "/admin/dashboard" : "/dashboard";
+      url.pathname = getDashboardPath(profile?.role);
       return NextResponse.redirect(url);
     }
   }
