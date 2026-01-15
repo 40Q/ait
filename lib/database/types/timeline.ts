@@ -1,5 +1,5 @@
 export type TimelineEntityType = "request" | "quote" | "job";
-export type TimelineEventType = "status_change" | "created" | "declined" | "note";
+export type TimelineEventType = "status_change" | "created" | "declined" | "revision_requested" | "accepted" | "note" | "sent";
 
 export interface TimelineEventRow {
   id: string;

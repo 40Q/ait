@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -9,8 +9,9 @@ import { Timeline } from "@/components/ui/timeline";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { RequestDetails } from "./_components/request-details";
 import { QuoteReview } from "./_components/quote-review";
-import { useRequest, useQuoteByRequestId } from "@/lib/hooks";
-import { formatDate, formatDateTime } from "@/lib/utils/date";
+import { useRequest, useQuoteByRequestId, useRequestFullTimeline } from "@/lib/hooks";
+import { formatDateTime } from "@/lib/utils/date";
+import { createClient } from "@/lib/supabase/client";
 
 interface RequestDetailPageProps {
   params: Promise<{ id: string }>;
@@ -20,6 +21,20 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
   const { id } = use(params);
   const { data: request, isLoading, error } = useRequest(id);
   const { data: quote } = useQuoteByRequestId(id);
+  const { data: timelineEvents = [], isLoading: timelineLoading } = useRequestFullTimeline(id, quote?.id);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // Get current user on mount
+  useEffect(() => {
+    const getUser = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+      }
+    };
+    getUser();
+  }, []);
 
   if (isLoading) {
     return (
@@ -81,34 +96,16 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
         </TabsContent>
 
         <TabsContent value="quote" className="mt-4">
-          {hasQuote && (
-            <QuoteReview
-              quote={{
-                id: quote.quote_number,
-                issuedAt: formatDate(quote.created_at),
-                validUntil: quote.valid_until ? formatDate(quote.valid_until) : "N/A",
-                pickupDate: quote.pickup_date ? formatDate(quote.pickup_date) : "TBD",
-                pickupTimeWindow: quote.pickup_time_window || "TBD",
-                lineItems: quote.line_items.map((item) => ({
-                  description: item.description,
-                  quantity: item.quantity,
-                  unitPrice: item.unit_price,
-                  total: item.total,
-                })),
-                subtotal: quote.subtotal,
-                discount: quote.discount || 0,
-                total: quote.total,
-                terms: quote.terms || "",
-              }}
-            />
+          {hasQuote && userId && (
+            <QuoteReview quote={quote} userId={userId} />
           )}
         </TabsContent>
 
         <TabsContent value="timeline" className="mt-4">
           <Timeline
-            entityType="request"
-            entityId={id}
-            title="Request Timeline"
+            events={timelineEvents}
+            isLoading={timelineLoading}
+            title="Timeline"
             showActors={false}
           />
         </TabsContent>

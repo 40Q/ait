@@ -40,7 +40,7 @@ import {
   Cpu,
   MapPin,
 } from "lucide-react";
-import { useRequest, useDeclineRequest } from "@/lib/hooks";
+import { useRequest, useDeclineRequest, useQuoteByRequestId, useRequestFullTimeline } from "@/lib/hooks";
 import { Timeline } from "@/components/ui/timeline";
 import type { LogisticsFormData, MaterialsFormData } from "@/lib/database/types";
 
@@ -73,6 +73,8 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
   const { id } = use(params);
   const router = useRouter();
   const { data: request, isLoading, error } = useRequest(id);
+  const { data: quote } = useQuoteByRequestId(id);
+  const { data: timelineEvents = [], isLoading: timelineLoading } = useRequestFullTimeline(id, quote?.id);
   const declineRequest = useDeclineRequest();
 
   const [showDeclineDialog, setShowDeclineDialog] = useState(false);
@@ -700,7 +702,7 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
           )}
 
           {/* Timeline - shown for all form types */}
-          <Timeline entityType="request" entityId={id} />
+          <Timeline events={timelineEvents} isLoading={timelineLoading} />
         </div>
       </div>
 

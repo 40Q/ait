@@ -11,6 +11,18 @@ export {
   useDeclineRequest,
 } from "./use-requests";
 
+// Quote hooks
+export {
+  useQuoteList,
+  useQuote,
+  useQuoteByRequestId,
+  useQuoteStatusCounts,
+  useCreateQuote,
+  useUpdateQuote,
+  useSendQuote,
+  useRespondToQuote,
+} from "./use-quotes";
+
 // Company hooks
 export {
   useCompanyList,
@@ -37,4 +49,4 @@ export { useSubmitMaterials } from "./use-submit-materials";
 export type { LocalMaterialsFormData } from "./use-submit-materials";
 
 // Timeline hooks
-export { useTimeline, useCreateTimelineEvent } from "./use-timeline";
+export { useTimeline, useRequestFullTimeline, useCreateTimelineEvent } from "./use-timeline";

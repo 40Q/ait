@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -22,94 +22,15 @@ import {
   FileText,
   DollarSign,
   TrendingUp,
+  Loader2,
 } from "lucide-react";
-import type { AdminQuoteStatus } from "../_types";
+import { useQuoteList, useQuoteStatusCounts } from "@/lib/hooks";
+import { formatDate } from "@/lib/utils/date";
+import type { QuoteStatus } from "@/lib/database/types";
 
-interface QuoteListItem {
-  id: string;
-  requestId: string;
-  companyId: string;
-  companyName: string;
-  status: AdminQuoteStatus;
-  createdAt: string;
-  sentAt?: string;
-  validUntil: string;
-  pickupDate: string;
-  total: number;
-  hasRevisionRequest: boolean;
-}
-
-// Mock data
-const quotes: QuoteListItem[] = [
-  {
-    id: "Q-2024-0058",
-    requestId: "REQ-2024-0045",
-    companyId: "1",
-    companyName: "Acme Corporation",
-    status: "sent",
-    createdAt: "Dec 16, 2024",
-    sentAt: "Dec 16, 2024",
-    validUntil: "Dec 30, 2024",
-    pickupDate: "Dec 20, 2024",
-    total: 2450,
-    hasRevisionRequest: false,
-  },
-  {
-    id: "Q-2024-0057",
-    requestId: "REQ-2024-0044",
-    companyId: "2",
-    companyName: "TechStart Inc",
-    status: "accepted",
-    createdAt: "Dec 14, 2024",
-    sentAt: "Dec 14, 2024",
-    validUntil: "Dec 28, 2024",
-    pickupDate: "Dec 18, 2024",
-    total: 1850,
-    hasRevisionRequest: false,
-  },
-  {
-    id: "Q-2024-0056",
-    requestId: "REQ-2024-0043",
-    companyId: "3",
-    companyName: "Global Systems",
-    status: "revision_requested",
-    createdAt: "Dec 12, 2024",
-    sentAt: "Dec 12, 2024",
-    validUntil: "Dec 26, 2024",
-    pickupDate: "Dec 16, 2024",
-    total: 3200,
-    hasRevisionRequest: true,
-  },
-  {
-    id: "Q-2024-0055",
-    requestId: "REQ-2024-0042",
-    companyId: "4",
-    companyName: "DataFlow LLC",
-    status: "draft",
-    createdAt: "Dec 10, 2024",
-    validUntil: "Dec 24, 2024",
-    pickupDate: "Dec 15, 2024",
-    total: 980,
-    hasRevisionRequest: false,
-  },
-  {
-    id: "Q-2024-0054",
-    requestId: "REQ-2024-0041",
-    companyId: "5",
-    companyName: "SmallBiz Co",
-    status: "declined",
-    createdAt: "Dec 8, 2024",
-    sentAt: "Dec 8, 2024",
-    validUntil: "Dec 22, 2024",
-    pickupDate: "Dec 12, 2024",
-    total: 450,
-    hasRevisionRequest: false,
-  },
-];
-
-function QuoteStatusBadge({ status }: { status: AdminQuoteStatus }) {
+function QuoteStatusBadge({ status }: { status: QuoteStatus }) {
   const config: Record<
-    AdminQuoteStatus,
+    QuoteStatus,
     { label: string; variant: "default" | "secondary" | "destructive" | "outline" }
   > = {
     draft: { label: "Draft", variant: "secondary" },
@@ -139,43 +60,43 @@ function QuoteStatusBadge({ status }: { status: AdminQuoteStatus }) {
 
 export default function QuotesPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
 
-  const statusCounts = {
-    all: quotes.length,
-    draft: quotes.filter((q) => q.status === "draft").length,
-    sent: quotes.filter((q) => q.status === "sent").length,
-    accepted: quotes.filter((q) => q.status === "accepted").length,
-    declined: quotes.filter((q) => q.status === "declined").length,
-    revision_requested: quotes.filter((q) => q.status === "revision_requested").length,
-  };
+  // Fetch quotes with filters (status only, search is client-side)
+  const filters = useMemo(() => ({
+    status: activeTab !== "all" ? (activeTab as QuoteStatus) : undefined,
+  }), [activeTab]);
 
-  const filterQuotes = (status: string) => {
-    let filtered = quotes;
+  const { data: allQuotes = [], isLoading, error } = useQuoteList(filters);
+  const { data: statusCounts } = useQuoteStatusCounts();
 
-    if (status !== "all") {
-      filtered = filtered.filter((q) => q.status === status);
-    }
+  // Client-side search across quote_number, request_number, and company_name
+  const quotes = useMemo(() => {
+    if (!searchQuery.trim()) return allQuotes;
+    const query = searchQuery.toLowerCase();
+    return allQuotes.filter(
+      (quote) =>
+        quote.quote_number.toLowerCase().includes(query) ||
+        quote.request_number.toLowerCase().includes(query) ||
+        quote.company_name.toLowerCase().includes(query)
+    );
+  }, [allQuotes, searchQuery]);
 
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (q) =>
-          q.id.toLowerCase().includes(query) ||
-          q.companyName.toLowerCase().includes(query) ||
-          q.requestId.toLowerCase().includes(query)
-      );
-    }
+  // Calculate stats from current quotes
+  const totalQuotes = statusCounts?.all ?? 0;
+  const acceptedCount = statusCounts?.accepted ?? 0;
+  const acceptanceRate = totalQuotes > 0 ? Math.round((acceptedCount / totalQuotes) * 100) : 0;
+  const avgQuoteValue = quotes.length > 0
+    ? Math.round(quotes.reduce((sum, q) => sum + q.total, 0) / quotes.length)
+    : 0;
 
-    return filtered;
-  };
-
-  // Calculate stats
-  const totalQuotesThisMonth = quotes.length;
-  const acceptedCount = quotes.filter((q) => q.status === "accepted").length;
-  const acceptanceRate = Math.round((acceptedCount / totalQuotesThisMonth) * 100);
-  const avgQuoteValue = Math.round(
-    quotes.reduce((sum, q) => sum + q.total, 0) / quotes.length
-  );
+  if (error) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <p className="text-destructive">Failed to load quotes: {error.message}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -187,8 +108,8 @@ export default function QuotesPage() {
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard
-          title="Quotes This Month"
-          value={totalQuotesThisMonth}
+          title="Total Quotes"
+          value={totalQuotes}
           icon={FileText}
         />
         <StatCard
@@ -217,19 +138,19 @@ export default function QuotesPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="all">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="all">All ({statusCounts.all})</TabsTrigger>
-          <TabsTrigger value="draft">Draft ({statusCounts.draft})</TabsTrigger>
-          <TabsTrigger value="sent">Sent ({statusCounts.sent})</TabsTrigger>
+          <TabsTrigger value="all">All ({statusCounts?.all ?? 0})</TabsTrigger>
+          <TabsTrigger value="draft">Draft ({statusCounts?.draft ?? 0})</TabsTrigger>
+          <TabsTrigger value="sent">Sent ({statusCounts?.sent ?? 0})</TabsTrigger>
           <TabsTrigger value="revision_requested">
-            Revisions ({statusCounts.revision_requested})
+            Revisions ({statusCounts?.revision_requested ?? 0})
           </TabsTrigger>
           <TabsTrigger value="accepted">
-            Accepted ({statusCounts.accepted})
+            Accepted ({statusCounts?.accepted ?? 0})
           </TabsTrigger>
           <TabsTrigger value="declined">
-            Declined ({statusCounts.declined})
+            Declined ({statusCounts?.declined ?? 0})
           </TabsTrigger>
         </TabsList>
 
@@ -257,68 +178,77 @@ export default function QuotesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filterQuotes(status).map((quote) => (
-                    <TableRow key={quote.id}>
-                      <TableCell>
-                        <Link
-                          href={`/admin/quotes/${quote.id}`}
-                          className="font-mono text-sm font-medium hover:underline"
-                        >
-                          {quote.id}
-                        </Link>
-                      </TableCell>
-                      <TableCell>
-                        <Link
-                          href={`/admin/companies/${quote.companyId}`}
-                          className="hover:underline"
-                        >
-                          {quote.companyName}
-                        </Link>
-                      </TableCell>
-                      <TableCell>
-                        <Link
-                          href={`/admin/requests/${quote.requestId}`}
-                          className="font-mono text-sm text-muted-foreground hover:underline"
-                        >
-                          {quote.requestId}
-                        </Link>
-                      </TableCell>
-                      <TableCell>{quote.pickupDate}</TableCell>
-                      <TableCell>
-                        <span
-                          className={
-                            new Date(quote.validUntil) < new Date()
-                              ? "text-red-500"
-                              : ""
-                          }
-                        >
-                          {quote.validUntil}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        ${quote.total.toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        <QuoteStatusBadge status={quote.status} />
-                      </TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link href={`/admin/quotes/${quote.id}`}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            View
-                          </Link>
-                        </Button>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-12">
+                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : quotes.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-12">
+                        <p className="text-muted-foreground">No quotes found</p>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    quotes.map((quote) => (
+                      <TableRow key={quote.id}>
+                        <TableCell>
+                          <Link
+                            href={`/admin/quotes/${quote.id}`}
+                            className="font-mono text-sm font-medium hover:underline"
+                          >
+                            {quote.quote_number}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          <Link
+                            href={`/admin/companies/${quote.company_id}`}
+                            className="hover:underline"
+                          >
+                            {quote.company_name}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          <Link
+                            href={`/admin/requests/${quote.request_id}`}
+                            className="font-mono text-sm text-muted-foreground hover:underline"
+                          >
+                            {quote.request_number}
+                          </Link>
+                        </TableCell>
+                        <TableCell>{formatDate(quote.pickup_date) || "Not specified"}</TableCell>
+                        <TableCell>
+                          <span
+                            className={
+                              new Date(quote.valid_until) < new Date()
+                                ? "text-red-500"
+                                : ""
+                            }
+                          >
+                            {formatDate(quote.valid_until)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          ${quote.total.toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          <QuoteStatusBadge status={quote.status} />
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="sm" asChild>
+                            <Link href={`/admin/quotes/${quote.id}`}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              View
+                            </Link>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
-            {filterQuotes(status).length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">No quotes found</p>
-              </div>
-            )}
           </TabsContent>
         ))}
       </Tabs>

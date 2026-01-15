@@ -1,6 +1,6 @@
 // Common types shared across entities
 
-export type RequestStatus = "pending" | "quote_ready" | "accepted" | "declined";
+export type RequestStatus = "pending" | "quote_ready" | "revision_requested" | "accepted" | "declined";
 
 export type QuoteStatus =
   | "draft"

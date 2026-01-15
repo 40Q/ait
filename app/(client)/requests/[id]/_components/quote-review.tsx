@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,61 +19,95 @@ import { Calendar, Clock, Check, X, MessageSquare, Loader2, PenLine } from "luci
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useRespondToQuote } from "@/lib/hooks";
+import type { QuoteRow, QuoteLineItemRow } from "@/lib/database/types";
+import { formatDate } from "@/lib/utils/date";
 
-interface QuoteLineItem {
-  description: string;
-  quantity: number;
-  unitPrice: number;
-  total: number;
-}
-
-interface Quote {
-  id: string;
-  issuedAt: string;
-  validUntil: string;
-  pickupDate: string;
-  pickupTimeWindow: string;
-  lineItems: QuoteLineItem[];
-  subtotal: number;
-  discount: number;
-  total: number;
-  terms: string;
-}
+// The quote type returned by useQuoteByRequestId
+type QuoteWithLineItems = QuoteRow & { line_items: QuoteLineItemRow[] };
 
 interface QuoteReviewProps {
-  quote: Quote;
+  quote: QuoteWithLineItems;
+  userId: string;
 }
 
-export function QuoteReview({ quote }: QuoteReviewProps) {
+export function QuoteReview({ quote, userId }: QuoteReviewProps) {
+  const router = useRouter();
+  const respondToQuote = useRespondToQuote();
+
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
   const [showRevisionDialog, setShowRevisionDialog] = useState(false);
   const [showDeclineDialog, setShowDeclineDialog] = useState(false);
   const [revisionMessage, setRevisionMessage] = useState("");
   const [declineReason, setDeclineReason] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [signature, setSignature] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
+  const isSubmitting = respondToQuote.isPending;
+  const canRespond = quote.status === "sent";
+
   const handleAccept = async () => {
-    setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsSubmitting(false);
-    setShowAcceptDialog(false);
-    // Would redirect to job
+    respondToQuote.mutate(
+      {
+        quoteId: quote.id,
+        response: {
+          status: "accepted",
+          signature_name: signature,
+        },
+        userId,
+      },
+      {
+        onSuccess: (result) => {
+          setShowAcceptDialog(false);
+          // Redirect to job if created
+          if (result.jobId) {
+            router.push(`/jobs/${result.jobId}`);
+          } else {
+            router.refresh();
+          }
+        },
+      }
+    );
   };
 
   const handleRequestRevision = async () => {
-    setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsSubmitting(false);
-    setShowRevisionDialog(false);
+    respondToQuote.mutate(
+      {
+        quoteId: quote.id,
+        response: {
+          status: "revision_requested",
+          revision_message: revisionMessage,
+        },
+        userId,
+      },
+      {
+        onSuccess: () => {
+          setShowRevisionDialog(false);
+          setRevisionMessage("");
+          router.refresh();
+        },
+      }
+    );
   };
 
   const handleDecline = async () => {
-    setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsSubmitting(false);
-    setShowDeclineDialog(false);
+    respondToQuote.mutate(
+      {
+        quoteId: quote.id,
+        response: {
+          status: "declined",
+          decline_reason: declineReason || undefined,
+        },
+        userId,
+      },
+      {
+        onSuccess: () => {
+          setShowDeclineDialog(false);
+          setDeclineReason("");
+          router.push("/requests");
+        },
+      }
+    );
   };
 
   return (
@@ -80,13 +115,15 @@ export function QuoteReview({ quote }: QuoteReviewProps) {
       <Card className="border-primary/20 pt-0">
         <CardHeader className="bg-primary/5 py-4">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Quote #{quote.id}</CardTitle>
-            <Badge variant="secondary">Ready for Review</Badge>
+            <CardTitle className="text-lg">Quote #{quote.quote_number}</CardTitle>
+            <Badge variant={canRespond ? "secondary" : "outline"}>
+              {canRespond ? "Ready for Review" : quote.status === "accepted" ? "Accepted" : quote.status === "declined" ? "Declined" : "Revision Requested"}
+            </Badge>
           </div>
           <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-            <span>Issued: {quote.issuedAt}</span>
+            <span>Issued: {formatDate(quote.created_at)}</span>
             <span className="text-destructive">
-              Valid until: {quote.validUntil}
+              Valid until: {quote.valid_until ? formatDate(quote.valid_until) : "N/A"}
             </span>
           </div>
         </CardHeader>
@@ -98,11 +135,11 @@ export function QuoteReview({ quote }: QuoteReviewProps) {
             <div className="flex flex-wrap gap-4 text-sm">
               <span className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                {quote.pickupDate}
+                {quote.pickup_date ? formatDate(quote.pickup_date) : "TBD"}
               </span>
               <span className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-muted-foreground" />
-                {quote.pickupTimeWindow}
+                {quote.pickup_time_window || "TBD"}
               </span>
             </div>
           </div>
@@ -125,12 +162,12 @@ export function QuoteReview({ quote }: QuoteReviewProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {quote.lineItems.map((item, index) => (
-                    <tr key={index} className="border-b last:border-0">
+                  {quote.line_items.map((item) => (
+                    <tr key={item.id} className="border-b last:border-0">
                       <td className="px-4 py-3">{item.description}</td>
                       <td className="px-4 py-3 text-center">{item.quantity}</td>
                       <td className="px-4 py-3 text-right">
-                        ${item.unitPrice.toFixed(2)}
+                        ${item.unit_price.toFixed(2)}
                       </td>
                       <td className="px-4 py-3 text-right font-medium">
                         ${item.total.toFixed(2)}
@@ -162,34 +199,38 @@ export function QuoteReview({ quote }: QuoteReviewProps) {
           </div>
 
           {/* Terms */}
-          <div>
-            <h4 className="mb-2 font-medium">Terms & Conditions</h4>
-            <p className="text-sm text-muted-foreground">{quote.terms}</p>
-          </div>
+          {quote.terms && (
+            <div>
+              <h4 className="mb-2 font-medium">Terms & Conditions</h4>
+              <p className="text-sm text-muted-foreground">{quote.terms}</p>
+            </div>
+          )}
         </CardContent>
 
-        <CardFooter className="flex flex-col gap-3 border-t bg-muted/30 sm:flex-row">
-          <Button className="w-full sm:w-auto" onClick={() => setShowAcceptDialog(true)}>
-            <Check className="mr-2 h-4 w-4" />
-            Accept Quote
-          </Button>
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto"
-            onClick={() => setShowRevisionDialog(true)}
-          >
-            <MessageSquare className="mr-2 h-4 w-4" />
-            Request Changes
-          </Button>
-          <Button
-            variant="ghost"
-            className="w-full text-muted-foreground sm:w-auto"
-            onClick={() => setShowDeclineDialog(true)}
-          >
-            <X className="mr-2 h-4 w-4" />
-            Decline
-          </Button>
-        </CardFooter>
+        {canRespond && (
+          <CardFooter className="flex flex-col gap-3 border-t bg-muted/30 sm:flex-row">
+            <Button className="w-full sm:w-auto" onClick={() => setShowAcceptDialog(true)}>
+              <Check className="mr-2 h-4 w-4" />
+              Accept Quote
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => setShowRevisionDialog(true)}
+            >
+              <MessageSquare className="mr-2 h-4 w-4" />
+              Request Changes
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full text-muted-foreground sm:w-auto"
+              onClick={() => setShowDeclineDialog(true)}
+            >
+              <X className="mr-2 h-4 w-4" />
+              Decline
+            </Button>
+          </CardFooter>
+        )}
       </Card>
 
       {/* Accept Dialog */}
@@ -208,7 +249,7 @@ export function QuoteReview({ quote }: QuoteReviewProps) {
             </DialogTitle>
             <DialogDescription>
               Please review and sign below to accept this quote. A job will be
-              scheduled for pickup on {quote.pickupDate}.
+              scheduled for pickup on {quote.pickup_date ? formatDate(quote.pickup_date) : "the confirmed date"}.
             </DialogDescription>
           </DialogHeader>
 
