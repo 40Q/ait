@@ -9,7 +9,6 @@ import {
   Building2,
   Briefcase,
   ClipboardList,
-  Receipt,
   AlertCircle,
   Clock,
   ArrowRight,
@@ -20,7 +19,6 @@ import {
   useRequestStatusCounts,
   useQuoteStatusCounts,
   useJobStatusCounts,
-  useInvoiceSummary,
   useCompanyList,
   useRequestList,
 } from "@/lib/hooks";
@@ -30,11 +28,10 @@ export default function AdminDashboardPage() {
   const { data: requestCounts, isLoading: loadingRequests } = useRequestStatusCounts();
   const { data: quoteCounts, isLoading: loadingQuotes } = useQuoteStatusCounts();
   const { data: jobCounts, isLoading: loadingJobs } = useJobStatusCounts();
-  const { data: invoiceSummary, isLoading: loadingInvoices } = useInvoiceSummary();
   const { data: companies = [], isLoading: loadingCompanies } = useCompanyList();
   const { data: recentRequests = [] } = useRequestList();
 
-  const isLoading = loadingRequests || loadingQuotes || loadingJobs || loadingInvoices || loadingCompanies;
+  const isLoading = loadingRequests || loadingQuotes || loadingJobs || loadingCompanies;
 
   const pendingRequests = requestCounts?.pending ?? 0;
   const quotesAwaitingResponse = quoteCounts?.sent ?? 0;
@@ -44,10 +41,8 @@ export default function AdminDashboardPage() {
     (jobCounts?.pickup_complete ?? 0) +
     (jobCounts?.processing ?? 0);
   const completedJobs = jobCounts?.complete ?? 0;
-  const outstandingAmount = invoiceSummary?.total_outstanding ?? 0;
-  const overdueCount = invoiceSummary?.overdue_count ?? 0;
 
-  const hasPendingActions = pendingRequests > 0 || quotesAwaitingResponse > 0 || overdueCount > 0;
+  const hasPendingActions = pendingRequests > 0 || quotesAwaitingResponse > 0;
 
   if (isLoading) {
     return (
@@ -85,29 +80,14 @@ export default function AdminDashboardPage() {
               variant="blue"
             />
           )}
-          {overdueCount > 0 && (
-            <PendingActionCard
-              title="Overdue Invoices"
-              count={overdueCount}
-              href="/admin/invoices"
-              icon={Receipt}
-              variant="red"
-            />
-          )}
         </div>
       )}
 
       {/* Stats Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard title="Total Companies" value={totalCompanies} icon={Building2} />
         <StatCard title="Active Jobs" value={activeJobs} icon={Briefcase} />
         <StatCard title="Completed Jobs" value={completedJobs} icon={CheckCircle2} />
-        <StatCard
-          title="Outstanding Invoices"
-          value={`$${outstandingAmount.toLocaleString()}`}
-          description={`${overdueCount} overdue`}
-          icon={Receipt}
-        />
       </div>
 
       {/* Recent Requests */}

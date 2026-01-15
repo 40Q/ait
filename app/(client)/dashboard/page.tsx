@@ -9,7 +9,6 @@ import {
   ClipboardList,
   FileCheck,
   Briefcase,
-  DollarSign,
   Truck,
   ArrowRight,
   Loader2,
@@ -19,15 +18,13 @@ import { PendingActions } from "./_components/pending-actions";
 import {
   useJobStatusCounts,
   useRequestStatusCounts,
-  useInvoiceSummary,
 } from "@/lib/hooks";
 
 export default function DashboardPage() {
   const { data: jobCounts, isLoading: loadingJobs } = useJobStatusCounts();
   const { data: requestCounts, isLoading: loadingRequests } = useRequestStatusCounts();
-  const { data: invoiceSummary, isLoading: loadingInvoices } = useInvoiceSummary();
 
-  const isLoading = loadingJobs || loadingRequests || loadingInvoices;
+  const isLoading = loadingJobs || loadingRequests;
 
   const completedJobs = jobCounts?.complete ?? 0;
   const activeJobs =
@@ -35,9 +32,6 @@ export default function DashboardPage() {
     (jobCounts?.pickup_complete ?? 0) +
     (jobCounts?.processing ?? 0);
   const pendingRequests = requestCounts?.pending ?? 0;
-  const outstandingBalance = invoiceSummary?.total_outstanding ?? 0;
-  const unpaidInvoices =
-    (invoiceSummary?.unpaid_count ?? 0) + (invoiceSummary?.overdue_count ?? 0);
 
   return (
     <div className="space-y-6">
@@ -61,7 +55,7 @@ export default function DashboardPage() {
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <StatCard
             title="Completed Jobs"
             value={completedJobs}
@@ -79,12 +73,6 @@ export default function DashboardPage() {
             value={pendingRequests}
             description="Awaiting quote"
             icon={ClipboardList}
-          />
-          <StatCard
-            title="Outstanding Balance"
-            value={`$${outstandingBalance.toLocaleString()}`}
-            description={`${unpaidInvoices} unpaid invoice${unpaidInvoices !== 1 ? "s" : ""}`}
-            icon={DollarSign}
           />
         </div>
       )}
