@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -12,43 +11,23 @@ import { StepSchedule } from "./_components/step-schedule";
 import { StepEquipment } from "./_components/step-equipment";
 import { StepServices } from "./_components/step-services";
 import { StepReview } from "./_components/step-review";
-import {
-  initialFormData,
-  steps,
-  type PickupRequestFormData,
-} from "./_components/types";
+import { initialFormData, steps, type PickupRequestFormData } from "./_components/types";
+import { useSubmitRequest } from "./_hooks/use-submit-request";
 
 export default function NewRequestPage() {
-  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<PickupRequestFormData>(initialFormData);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { submit, isUploading, isSubmitting, error } = useSubmitRequest();
 
   const handleFormChange = (data: Partial<PickupRequestFormData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
   };
 
-  const handleNext = () => {
-    if (currentStep < steps.length - 1) {
-      setCurrentStep((prev) => prev + 1);
-    }
-  };
-
-  const handleBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep((prev) => prev - 1);
-    }
-  };
-
-  const handleSubmit = async () => {
-    setIsSubmitting(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsSubmitting(false);
-    // Would redirect to confirmation or requests page
-    router.push("/requests");
-  };
+  const isLastStep = currentStep === steps.length - 1;
+  const canSubmit = isLastStep && termsAccepted;
+  const isPending = isUploading || isSubmitting;
 
   const renderStep = () => {
     switch (currentStep) {
@@ -74,9 +53,6 @@ export default function NewRequestPage() {
     }
   };
 
-  const isLastStep = currentStep === steps.length - 1;
-  const canSubmit = isLastStep && termsAccepted;
-
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader
@@ -84,49 +60,57 @@ export default function NewRequestPage() {
         description="Submit a new pickup request for electronics recycling"
       />
 
-      {/* Step Indicator */}
       <Card>
         <CardContent>
           <StepIndicator currentStep={currentStep} />
         </CardContent>
       </Card>
 
-      {/* Form Content */}
       <Card>
         <CardContent>{renderStep()}</CardContent>
-        <CardFooter className="flex justify-between border-t px-6 py-4">
-          <Button
-            variant="outline"
-            onClick={handleBack}
-            disabled={currentStep === 0}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
-          </Button>
-
-          {isLastStep ? (
-            <Button
-              onClick={handleSubmit}
-              disabled={!canSubmit || isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  <Check className="mr-2 h-4 w-4" />
-                  Submit Request
-                </>
-              )}
-            </Button>
-          ) : (
-            <Button onClick={handleNext}>
-              Next
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+        <CardFooter className="flex flex-col gap-4 border-t px-6 py-4">
+          {error && (
+            <p className="text-sm text-destructive w-full">{error}</p>
           )}
+          <div className="flex justify-between w-full">
+            <Button
+              variant="outline"
+              onClick={() => setCurrentStep((s) => s - 1)}
+              disabled={currentStep === 0}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+
+            {isLastStep ? (
+              <Button
+                onClick={() => submit(formData)}
+                disabled={!canSubmit || isPending}
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading files...
+                  </>
+                ) : isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Check className="mr-2 h-4 w-4" />
+                    Submit Request
+                  </>
+                )}
+              </Button>
+            ) : (
+              <Button onClick={() => setCurrentStep((s) => s + 1)}>
+                Next
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </CardFooter>
       </Card>
     </div>

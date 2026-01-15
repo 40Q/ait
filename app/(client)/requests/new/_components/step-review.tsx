@@ -1,4 +1,3 @@
-import { format } from "date-fns";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,6 +14,7 @@ import {
   AlertTriangle,
   CheckCircle2,
 } from "lucide-react";
+import { formatDate } from "@/lib/utils/date";
 import {
   equipmentTypeOptions,
   dataDestructionOptions,
@@ -94,11 +94,8 @@ export function StepReview({
             </CardTitle>
           </CardHeader>
           <CardContent className="text-sm space-y-3">
-            {data.clientName && (
-              <p className="font-medium">{data.clientName}</p>
-            )}
             {data.locationName && (
-              <p className="text-muted-foreground">{data.locationName}</p>
+              <p className="font-medium">{data.locationName}</p>
             )}
             <div>
               <p>{data.address}</p>
@@ -202,10 +199,10 @@ export function StepReview({
                 <p className="text-muted-foreground">Preferred Date</p>
                 <p className="font-medium">
                   {data.preferredDate
-                    ? format(data.preferredDate, "PPP")
+                    ? formatDate(data.preferredDate)
                     : "Not selected"}
                   {data.preferredDateRangeEnd && (
-                    <span> - {format(data.preferredDateRangeEnd, "PPP")}</span>
+                    <span> - {formatDate(data.preferredDateRangeEnd)}</span>
                   )}
                 </p>
               </div>
@@ -275,7 +272,7 @@ export function StepReview({
               </ul>
               {data.coiRequired && data.coiSampleFile && (
                 <p className="mt-2 text-yellow-700">
-                  Sample COI uploaded: {data.coiSampleFile}
+                  Sample COI uploaded: {data.coiSampleFile.name}
                 </p>
               )}
             </CardContent>

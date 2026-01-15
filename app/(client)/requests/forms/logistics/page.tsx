@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,46 +18,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Loader2, Check, CalendarIcon, Truck, Sparkles } from "lucide-react";
-import { format } from "date-fns";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, Check, CalendarIcon, Truck, Sparkles, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatDate } from "@/lib/utils/date";
+import {
+  useSubmitLogistics,
+  type LocalLogisticsFormData,
+} from "@/lib/hooks";
 
-interface LogisticsFormData {
-  // Contact Information
-  authorizedPersonName: string;
-  contactPhone: string;
-  contactEmail: string;
-  preferredContactMethod: "phone" | "email";
-
-  // Pickup Details
-  pickupDateRequested: Date | null;
-  pickupAddress: string;
-  destinationAddress: string;
-
-  // COI
-  coiRequired: boolean | null;
-
-  // Material Preparation
-  isMaterialPrepared: boolean | null;
-  materialFitsOnPallets: string;
-  numberOfPallets: string;
-  sizeOfPallets: string;
-  heightOfPalletizedMaterial: string;
-  estimatedWeightPerPallet: string;
-
-  // Preparation Services Needed
-  needsPalletizing: boolean;
-  needsShrinkWrap: boolean;
-  needsPalletStrap: boolean;
-
-  // White Glove Services
-  whiteGloveService: boolean;
-
-  // Additional
-  additionalComments: string;
-}
-
-const initialFormData: LogisticsFormData = {
+const initialFormData: LocalLogisticsFormData = {
   authorizedPersonName: "",
   contactPhone: "",
   contactEmail: "",
@@ -81,21 +50,16 @@ const initialFormData: LogisticsFormData = {
 };
 
 export default function LogisticsPage() {
-  const router = useRouter();
   const [formData, setFormData] =
-    useState<LogisticsFormData>(initialFormData);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+    useState<LocalLogisticsFormData>(initialFormData);
+  const { submit, isSubmitting, error } = useSubmitLogistics();
 
-  const handleChange = (data: Partial<LogisticsFormData>) => {
+  const handleChange = (data: Partial<LocalLogisticsFormData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
   };
 
   const handleSubmit = async () => {
-    setIsSubmitting(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsSubmitting(false);
-    router.push("/requests");
+    await submit(formData);
   };
 
   const canSubmit =
@@ -213,7 +177,7 @@ export default function LogisticsPage() {
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {formData.pickupDateRequested ? (
-                    format(formData.pickupDateRequested, "PPP")
+                    formatDate(formData.pickupDateRequested)
                   ) : (
                     <span>Select date</span>
                   )}
@@ -490,7 +454,13 @@ export default function LogisticsPage() {
             />
           </div>
         </CardContent>
-        <CardFooter className="border-t px-6 py-4">
+        <CardFooter className="flex-col items-stretch gap-4 border-t px-6 py-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
           <Button
             onClick={handleSubmit}
             disabled={!canSubmit || isSubmitting}

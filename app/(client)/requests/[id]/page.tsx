@@ -1,118 +1,49 @@
+"use client";
+
+import { use } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { RequestDetails } from "./_components/request-details";
 import { QuoteReview } from "./_components/quote-review";
-
-// Mock data - would come from API
-const requestData: {
-  id: string;
-  status: "pending" | "quote_ready" | "revision_requested" | "accepted" | "declined";
-  submittedAt: string;
-  location: {
-    address: string;
-    buildingInfo: string;
-    city: string;
-    state: string;
-    zipCode: string;
-    contactName: string;
-    contactEmail: string;
-    contactPhone: string;
-    accessInstructions: string;
-    poNumber: string;
-  };
-  schedule: {
-    preferredDate: string;
-    serviceType: "pickup" | "dropoff";
-  };
-  equipment: { type: string; quantity: number }[];
-  services: string[];
-  additionalNotes: string;
-} = {
-  id: "REQ-2024-0045",
-  status: "quote_ready",
-  submittedAt: "December 15, 2024 at 10:30 AM",
-  location: {
-    address: "123 Main Street",
-    buildingInfo: "Suite 400, 4th Floor",
-    city: "Los Angeles",
-    state: "CA",
-    zipCode: "90001",
-    contactName: "John Smith",
-    contactEmail: "john.smith@company.com",
-    contactPhone: "(555) 123-4567",
-    accessInstructions:
-      "Use loading dock on east side. Check in with security at front desk.",
-    poNumber: "PO-2024-1234",
-  },
-  schedule: {
-    preferredDate: "December 20, 2024",
-    serviceType: "pickup",
-  },
-  equipment: [
-    { type: "Laptops", quantity: 15 },
-    { type: "Desktop Computers", quantity: 8 },
-    { type: "Hard Drives (loose)", quantity: 20 },
-  ],
-  services: ["HD Destruction (Off-site)", "Certificate of Destruction"],
-  additionalNotes:
-    "Please call 30 minutes before arrival. Building has limited parking.",
-};
-
-const quoteData = {
-  id: "Q-2024-0042",
-  issuedAt: "December 16, 2024",
-  validUntil: "December 30, 2024",
-  pickupDate: "December 20, 2024",
-  pickupTimeWindow: "9:00 AM - 12:00 PM",
-  lineItems: [
-    {
-      description: "Equipment Pickup & Transport",
-      quantity: 1,
-      unitPrice: 250,
-      total: 250,
-    },
-    {
-      description: "Laptop Recycling",
-      quantity: 15,
-      unitPrice: 25,
-      total: 375,
-    },
-    {
-      description: "Desktop Recycling",
-      quantity: 8,
-      unitPrice: 35,
-      total: 280,
-    },
-    {
-      description: "Hard Drive Destruction",
-      quantity: 20,
-      unitPrice: 15,
-      total: 300,
-    },
-    {
-      description: "Certificate of Destruction",
-      quantity: 1,
-      unitPrice: 50,
-      total: 50,
-    },
-  ],
-  subtotal: 1255,
-  discount: 55,
-  total: 1200,
-  terms:
-    "Payment due within 30 days of service completion. All equipment will be processed in accordance with NIST 800-88 and IEEE 2883-2022 standards. Certificate of Destruction will be provided within 5 business days of processing completion.",
-};
+import { useRequest, useQuoteByRequestId } from "@/lib/hooks";
+import { formatDate, formatDateTime } from "@/lib/utils/date";
 
 interface RequestDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function RequestDetailPage({ params }: RequestDetailPageProps) {
-  const { id } = await params;
+export default function RequestDetailPage({ params }: RequestDetailPageProps) {
+  const { id } = use(params);
+  const { data: request, isLoading, error } = useRequest(id);
+  const { data: quote } = useQuoteByRequestId(id);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !request) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 gap-4">
+        <p className="text-destructive">
+          {error ? `Failed to load request: ${error.message}` : "Request not found"}
+        </p>
+        <Button variant="outline" asChild>
+          <Link href="/requests">Back to Requests</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  const hasQuote = request.status !== "pending" && quote;
+  const defaultTab = request.status === "quote_ready" ? "quote" : "details";
 
   return (
     <div className="space-y-6">
@@ -124,33 +55,51 @@ export default async function RequestDetailPage({ params }: RequestDetailPagePro
         </Button>
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">{id}</h1>
-            <StatusBadge status={requestData.status} />
+            <h1 className="text-2xl font-bold">{request.request_number}</h1>
+            <StatusBadge status={request.status} />
           </div>
           <p className="text-sm text-muted-foreground">
-            Submitted on {requestData.submittedAt}
+            Submitted on {formatDateTime(request.created_at)}
           </p>
         </div>
       </div>
 
-      <Tabs defaultValue={requestData.status === "quote_ready" ? "quote" : "details"}>
+      <Tabs defaultValue={defaultTab}>
         <TabsList>
           <TabsTrigger value="details">Request Details</TabsTrigger>
-          <TabsTrigger value="quote" disabled={requestData.status === "pending"}>
+          <TabsTrigger value="quote" disabled={!hasQuote}>
             Quote
-            {requestData.status === "quote_ready" && (
+            {request.status === "quote_ready" && (
               <span className="ml-2 h-2 w-2 rounded-full bg-primary" />
             )}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="details" className="mt-4">
-          <RequestDetails request={requestData} />
+          <RequestDetails request={request} />
         </TabsContent>
 
         <TabsContent value="quote" className="mt-4">
-          {requestData.status === "quote_ready" && (
-            <QuoteReview quote={quoteData} />
+          {hasQuote && (
+            <QuoteReview
+              quote={{
+                id: quote.quote_number,
+                issuedAt: formatDate(quote.created_at),
+                validUntil: quote.valid_until ? formatDate(quote.valid_until) : "N/A",
+                pickupDate: quote.pickup_date ? formatDate(quote.pickup_date) : "TBD",
+                pickupTimeWindow: quote.pickup_time_window || "TBD",
+                lineItems: quote.line_items.map((item) => ({
+                  description: item.description,
+                  quantity: item.quantity,
+                  unitPrice: item.unit_price,
+                  total: item.total,
+                })),
+                subtotal: quote.subtotal,
+                discount: quote.discount || 0,
+                total: quote.total,
+                terms: quote.terms || "",
+              }}
+            />
           )}
         </TabsContent>
       </Tabs>

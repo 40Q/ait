@@ -38,27 +38,16 @@ export function StepLocation({ data, onChange }: StepLocationProps) {
         </p>
       </div>
 
-      {/* Client & Location Info */}
+      {/* Location Info */}
       <div className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="clientName">Client Name *</Label>
-            <Input
-              id="clientName"
-              value={data.clientName}
-              onChange={(e) => onChange({ clientName: e.target.value })}
-              placeholder="Company name"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="locationName">Location Name (if different)</Label>
-            <Input
-              id="locationName"
-              value={data.locationName}
-              onChange={(e) => onChange({ locationName: e.target.value })}
-              placeholder="e.g., Data Center, Warehouse B"
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="locationName">Location Name</Label>
+          <Input
+            id="locationName"
+            value={data.locationName}
+            onChange={(e) => onChange({ locationName: e.target.value })}
+            placeholder="e.g., Data Center, Warehouse B"
+          />
         </div>
 
         <div className="space-y-2">
@@ -429,14 +418,14 @@ export function StepLocation({ data, onChange }: StepLocationProps) {
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) {
-                    onChange({ coiSampleFile: file.name });
+                    onChange({ coiSampleFile: file });
                   }
                 }}
                 className="cursor-pointer"
               />
               {data.coiSampleFile && (
                 <p className="text-sm text-muted-foreground">
-                  Selected: {data.coiSampleFile}
+                  Selected: {data.coiSampleFile.name}
                 </p>
               )}
             </div>

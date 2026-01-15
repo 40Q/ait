@@ -1,8 +1,8 @@
 "use client";
 
-import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatDate } from "@/lib/utils/date";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
@@ -44,7 +44,7 @@ export function StepSchedule({ data, onChange }: StepScheduleProps) {
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {data.preferredDate
-                    ? format(data.preferredDate, "PPP")
+                    ? formatDate(data.preferredDate)
                     : "Select date"}
                 </Button>
               </PopoverTrigger>
@@ -73,7 +73,7 @@ export function StepSchedule({ data, onChange }: StepScheduleProps) {
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {data.preferredDateRangeEnd
-                    ? format(data.preferredDateRangeEnd, "PPP")
+                    ? formatDate(data.preferredDateRangeEnd)
                     : "Select end date"}
                 </Button>
               </PopoverTrigger>

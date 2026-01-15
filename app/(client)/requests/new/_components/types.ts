@@ -24,9 +24,6 @@ export type TruckSize =
 export type DockType = "none" | "ground_level" | "truck_level";
 
 export interface PickupRequestFormData {
-  // Client Info
-  clientName: string;
-
   // Location
   address: string;
   city: string;
@@ -66,7 +63,8 @@ export interface PickupRequestFormData {
 
   // COI (Certificate of Insurance)
   coiRequired: boolean;
-  coiSampleFile: string | null; // File path/URL for uploaded sample COI
+  coiSampleFile: File | null; // Actual file object for upload
+  coiSamplePath: string | null; // Storage path after upload (used in DB)
 
   // Equipment Confirmation
   equipmentUnpluggedConfirmed: boolean;
@@ -81,7 +79,8 @@ export interface PickupRequestFormData {
   quantities: Record<string, number>;
   equipmentDetails: Record<string, string>; // Additional details per equipment type
   estimatedWeight: string;
-  equipmentFiles: File[]; // Photo or inventory list uploads
+  equipmentFiles: File[]; // Photo or inventory list uploads (local)
+  equipmentFilePaths: string[]; // Storage paths after upload (used in DB)
 
   // General Questions
   hasHeavyEquipment: boolean; // Equipment too large/heavy for one person
@@ -115,9 +114,6 @@ export interface PickupRequestFormData {
 }
 
 export const initialFormData: PickupRequestFormData = {
-  // Client Info
-  clientName: "",
-
   // Location
   address: "",
   city: "",
@@ -158,6 +154,7 @@ export const initialFormData: PickupRequestFormData = {
   // COI
   coiRequired: false,
   coiSampleFile: null,
+  coiSamplePath: null,
 
   // Equipment Confirmation
   equipmentUnpluggedConfirmed: false,
@@ -173,6 +170,7 @@ export const initialFormData: PickupRequestFormData = {
   equipmentDetails: {},
   estimatedWeight: "",
   equipmentFiles: [],
+  equipmentFilePaths: [],
 
   // General Questions
   hasHeavyEquipment: false,
@@ -310,3 +308,71 @@ export const steps = [
   { id: "services", title: "Services", description: "Additional options" },
   { id: "review", title: "Review", description: "Confirm details" },
 ];
+
+/**
+ * Maps form data to the database insert format
+ */
+export function mapFormDataToRequestInsert(
+  formData: PickupRequestFormData,
+  companyId: string,
+  userId: string
+) {
+  // Convert equipment types and quantities to EquipmentItem array
+  const equipment = formData.equipmentTypes.map((type) => ({
+    type,
+    quantity: formData.quantities[type] || 1,
+    details: formData.equipmentDetails[type] || undefined,
+  }));
+
+  return {
+    company_id: companyId,
+    submitted_by: userId,
+    status: "pending" as const,
+    form_type: "standard" as const,
+    form_data: {},
+    address: formData.address,
+    city: formData.city,
+    state: formData.state,
+    zip_code: formData.zipCode,
+    building_info: formData.buildingInfo || null,
+    location_name: formData.locationName || null,
+    equipment_location: formData.equipmentLocation || null,
+    access_instructions: formData.accessInstructions || null,
+    po_number: formData.poNumber || null,
+    on_site_contact_name: formData.onSiteContactName,
+    on_site_contact_email: formData.onSiteContactEmail,
+    on_site_contact_phone: formData.onSiteContactPhone,
+    pre_pickup_call: formData.prePickupCall,
+    accounts_payable_email: formData.accountsPayableEmail || null,
+    dock_type: formData.dockType,
+    dock_hours_start: formData.dockHoursStart || null,
+    dock_hours_end: formData.dockHoursEnd || null,
+    dock_time_limit: formData.dockTimeLimit || null,
+    has_freight_elevator: formData.hasFreightElevator,
+    has_passenger_elevator: formData.hasPassengerElevator,
+    elevator_restrictions: formData.elevatorRestrictions || null,
+    can_use_handcarts: formData.canUseHandcarts,
+    protective_floor_covering: formData.protectiveFloorCovering,
+    protective_floor_covering_details: formData.protectiveFloorCoveringDetails || null,
+    max_truck_size: formData.maxTruckSize || null,
+    coi_required: formData.coiRequired,
+    coi_sample_path: formData.coiSamplePath,
+    equipment_unplugged_confirmed: formData.equipmentUnpluggedConfirmed,
+    preferred_date: formData.preferredDate?.toISOString() || null,
+    preferred_date_range_end: formData.preferredDateRangeEnd?.toISOString() || null,
+    unavailable_dates: formData.unavailableDates || null,
+    equipment,
+    estimated_weight: formData.estimatedWeight || null,
+    equipment_file_paths: formData.equipmentFilePaths,
+    has_heavy_equipment: formData.hasHeavyEquipment,
+    has_hazmat_or_batteries: formData.hasHazmatOrBatteries,
+    service_type: formData.serviceType,
+    data_destruction_service: formData.dataDestructionService,
+    packing_service: formData.packingService,
+    white_glove_service: formData.whiteGloveService,
+    material_prepared: formData.materialPrepared,
+    material_not_prepared_details: formData.materialNotPreparedDetails || null,
+    packing_services_required: formData.packingServicesRequired,
+    additional_notes: formData.additionalNotes || null,
+  };
+}

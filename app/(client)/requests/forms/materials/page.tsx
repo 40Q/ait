@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -9,27 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Check, TreeDeciduous, Cpu, Box } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, Check, TreeDeciduous, Cpu, Box, AlertCircle } from "lucide-react";
+import {
+  useSubmitMaterials,
+  type LocalMaterialsFormData,
+} from "@/lib/hooks";
 
-interface MaterialsFormData {
-  // Material Types
-  hasWood: boolean;
-  hasMetal: boolean;
-  hasElectronics: boolean;
-
-  // Location
-  pickupLocation: string;
-
-  // Contact
-  siteContactName: string;
-  siteContactPhone: string;
-  siteContactEmail: string;
-
-  // Materials Description
-  materialsDescription: string;
-}
-
-const initialFormData: MaterialsFormData = {
+const initialFormData: LocalMaterialsFormData = {
   hasWood: false,
   hasMetal: false,
   hasElectronics: false,
@@ -41,20 +27,15 @@ const initialFormData: MaterialsFormData = {
 };
 
 export default function MaterialsPage() {
-  const router = useRouter();
-  const [formData, setFormData] = useState<MaterialsFormData>(initialFormData);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState<LocalMaterialsFormData>(initialFormData);
+  const { submit, isSubmitting, error } = useSubmitMaterials();
 
-  const handleChange = (data: Partial<MaterialsFormData>) => {
+  const handleChange = (data: Partial<LocalMaterialsFormData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
   };
 
   const handleSubmit = async () => {
-    setIsSubmitting(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsSubmitting(false);
-    router.push("/requests");
+    await submit(formData);
   };
 
   const hasSelectedMaterial = formData.hasWood || formData.hasMetal || formData.hasElectronics;
@@ -199,7 +180,13 @@ export default function MaterialsPage() {
             />
           </div>
         </CardContent>
-        <CardFooter className="border-t px-6 py-4">
+        <CardFooter className="flex-col items-stretch gap-4 border-t px-6 py-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
           <Button
             onClick={handleSubmit}
             disabled={!canSubmit || isSubmitting}

@@ -1,9 +1,12 @@
+"use client";
+
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { StatusBadge, type RequestStatus } from "@/components/ui/status-badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -13,58 +16,30 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Truck, MapPin, Calendar, ArrowRight, ChevronDown, Recycle, Box } from "lucide-react";
+import {
+  Truck,
+  MapPin,
+  Calendar,
+  ArrowRight,
+  ChevronDown,
+  Recycle,
+  Box,
+  Loader2,
+} from "lucide-react";
 import { isCyrusOneUser } from "@/lib/user";
+import { useRequestList, useRequestStatusCounts } from "@/lib/hooks";
+import type { RequestListItem, RequestStatus } from "@/lib/database/types";
 
-interface Request {
-  id: string;
-  submittedAt: string;
-  location: string;
-  preferredDate: string;
-  status: RequestStatus;
-  equipmentSummary: string;
-  quoteAmount?: number;
+function formatDate(dateString: string | null): string {
+  if (!dateString) return "Not specified";
+  return new Date(dateString).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
-// Mock data
-const requests: Request[] = [
-  {
-    id: "REQ-2024-0045",
-    submittedAt: "Dec 15, 2024",
-    location: "123 Main St, Los Angeles, CA",
-    preferredDate: "Dec 20, 2024",
-    status: "quote_ready",
-    equipmentSummary: "15 Laptops, 8 Desktops, 20 Hard Drives",
-    quoteAmount: 2450,
-  },
-  {
-    id: "REQ-2024-0044",
-    submittedAt: "Dec 12, 2024",
-    location: "456 Oak Ave, San Diego, CA",
-    preferredDate: "Dec 18, 2024",
-    status: "pending",
-    equipmentSummary: "3 Servers, 50 Hard Drives",
-  },
-  {
-    id: "REQ-2024-0043",
-    submittedAt: "Dec 8, 2024",
-    location: "789 Pine Rd, San Francisco, CA",
-    preferredDate: "Dec 15, 2024",
-    status: "accepted",
-    equipmentSummary: "25 Monitors, 10 Laptops",
-    quoteAmount: 1850,
-  },
-  {
-    id: "REQ-2024-0042",
-    submittedAt: "Dec 1, 2024",
-    location: "321 Elm St, Sacramento, CA",
-    preferredDate: "Dec 10, 2024",
-    status: "declined",
-    equipmentSummary: "5 Printers",
-  },
-];
-
-function RequestCard({ request }: { request: Request }) {
+function RequestCard({ request }: { request: RequestListItem }) {
   return (
     <Card className="transition-colors hover:bg-muted/50">
       <CardContent>
@@ -72,26 +47,26 @@ function RequestCard({ request }: { request: Request }) {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <span className="font-mono text-sm text-muted-foreground">
-                {request.id}
+                {request.request_number}
               </span>
               <StatusBadge status={request.status} />
-              {request.quoteAmount && request.status === "quote_ready" && (
+              {request.quote_total && request.status === "quote_ready" && (
                 <Badge variant="outline" className="font-mono">
-                  ${request.quoteAmount.toLocaleString()}
+                  ${request.quote_total.toLocaleString()}
                 </Badge>
               )}
             </div>
             <p className="text-sm text-muted-foreground">
-              {request.equipmentSummary}
+              {request.equipment_summary || `${request.equipment_count} items`}
             </p>
             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <MapPin className="h-3.5 w-3.5" />
-                {request.location}
+                {request.location_summary}
               </span>
               <span className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
-                Requested: {request.preferredDate}
+                Requested: {formatDate(request.preferred_date)}
               </span>
             </div>
           </div>
@@ -171,13 +146,17 @@ function NewRequestButton() {
 }
 
 export default function RequestsPage() {
-  const statusCounts = {
-    all: requests.length,
-    pending: requests.filter((r) => r.status === "pending").length,
-    quote_ready: requests.filter((r) => r.status === "quote_ready").length,
-    accepted: requests.filter((r) => r.status === "accepted").length,
-    declined: requests.filter((r) => r.status === "declined").length,
-  };
+  const [activeTab, setActiveTab] = useState("all");
+
+  const filters = useMemo(
+    () => ({
+      status: activeTab !== "all" ? (activeTab as RequestStatus) : undefined,
+    }),
+    [activeTab]
+  );
+
+  const { data: requests = [], isLoading } = useRequestList(filters);
+  const { data: statusCounts } = useRequestStatusCounts();
 
   return (
     <div className="space-y-6">
@@ -188,49 +167,37 @@ export default function RequestsPage() {
         <NewRequestButton />
       </PageHeader>
 
-      <Tabs defaultValue="all">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="all">All ({statusCounts.all})</TabsTrigger>
+          <TabsTrigger value="all">All ({statusCounts?.all ?? 0})</TabsTrigger>
           <TabsTrigger value="pending">
-            Pending ({statusCounts.pending})
+            Pending ({statusCounts?.pending ?? 0})
           </TabsTrigger>
-          <TabsTrigger value="quoted">
-            Quoted ({statusCounts.quote_ready})
+          <TabsTrigger value="quote_ready">
+            Quoted ({statusCounts?.quote_ready ?? 0})
           </TabsTrigger>
           <TabsTrigger value="accepted">
-            Accepted ({statusCounts.accepted})
+            Accepted ({statusCounts?.accepted ?? 0})
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="all" className="mt-4 space-y-3">
-          {requests.map((request) => (
-            <RequestCard key={request.id} request={request} />
-          ))}
-        </TabsContent>
-
-        <TabsContent value="pending" className="mt-4 space-y-3">
-          {requests
-            .filter((r) => r.status === "pending")
-            .map((request) => (
-              <RequestCard key={request.id} request={request} />
-            ))}
-        </TabsContent>
-
-        <TabsContent value="quoted" className="mt-4 space-y-3">
-          {requests
-            .filter((r) => r.status === "quote_ready")
-            .map((request) => (
-              <RequestCard key={request.id} request={request} />
-            ))}
-        </TabsContent>
-
-        <TabsContent value="accepted" className="mt-4 space-y-3">
-          {requests
-            .filter((r) => r.status === "accepted")
-            .map((request) => (
-              <RequestCard key={request.id} request={request} />
-            ))}
-        </TabsContent>
+        {["all", "pending", "quote_ready", "accepted"].map((status) => (
+          <TabsContent key={status} value={status} className="mt-4 space-y-3">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : requests.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">No requests found</p>
+              </div>
+            ) : (
+              requests.map((request) => (
+                <RequestCard key={request.id} request={request} />
+              ))
+            )}
+          </TabsContent>
+        ))}
       </Tabs>
     </div>
   );
