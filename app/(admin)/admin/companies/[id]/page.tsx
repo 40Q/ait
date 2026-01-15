@@ -475,30 +475,6 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
 
         {/* Sidebar Actions */}
         <div className="space-y-6">
-          {/* Quick Links */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Quick Links</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <Link href={`/admin/jobs?company=${id}`}>
-                  View Jobs ({company.job_count})
-                </Link>
-              </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <Link href={`/admin/invoices?company=${id}`}>
-                  View Invoices ({company.invoice_count})
-                </Link>
-              </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <Link href={`/admin/requests?company=${id}`}>
-                  View Requests
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-
           {/* Portal Users */}
           <Card>
             <CardHeader>
