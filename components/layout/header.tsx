@@ -1,6 +1,7 @@
 "use client";
 
-import { Bell, Menu } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -11,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
+import { createClient } from "@/lib/supabase/client";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -19,12 +20,21 @@ interface HeaderProps {
 }
 
 export function Header({ onMenuClick, companyName = "Acme Corp" }: HeaderProps) {
+  const router = useRouter();
+
   const initials = companyName
     .split(" ")
     .map((word) => word[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
+
+  const handleSignOut = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  };
 
   return (
     <header className="flex h-16 items-center justify-between border-b bg-card px-4 lg:px-6">
@@ -64,7 +74,10 @@ export function Header({ onMenuClick, companyName = "Acme Corp" }: HeaderProps) 
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">
+            <DropdownMenuItem
+              className="text-destructive"
+              onClick={handleSignOut}
+            >
               Sign Out
             </DropdownMenuItem>
           </DropdownMenuContent>

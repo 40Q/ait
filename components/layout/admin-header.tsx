@@ -1,6 +1,7 @@
 "use client";
 
-import { Bell, Menu, RefreshCw } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -11,13 +12,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
+import { createClient } from "@/lib/supabase/client";
 
 interface AdminHeaderProps {
   onMenuClick?: () => void;
 }
 
 export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  };
+
   return (
     <header className="flex h-16 items-center justify-between border-b bg-card px-4 lg:px-6">
       <div className="flex items-center gap-4">
@@ -59,7 +69,10 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">
+            <DropdownMenuItem
+              className="text-destructive"
+              onClick={handleSignOut}
+            >
               Sign Out
             </DropdownMenuItem>
           </DropdownMenuContent>
