@@ -129,9 +129,10 @@ export function useSendQuote() {
   return useMutation({
     mutationFn: (quoteId: string) => workflow.sendQuote(quoteId),
     onSuccess: () => {
-      // Invalidate both quotes and requests
+      // Invalidate quotes, requests, and all timelines
       queryClient.invalidateQueries({ queryKey: queryKeys.quotes.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.requests.all });
+      queryClient.invalidateQueries({ queryKey: ["timeline"] });
     },
   });
 }
@@ -155,9 +156,10 @@ export function useRespondToQuote() {
       userId: string;
     }) => workflow.respondToQuote(quoteId, response, userId),
     onSuccess: (result) => {
-      // Invalidate quotes and requests
+      // Invalidate quotes, requests, and all timelines
       queryClient.invalidateQueries({ queryKey: queryKeys.quotes.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.requests.all });
+      queryClient.invalidateQueries({ queryKey: ["timeline"] });
       // If a job was created, invalidate jobs
       if (result.jobId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });

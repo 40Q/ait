@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Timeline } from "@/components/ui/timeline";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Briefcase, ArrowRight } from "lucide-react";
 import { RequestDetails } from "./_components/request-details";
 import { QuoteReview } from "./_components/quote-review";
-import { useRequest, useQuoteByRequestId, useRequestFullTimeline } from "@/lib/hooks";
+import { useRequest, useQuoteByRequestId, useRequestFullTimeline, useJobByRequestId } from "@/lib/hooks";
 import { formatDateTime } from "@/lib/utils/date";
 import { createClient } from "@/lib/supabase/client";
 
@@ -22,6 +22,7 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
   const { data: request, isLoading, error } = useRequest(id);
   const { data: quote } = useQuoteByRequestId(id);
   const { data: timelineEvents = [], isLoading: timelineLoading } = useRequestFullTimeline(id, quote?.id);
+  const { data: job } = useJobByRequestId(id);
   const [userId, setUserId] = useState<string | null>(null);
 
   // Get current user on mount
@@ -78,6 +79,29 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
           </p>
         </div>
       </div>
+
+      {/* Job Banner - shown when job exists */}
+      {job && (
+        <div className="rounded-lg bg-green-50 border border-green-200 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-green-100 p-2">
+                <Briefcase className="h-4 w-4 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-green-800">Job Scheduled</p>
+                <p className="text-sm text-green-600">{job.job_number}</p>
+              </div>
+            </div>
+            <Button asChild size="sm" className="bg-green-600 hover:bg-green-700">
+              <Link href={`/jobs/${job.id}`}>
+                View Job
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+        </div>
+      )}
 
       <Tabs defaultValue={defaultTab}>
         <TabsList>

@@ -39,8 +39,9 @@ import {
   Box,
   Cpu,
   MapPin,
+  Briefcase,
 } from "lucide-react";
-import { useRequest, useDeclineRequest, useQuoteByRequestId, useRequestFullTimeline } from "@/lib/hooks";
+import { useRequest, useDeclineRequest, useQuoteByRequestId, useRequestFullTimeline, useJobByRequestId } from "@/lib/hooks";
 import { Timeline } from "@/components/ui/timeline";
 import type { LogisticsFormData, MaterialsFormData } from "@/lib/database/types";
 
@@ -75,6 +76,7 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
   const { data: request, isLoading, error } = useRequest(id);
   const { data: quote } = useQuoteByRequestId(id);
   const { data: timelineEvents = [], isLoading: timelineLoading } = useRequestFullTimeline(id, quote?.id);
+  const { data: job } = useJobByRequestId(id);
   const declineRequest = useDeclineRequest();
 
   const [showDeclineDialog, setShowDeclineDialog] = useState(false);
@@ -703,6 +705,29 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
 
           {/* Timeline - shown for all form types */}
           <Timeline events={timelineEvents} isLoading={timelineLoading} />
+
+          {/* Job Card - shown when job exists */}
+          {job && (
+            <Card className="border-green-200 bg-green-50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2 text-green-800">
+                  <Briefcase className="h-4 w-4" />
+                  Job Created
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-2">
+                <Link
+                  href={`/admin/jobs/${job.id}`}
+                  className="font-mono text-sm text-green-700 hover:underline"
+                >
+                  {job.job_number}
+                </Link>
+                <p className="text-xs text-green-600 mt-1 capitalize">
+                  Status: {job.status.replace(/_/g, " ")}
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 

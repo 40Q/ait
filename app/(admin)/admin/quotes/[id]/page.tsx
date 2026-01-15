@@ -16,8 +16,9 @@ import {
   FileText,
   MessageSquare,
   Loader2,
+  Briefcase,
 } from "lucide-react";
-import { useQuote, useSendQuote, useTimeline } from "@/lib/hooks";
+import { useQuote, useSendQuote, useJobByQuoteId } from "@/lib/hooks";
 import { Timeline } from "@/components/ui/timeline";
 import type { QuoteStatus } from "@/lib/database/types";
 
@@ -59,6 +60,7 @@ export default function QuoteDetailPage({ params }: QuoteDetailPageProps) {
   const { id } = use(params);
   const { data: quote, isLoading, error } = useQuote(id);
   const sendQuote = useSendQuote();
+  const { data: job } = useJobByQuoteId(quote?.status === "accepted" ? quote?.id : undefined);
 
   const handleSendQuote = () => {
     if (!quote) return;
@@ -299,6 +301,20 @@ export default function QuoteDetailPage({ params }: QuoteDetailPageProps) {
                   {quote.request.request_number}
                 </Link>
               </div>
+              {job && (
+                <div>
+                  <p className="text-sm text-muted-foreground flex items-center gap-1">
+                    <Briefcase className="h-3 w-3" />
+                    Job
+                  </p>
+                  <Link
+                    href={`/admin/jobs/${job.id}`}
+                    className="font-mono text-sm hover:underline text-green-600"
+                  >
+                    {job.job_number}
+                  </Link>
+                </div>
+              )}
             </CardContent>
           </Card>
 
