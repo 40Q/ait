@@ -5,289 +5,205 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
-import { Badge } from "@/components/ui/badge";
 import {
   Building2,
   Briefcase,
   ClipboardList,
   Receipt,
-  FileText,
   AlertCircle,
   Clock,
-  Upload,
-  Plus,
   ArrowRight,
-  RefreshCw,
   CheckCircle2,
-  XCircle,
-  FileUp,
-  DollarSign,
+  Loader2,
 } from "lucide-react";
-import type { DashboardStats, ActivityItem } from "../_types";
-
-// Mock data
-const stats: DashboardStats = {
-  pendingRequests: 3,
-  quotesAwaitingResponse: 2,
-  jobsNeedingDocuments: 4,
-  totalCompanies: 24,
-  activeJobs: 12,
-  completedJobsThisMonth: 38,
-  outstandingInvoices: 8,
-  outstandingAmount: 12450,
-};
-
-const recentActivity: ActivityItem[] = [
-  {
-    id: "1",
-    type: "request_submitted",
-    description: "New pickup request submitted",
-    companyName: "Acme Corporation",
-    timestamp: "10 minutes ago",
-    link: "/admin/requests/REQ-2024-0048",
-  },
-  {
-    id: "2",
-    type: "quote_accepted",
-    description: "Quote Q-2024-0055 accepted",
-    companyName: "TechStart Inc",
-    timestamp: "1 hour ago",
-    link: "/admin/jobs/W2512008",
-  },
-  {
-    id: "3",
-    type: "document_uploaded",
-    description: "Certificate of Destruction uploaded",
-    companyName: "Global Systems",
-    timestamp: "2 hours ago",
-    link: "/admin/jobs/W2512005",
-  },
-  {
-    id: "4",
-    type: "invoice_synced",
-    description: "Invoice INV-2024-1250 synced from QuickBooks",
-    companyName: "DataFlow LLC",
-    timestamp: "3 hours ago",
-    link: "/admin/invoices/INV-2024-1250",
-  },
-  {
-    id: "5",
-    type: "quote_declined",
-    description: "Quote Q-2024-0052 declined",
-    companyName: "SmallBiz Co",
-    timestamp: "5 hours ago",
-    link: "/admin/quotes/Q-2024-0052",
-  },
-];
-
-function getActivityIcon(type: ActivityItem["type"]) {
-  switch (type) {
-    case "request_submitted":
-      return <ClipboardList className="h-4 w-4 text-blue-500" />;
-    case "quote_sent":
-      return <FileText className="h-4 w-4 text-purple-500" />;
-    case "quote_accepted":
-      return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-    case "quote_declined":
-      return <XCircle className="h-4 w-4 text-red-500" />;
-    case "job_status_changed":
-      return <Briefcase className="h-4 w-4 text-orange-500" />;
-    case "document_uploaded":
-      return <FileUp className="h-4 w-4 text-teal-500" />;
-    case "invoice_synced":
-      return <DollarSign className="h-4 w-4 text-emerald-500" />;
-    default:
-      return <Clock className="h-4 w-4 text-gray-500" />;
-  }
-}
+import {
+  useRequestStatusCounts,
+  useQuoteStatusCounts,
+  useJobStatusCounts,
+  useInvoiceSummary,
+  useCompanyList,
+  useRequestList,
+} from "@/lib/hooks";
+import { formatDateTimeShort } from "@/lib/utils/date";
 
 export default function AdminDashboardPage() {
+  const { data: requestCounts, isLoading: loadingRequests } = useRequestStatusCounts();
+  const { data: quoteCounts, isLoading: loadingQuotes } = useQuoteStatusCounts();
+  const { data: jobCounts, isLoading: loadingJobs } = useJobStatusCounts();
+  const { data: invoiceSummary, isLoading: loadingInvoices } = useInvoiceSummary();
+  const { data: companies = [], isLoading: loadingCompanies } = useCompanyList();
+  const { data: recentRequests = [] } = useRequestList();
+
+  const isLoading = loadingRequests || loadingQuotes || loadingJobs || loadingInvoices || loadingCompanies;
+
+  const pendingRequests = requestCounts?.pending ?? 0;
+  const quotesAwaitingResponse = quoteCounts?.sent ?? 0;
+  const totalCompanies = companies.length;
+  const activeJobs =
+    (jobCounts?.pickup_scheduled ?? 0) +
+    (jobCounts?.pickup_complete ?? 0) +
+    (jobCounts?.processing ?? 0);
+  const completedJobs = jobCounts?.complete ?? 0;
+  const outstandingAmount = invoiceSummary?.total_outstanding ?? 0;
+  const overdueCount = invoiceSummary?.overdue_count ?? 0;
+
+  const hasPendingActions = pendingRequests > 0 || quotesAwaitingResponse > 0 || overdueCount > 0;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Admin Dashboard"
         description="Manage pickup requests, quotes, jobs, and documents"
-      ></PageHeader>
+      />
 
-      {/* Pending Actions - High Priority */}
-      {(stats.pendingRequests > 0 ||
-        stats.quotesAwaitingResponse > 0 ||
-        stats.jobsNeedingDocuments > 0) && (
+      {/* Pending Actions */}
+      {hasPendingActions && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {stats.pendingRequests > 0 && (
-            <Card className="border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/20">
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-full bg-orange-100 p-2 dark:bg-orange-900">
-                      <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Pending Requests</p>
-                      <p className="text-2xl font-bold">{stats.pendingRequests}</p>
-                    </div>
-                  </div>
-                  <Button size="sm" variant="outline" asChild>
-                    <Link href="/admin/requests?status=pending">
-                      View
-                      <ArrowRight className="ml-1 h-4 w-4" />
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+          {pendingRequests > 0 && (
+            <PendingActionCard
+              title="Pending Requests"
+              count={pendingRequests}
+              href="/admin/requests"
+              icon={AlertCircle}
+              variant="orange"
+            />
           )}
-
-          {stats.quotesAwaitingResponse > 0 && (
-            <Card className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/20">
-              <CardContent>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-full bg-blue-100 p-2 dark:bg-blue-900">
-                      <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Quotes Awaiting Response</p>
-                      <p className="text-2xl font-bold">{stats.quotesAwaitingResponse}</p>
-                    </div>
-                  </div>
-                  <Button size="sm" variant="outline" asChild>
-                    <Link href="/admin/quotes?status=sent">
-                      View
-                      <ArrowRight className="ml-1 h-4 w-4" />
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+          {quotesAwaitingResponse > 0 && (
+            <PendingActionCard
+              title="Quotes Awaiting Response"
+              count={quotesAwaitingResponse}
+              href="/admin/quotes"
+              icon={Clock}
+              variant="blue"
+            />
           )}
-
-          {stats.jobsNeedingDocuments > 0 && (
-            <Card className="border-purple-200 bg-purple-50 dark:border-purple-900 dark:bg-purple-950/20">
-              <CardContent>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-full bg-purple-100 p-2 dark:bg-purple-900">
-                      <Upload className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Jobs Needing Documents</p>
-                      <p className="text-2xl font-bold">{stats.jobsNeedingDocuments}</p>
-                    </div>
-                  </div>
-                  <Button size="sm" variant="outline" asChild>
-                    <Link href="/admin/jobs?needsDocuments=true">
-                      View
-                      <ArrowRight className="ml-1 h-4 w-4" />
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+          {overdueCount > 0 && (
+            <PendingActionCard
+              title="Overdue Invoices"
+              count={overdueCount}
+              href="/admin/invoices"
+              icon={Receipt}
+              variant="red"
+            />
           )}
         </div>
       )}
 
       {/* Stats Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Total Companies"
-          value={stats.totalCompanies}
-          icon={Building2}
-        />
-        <StatCard
-          title="Active Jobs"
-          value={stats.activeJobs}
-          icon={Briefcase}
-        />
-        <StatCard
-          title="Completed This Month"
-          value={stats.completedJobsThisMonth}
-          icon={CheckCircle2}
-        />
+        <StatCard title="Total Companies" value={totalCompanies} icon={Building2} />
+        <StatCard title="Active Jobs" value={activeJobs} icon={Briefcase} />
+        <StatCard title="Completed Jobs" value={completedJobs} icon={CheckCircle2} />
         <StatCard
           title="Outstanding Invoices"
-          value={`$${stats.outstandingAmount.toLocaleString()}`}
-          description={`${stats.outstandingInvoices} invoices`}
+          value={`$${outstandingAmount.toLocaleString()}`}
+          description={`${overdueCount} overdue`}
           icon={Receipt}
         />
       </div>
 
-      {/* Quick Actions & Recent Activity */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Button variant="outline" className="w-full justify-start" asChild>
-              <Link href="/admin/companies/new">
-                <Plus className="mr-2 h-4 w-4" />
-                Add New Company
-              </Link>
-            </Button>
-            <Button variant="outline" className="w-full justify-start" asChild>
-              <Link href="/admin/requests?status=pending">
-                <ClipboardList className="mr-2 h-4 w-4" />
-                View Pickup Requests
-                {stats.pendingRequests > 0 && (
-                  <Badge variant="secondary" className="ml-auto">
-                    {stats.pendingRequests}
-                  </Badge>
-                )}
-              </Link>
-            </Button>
-            <Button variant="outline" className="w-full justify-start" asChild>
-              <Link href="/admin/jobs">
-                <Briefcase className="mr-2 h-4 w-4" />
-                Manage Jobs
-              </Link>
-            </Button>
-            <Button variant="outline" className="w-full justify-start" asChild>
-              <Link href="/admin/documents">
-                <Upload className="mr-2 h-4 w-4" />
-                Upload Documents
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Recent Activity */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Recent Activity</CardTitle>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/admin/activity">View All</Link>
-            </Button>
-          </CardHeader>
-          <CardContent>
+      {/* Recent Requests */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">Recent Requests</CardTitle>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/admin/requests">View All</Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {recentRequests.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No recent requests
+            </p>
+          ) : (
             <div className="space-y-4">
-              {recentActivity.map((activity) => (
-                <div
-                  key={activity.id}
-                  className="flex items-start gap-3 text-sm"
-                >
-                  <div className="mt-0.5">{getActivityIcon(activity.type)}</div>
+              {recentRequests.slice(0, 5).map((request) => (
+                <div key={request.id} className="flex items-start gap-3 text-sm">
+                  <ClipboardList className="h-4 w-4 mt-0.5 text-blue-500" />
                   <div className="flex-1 space-y-1">
                     <p>
-                      <span className="font-medium">{activity.companyName}</span>
+                      <span className="font-medium">{request.company_name}</span>
                       {" - "}
-                      {activity.description}
+                      {request.equipment_summary || `${request.equipment_count} items`}
                     </p>
-                    <p className="text-muted-foreground">{activity.timestamp}</p>
+                    <p className="text-muted-foreground">
+                      {formatDateTimeShort(request.created_at)}
+                    </p>
                   </div>
-                  {activity.link && (
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link href={activity.link}>View</Link>
-                    </Button>
-                  )}
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link href={`/admin/requests/${request.id}`}>View</Link>
+                  </Button>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
+  );
+}
+
+type PendingActionVariant = "orange" | "blue" | "red";
+
+const variantStyles: Record<PendingActionVariant, { card: string; icon: string }> = {
+  orange: {
+    card: "border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/20",
+    icon: "bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400",
+  },
+  blue: {
+    card: "border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/20",
+    icon: "bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400",
+  },
+  red: {
+    card: "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/20",
+    icon: "bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400",
+  },
+};
+
+function PendingActionCard({
+  title,
+  count,
+  href,
+  icon: Icon,
+  variant,
+}: {
+  title: string;
+  count: number;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  variant: PendingActionVariant;
+}) {
+  const styles = variantStyles[variant];
+
+  return (
+    <Card className={styles.card}>
+      <CardContent>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`rounded-full p-2 ${styles.icon}`}>
+              <Icon className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-medium">{title}</p>
+              <p className="text-2xl font-bold">{count}</p>
+            </div>
+          </div>
+          <Button size="sm" variant="outline" asChild>
+            <Link href={href}>
+              View
+              <ArrowRight className="ml-1 h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

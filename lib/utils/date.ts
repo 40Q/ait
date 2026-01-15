@@ -26,3 +26,12 @@ export function formatDateShort(date: string | Date | null | undefined): string 
   const d = typeof date === "string" ? new Date(date) : date;
   return format(d, "MMM d, yyyy"); // "Jan 15, 2025"
 }
+
+/**
+ * Format a date with time in short format
+ */
+export function formatDateTimeShort(date: string | Date | null | undefined): string {
+  if (!date) return "";
+  const d = typeof date === "string" ? new Date(date) : date;
+  return format(d, "MMM d, h:mm a"); // "Jan 15, 3:30 PM"
+}
