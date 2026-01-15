@@ -41,26 +41,18 @@ export default function AdminJobsPage() {
   // Enable real-time updates
   useRealtimeJobs();
 
-  // Fetch jobs with filters
+  // Fetch jobs with filters (search is handled by the database)
   const filters = useMemo(() => ({
+    search: searchQuery || undefined,
     status: activeTab !== "all" ? (activeTab as JobStatus) : undefined,
-  }), [activeTab]);
+  }), [searchQuery, activeTab]);
 
   const { data: jobs = [], isLoading, error } = useJobList(filters);
   const { data: statusCounts } = useJobStatusCounts();
 
-  // Client-side filtering for search (by job ID or company name) and invoice status
+  // Client-side filtering for invoice status only
   const filteredJobs = useMemo(() => {
     let result = jobs;
-
-    // Filter by search query (job number or company name)
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(j =>
-        j.job_number.toLowerCase().includes(query) ||
-        j.company_name.toLowerCase().includes(query)
-      );
-    }
 
     // Filter by invoice status
     if (invoiceFilter === "invoiced") {
@@ -74,7 +66,7 @@ export default function AdminJobsPage() {
     }
 
     return result;
-  }, [jobs, searchQuery, invoiceFilter]);
+  }, [jobs, invoiceFilter]);
 
   if (error) {
     return (

@@ -107,7 +107,21 @@ export class JobRepository extends BaseRepository<
     }
 
     if (filters?.search) {
-      query = query.ilike("job_number", `%${filters.search}%`);
+      // First get company IDs that match the search term
+      const { data: matchingCompanies } = await this.supabase
+        .from("companies")
+        .select("id")
+        .ilike("name", `%${filters.search}%`);
+
+      const matchingCompanyIds = matchingCompanies?.map(c => c.id) || [];
+
+      if (matchingCompanyIds.length > 0) {
+        query = query.or(
+          `job_number.ilike.%${filters.search}%,company_id.in.(${matchingCompanyIds.join(",")})`
+        );
+      } else {
+        query = query.ilike("job_number", `%${filters.search}%`);
+      }
     }
 
     if (filters?.from_date) {
@@ -216,6 +230,8 @@ export class JobRepository extends BaseRepository<
     }
 
     if (filters.search) {
+      // Note: Company name search is handled in getListItems
+      // This method only supports job_number search
       query = query.ilike("job_number", `%${filters.search}%`);
     }
 

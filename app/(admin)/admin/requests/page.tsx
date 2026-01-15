@@ -10,13 +10,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Search,
   MapPin,
   Calendar,
@@ -26,7 +19,7 @@ import {
   Sparkles,
   Loader2,
 } from "lucide-react";
-import { useRequestList, useRequestStatusCounts, useCompanyList } from "@/lib/hooks";
+import { useRequestList, useRequestStatusCounts } from "@/lib/hooks";
 import { formatDate } from "@/lib/utils/date";
 import type { RequestListItem, RequestStatus } from "@/lib/database/types";
 
@@ -123,19 +116,16 @@ function RequestCard({ request }: { request: RequestListItem }) {
 
 export default function AdminRequestsPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [companyFilter, setCompanyFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("all");
 
-  // Fetch requests with filters
+  // Fetch requests with filters (search is handled by the database)
   const filters = useMemo(() => ({
     search: searchQuery || undefined,
-    company_id: companyFilter !== "all" ? companyFilter : undefined,
     status: activeTab !== "all" ? (activeTab as RequestStatus) : undefined,
-  }), [searchQuery, companyFilter, activeTab]);
+  }), [searchQuery, activeTab]);
 
   const { data: requests = [], isLoading, error } = useRequestList(filters);
   const { data: statusCounts } = useRequestStatusCounts();
-  const { data: companies = [] } = useCompanyList();
 
   if (error) {
     return (
@@ -157,25 +147,12 @@ export default function AdminRequestsPage() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search by ID..."
+            placeholder="Search by ID or company..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
           />
         </div>
-        <Select value={companyFilter} onValueChange={setCompanyFilter}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="All Companies" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Companies</SelectItem>
-            {companies.map((company) => (
-              <SelectItem key={company.id} value={company.id}>
-                {company.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Tabs */}
