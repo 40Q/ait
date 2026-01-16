@@ -110,32 +110,24 @@ export default function QuoteDetailPage({ params }: QuoteDetailPageProps) {
 
       {/* Actions */}
       <div className="flex flex-wrap gap-3">
-        {quote.status === "draft" && (
-          <>
-            <Button onClick={handleSendQuote} disabled={sendQuote.isPending}>
-              {sendQuote.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="mr-2 h-4 w-4" />
-              )}
-              Send to Client
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href={`/admin/quotes/${quote.id}/edit`}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit Quote
-              </Link>
-            </Button>
-          </>
-        )}
-        {quote.status === "revision_requested" && (
-          <Button asChild>
-            <Link href={`/admin/quotes/${quote.id}/edit`}>
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit & Resend
-            </Link>
+        {/* Send button - only for draft and revision_requested */}
+        {(quote.status === "draft" || quote.status === "revision_requested") && (
+          <Button onClick={handleSendQuote} disabled={sendQuote.isPending}>
+            {sendQuote.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="mr-2 h-4 w-4" />
+            )}
+            {quote.status === "revision_requested" ? "Resend to Client" : "Send to Client"}
           </Button>
         )}
+        {/* Edit button - always available for admins */}
+        <Button variant="outline" asChild>
+          <Link href={`/admin/quotes/${quote.id}/edit`}>
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit Quote
+          </Link>
+        </Button>
       </div>
 
       {/* Revision Message Alert */}
