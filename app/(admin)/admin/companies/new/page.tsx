@@ -7,7 +7,6 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
   Card,
   CardContent,
@@ -17,7 +16,6 @@ import {
 } from "@/components/ui/card";
 import { ArrowLeft, Loader2, CheckCircle2 } from "lucide-react";
 import { useCreateCompany } from "@/lib/hooks";
-import type { CompanyStatus } from "@/lib/database/types";
 
 interface CompanyFormData {
   name: string;
@@ -28,7 +26,6 @@ interface CompanyFormData {
   state: string;
   zip: string;
   quickbooksCustomerId: string;
-  status: CompanyStatus;
 }
 
 const initialFormData: CompanyFormData = {
@@ -40,7 +37,6 @@ const initialFormData: CompanyFormData = {
   state: "",
   zip: "",
   quickbooksCustomerId: "",
-  status: "active",
 };
 
 export default function NewCompanyPage() {
@@ -77,7 +73,7 @@ export default function NewCompanyPage() {
         state: formData.state || null,
         zip: formData.zip || null,
         quickbooks_customer_id: formData.quickbooksCustomerId || null,
-        status: formData.status,
+        status: "active",
         accounts_payable_email: null,
         accounts_payable_phone: null,
       },
@@ -186,21 +182,6 @@ export default function NewCompanyPage() {
                   placeholder="90001"
                 />
               </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Status</Label>
-                <p className="text-xs text-muted-foreground">
-                  Inactive companies cannot access the portal
-                </p>
-              </div>
-              <Switch
-                checked={formData.status === "active"}
-                onCheckedChange={(checked) =>
-                  handleChange({ status: checked ? "active" : "inactive" })
-                }
-              />
             </div>
 
             {createCompany.error && (
