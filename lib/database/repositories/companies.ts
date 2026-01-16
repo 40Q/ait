@@ -8,6 +8,10 @@ import type {
   CompanyWithStats,
   CompanyListItem,
   QuickBooksStatus,
+  CompanyLocationRow,
+  CompanyLocationInsert,
+  CompanyLocationUpdate,
+  CompanyLocationListItem,
 } from "../types";
 
 export class CompanyRepository extends BaseRepository<
@@ -189,5 +193,96 @@ export class CompanyRepository extends BaseRepository<
     }
 
     return query;
+  }
+
+  // ============================================
+  // COMPANY LOCATIONS
+  // ============================================
+
+  /**
+   * Get all locations for a company
+   */
+  async getCompanyLocations(companyId: string): Promise<CompanyLocationListItem[]> {
+    const { data, error } = await this.supabase
+      .from("company_locations")
+      .select("id, name, address, city, state, zip_code, is_primary")
+      .eq("company_id", companyId)
+      .order("is_primary", { ascending: false })
+      .order("name", { ascending: true });
+
+    if (error) throw error;
+    return (data ?? []) as CompanyLocationListItem[];
+  }
+
+  /**
+   * Get a single location by ID
+   */
+  async getLocation(id: string): Promise<CompanyLocationRow | null> {
+    const { data, error } = await this.supabase
+      .from("company_locations")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error) {
+      if (error.code === "PGRST116") return null;
+      throw error;
+    }
+    return data as CompanyLocationRow;
+  }
+
+  /**
+   * Create a new location
+   */
+  async createLocation(data: CompanyLocationInsert): Promise<CompanyLocationRow> {
+    const { data: location, error } = await this.supabase
+      .from("company_locations")
+      .insert(data)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return location as CompanyLocationRow;
+  }
+
+  /**
+   * Update a location
+   */
+  async updateLocation(id: string, data: CompanyLocationUpdate): Promise<CompanyLocationRow> {
+    const { data: location, error } = await this.supabase
+      .from("company_locations")
+      .update({ ...data, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return location as CompanyLocationRow;
+  }
+
+  /**
+   * Delete a location
+   */
+  async deleteLocation(id: string): Promise<void> {
+    const { error } = await this.supabase
+      .from("company_locations")
+      .delete()
+      .eq("id", id);
+
+    if (error) throw error;
+  }
+
+  /**
+   * Set a location as primary (will unset other primary locations)
+   */
+  async setLocationAsPrimary(companyId: string, locationId: string): Promise<void> {
+    // The database trigger will handle unsetting other primary locations
+    const { error } = await this.supabase
+      .from("company_locations")
+      .update({ is_primary: true, updated_at: new Date().toISOString() })
+      .eq("id", locationId)
+      .eq("company_id", companyId);
+
+    if (error) throw error;
   }
 }

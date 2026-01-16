@@ -54,6 +54,13 @@ export {
   useCompanyUsers,
   useCreateCompany,
   useUpdateCompany,
+  // Locations
+  useCompanyLocations,
+  useCompanyLocation,
+  useCreateCompanyLocation,
+  useUpdateCompanyLocation,
+  useDeleteCompanyLocation,
+  useSetLocationAsPrimary,
 } from "./use-companies";
 
 // Admin hooks

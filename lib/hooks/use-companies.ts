@@ -8,6 +8,8 @@ import {
   type CompanyFilters,
   type CompanyInsert,
   type CompanyUpdate,
+  type CompanyLocationInsert,
+  type CompanyLocationUpdate,
 } from "@/lib/database/types";
 
 /**
@@ -98,5 +100,111 @@ export function useCompanyUsers(companyId: string) {
     queryKey: [...queryKeys.companies.detail(companyId), "users"],
     queryFn: () => repo.getCompanyUsers(companyId),
     enabled: !!companyId,
+  });
+}
+
+// ============================================
+// COMPANY LOCATIONS
+// ============================================
+
+/**
+ * Hook to fetch locations for a company
+ */
+export function useCompanyLocations(companyId: string) {
+  const supabase = createClient();
+  const repo = new CompanyRepository(supabase);
+
+  return useQuery({
+    queryKey: [...queryKeys.companies.detail(companyId), "locations"],
+    queryFn: () => repo.getCompanyLocations(companyId),
+    enabled: !!companyId,
+  });
+}
+
+/**
+ * Hook to fetch a single location
+ */
+export function useCompanyLocation(locationId: string) {
+  const supabase = createClient();
+  const repo = new CompanyRepository(supabase);
+
+  return useQuery({
+    queryKey: ["locations", locationId],
+    queryFn: () => repo.getLocation(locationId),
+    enabled: !!locationId,
+  });
+}
+
+/**
+ * Hook to create a location
+ */
+export function useCreateCompanyLocation(companyId: string) {
+  const queryClient = useQueryClient();
+  const supabase = createClient();
+  const repo = new CompanyRepository(supabase);
+
+  return useMutation({
+    mutationFn: (data: CompanyLocationInsert) => repo.createLocation(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [...queryKeys.companies.detail(companyId), "locations"],
+      });
+    },
+  });
+}
+
+/**
+ * Hook to update a location
+ */
+export function useUpdateCompanyLocation(companyId: string) {
+  const queryClient = useQueryClient();
+  const supabase = createClient();
+  const repo = new CompanyRepository(supabase);
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: CompanyLocationUpdate }) =>
+      repo.updateLocation(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [...queryKeys.companies.detail(companyId), "locations"],
+      });
+    },
+  });
+}
+
+/**
+ * Hook to delete a location
+ */
+export function useDeleteCompanyLocation(companyId: string) {
+  const queryClient = useQueryClient();
+  const supabase = createClient();
+  const repo = new CompanyRepository(supabase);
+
+  return useMutation({
+    mutationFn: (locationId: string) => repo.deleteLocation(locationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [...queryKeys.companies.detail(companyId), "locations"],
+      });
+    },
+  });
+}
+
+/**
+ * Hook to set a location as primary
+ */
+export function useSetLocationAsPrimary(companyId: string) {
+  const queryClient = useQueryClient();
+  const supabase = createClient();
+  const repo = new CompanyRepository(supabase);
+
+  return useMutation({
+    mutationFn: (locationId: string) =>
+      repo.setLocationAsPrimary(companyId, locationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [...queryKeys.companies.detail(companyId), "locations"],
+      });
+    },
   });
 }

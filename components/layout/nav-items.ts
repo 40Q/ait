@@ -6,6 +6,7 @@ import {
   FileCheck,
   FileText,
   Receipt,
+  MapPin,
   LucideIcon,
 } from "lucide-react";
 
@@ -46,6 +47,11 @@ export const clientNavItems: NavItem[] = [
     title: "Pickup Details",
     href: "/pickup-details",
     icon: FileText,
+  },
+  {
+    title: "Locations",
+    href: "/locations",
+    icon: MapPin,
   },
   {
     title: "Invoices",

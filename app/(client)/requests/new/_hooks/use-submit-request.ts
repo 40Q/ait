@@ -4,8 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { uploadFile, uploadFiles, STORAGE_BUCKETS } from "@/lib/storage/upload";
-import { useCreateRequest, useCurrentUser } from "@/lib/hooks";
+import { useCreateRequest, useCurrentUser, useCreateCompanyLocation } from "@/lib/hooks";
 import { mapFormDataToRequestInsert, type PickupRequestFormData } from "../_components/types";
+import type { CompanyLocationInsert } from "@/lib/database/types";
 
 interface UseSubmitRequestReturn {
   submit: (formData: PickupRequestFormData) => Promise<void>;
@@ -18,6 +19,7 @@ export function useSubmitRequest(): UseSubmitRequestReturn {
   const router = useRouter();
   const { data: currentUser } = useCurrentUser();
   const createRequest = useCreateRequest();
+  const createLocation = useCreateCompanyLocation(currentUser?.company_id ?? "");
 
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +58,36 @@ export function useSubmitRequest(): UseSubmitRequestReturn {
       }
 
       setIsUploading(false);
+
+      // Save location for future use if requested
+      if (formData.saveLocationForFuture && formData.address) {
+        const locationData: CompanyLocationInsert = {
+          company_id: currentUser.company_id,
+          name: formData.locationName || formData.address, // Use address as fallback name
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          zip_code: formData.zipCode,
+          building_info: formData.buildingInfo || null,
+          equipment_location: formData.equipmentLocation || null,
+          access_instructions: formData.accessInstructions || null,
+          dock_type: formData.dockType,
+          dock_hours_start: formData.dockHoursStart || null,
+          dock_hours_end: formData.dockHoursEnd || null,
+          has_freight_elevator: formData.hasFreightElevator,
+          has_passenger_elevator: formData.hasPassengerElevator,
+          elevator_restrictions: formData.elevatorRestrictions || null,
+          can_use_handcarts: formData.canUseHandcarts,
+          protective_floor_covering: formData.protectiveFloorCovering,
+          max_truck_size: formData.maxTruckSize || null,
+          contact_name: formData.onSiteContactName || null,
+          contact_email: formData.onSiteContactEmail || null,
+          contact_phone: formData.onSiteContactPhone || null,
+          is_primary: false,
+        };
+        // Fire and forget - don't block request submission
+        createLocation.mutate(locationData);
+      }
 
       const requestData = mapFormDataToRequestInsert(
         updatedFormData,

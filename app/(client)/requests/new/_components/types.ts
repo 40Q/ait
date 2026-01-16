@@ -34,6 +34,7 @@ export interface PickupRequestFormData {
   equipmentLocation: string; // Where in building (floor, telco closet, warehouse, etc.)
   accessInstructions: string;
   poNumber: string;
+  saveLocationForFuture: boolean; // Save this location for future requests
 
   // On-Site Contact (person who meets team on day of services)
   onSiteContactName: string;
@@ -124,6 +125,7 @@ export const initialFormData: PickupRequestFormData = {
   equipmentLocation: "",
   accessInstructions: "",
   poNumber: "",
+  saveLocationForFuture: false,
 
   // On-Site Contact
   onSiteContactName: "",

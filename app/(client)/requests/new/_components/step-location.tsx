@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,7 +12,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Building2, Truck, FileText } from "lucide-react";
+import { User, Building2, Truck, FileText, MapPin, Star } from "lucide-react";
+import { useCurrentUser, useCompanyLocations, useCompanyLocation } from "@/lib/hooks";
 import type { PickupRequestFormData, PrePickupCallPreference, DockType, TruckSize } from "./types";
 import { prePickupCallOptions, dockTypeOptions, truckSizeOptions } from "./types";
 
@@ -29,6 +31,54 @@ const usStates = [
 ];
 
 export function StepLocation({ data, onChange }: StepLocationProps) {
+  const { data: user } = useCurrentUser();
+  const { data: savedLocations = [] } = useCompanyLocations(user?.company_id ?? "");
+  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
+
+  // Determine if we should show the "save location" checkbox:
+  // - Show when there are no saved locations (user is entering manually)
+  // - Show when user explicitly selected "manual" from the dropdown
+  // - Hide when user selected an existing saved location
+  const showSaveLocationCheckbox = savedLocations.length === 0 || selectedLocationId === "manual";
+
+  const handleSelectSavedLocation = (locationId: string) => {
+    setSelectedLocationId(locationId);
+    if (locationId === "manual") {
+      // Clear form for manual entry
+      onChange({
+        locationName: "",
+        address: "",
+        city: "",
+        state: "",
+        zipCode: "",
+        buildingInfo: "",
+        equipmentLocation: "",
+        dockType: "none",
+        dockHoursStart: "",
+        dockHoursEnd: "",
+        hasFreightElevator: false,
+        hasPassengerElevator: false,
+        elevatorRestrictions: "",
+        canUseHandcarts: true,
+        protectiveFloorCovering: false,
+        maxTruckSize: "",
+      });
+      return;
+    }
+
+    const location = savedLocations.find((l) => l.id === locationId);
+    if (location) {
+      onChange({
+        locationName: location.name,
+        address: location.address,
+        city: location.city,
+        state: location.state,
+        zipCode: location.zip_code,
+        saveLocationForFuture: false, // Reset since this is already a saved location
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -37,6 +87,46 @@ export function StepLocation({ data, onChange }: StepLocationProps) {
           Where should we pick up the equipment?
         </p>
       </div>
+
+      {/* Saved Locations Dropdown */}
+      {savedLocations.length > 0 && (
+        <Card className="bg-muted/30 border-dashed">
+          <CardContent className="pt-4">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                Select a Saved Location
+              </Label>
+              <Select onValueChange={handleSelectSavedLocation}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose from your saved locations or enter manually" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="manual">
+                    <span className="text-muted-foreground">Enter new location manually</span>
+                  </SelectItem>
+                  {savedLocations.map((location) => (
+                    <SelectItem key={location.id} value={location.id}>
+                      <div className="flex items-center gap-2">
+                        {location.is_primary && (
+                          <Star className="h-3 w-3 fill-current text-yellow-500" />
+                        )}
+                        <span className="font-medium">{location.name}</span>
+                        <span className="text-muted-foreground">
+                          - {location.address}, {location.city}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Select a saved location to auto-fill the form, or enter a new address below.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Location Info */}
       <div className="space-y-4">
@@ -128,6 +218,27 @@ export function StepLocation({ data, onChange }: StepLocationProps) {
             placeholder="PO-12345"
           />
         </div>
+
+        {/* Save Location Checkbox - show when entering a new location manually */}
+        {showSaveLocationCheckbox && data.address && (
+          <div className="flex items-center gap-3 rounded-lg border p-3 bg-muted/30">
+            <Checkbox
+              id="saveLocationForFuture"
+              checked={data.saveLocationForFuture}
+              onCheckedChange={(checked) =>
+                onChange({ saveLocationForFuture: checked === true })
+              }
+            />
+            <div>
+              <Label htmlFor="saveLocationForFuture" className="cursor-pointer">
+                Save this location for future requests
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                This address will be saved to your locations list for quick selection next time
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* On-Site Contact Section */}

@@ -35,7 +35,13 @@ import {
   AlertTriangle,
   Users,
 } from "lucide-react";
-import { useCompany, useCompanyUsers, useUpdateCompany, useInviteUser } from "@/lib/hooks";
+import {
+  useCompany,
+  useCompanyUsers,
+  useUpdateCompany,
+  useInviteUser,
+} from "@/lib/hooks";
+import { LocationsSection } from "@/components/locations";
 import type { CompanyStatus } from "@/lib/database/types";
 
 interface CompanyFormData {
@@ -48,6 +54,8 @@ interface CompanyFormData {
   zip: string;
   quickbooksCustomerId: string;
   status: CompanyStatus;
+  accountsPayableEmail: string;
+  accountsPayablePhone: string;
 }
 
 interface CompanyDetailPageProps {
@@ -72,6 +80,8 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
     zip: "",
     quickbooksCustomerId: "",
     status: "active",
+    accountsPayableEmail: "",
+    accountsPayablePhone: "",
   });
   const [isTestingQB, setIsTestingQB] = useState(false);
   const [qbTestResult, setQbTestResult] = useState<"success" | "error" | null>(
@@ -100,6 +110,8 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
         zip: company.zip || "",
         quickbooksCustomerId: company.quickbooks_customer_id || "",
         status: company.status,
+        accountsPayableEmail: company.accounts_payable_email || "",
+        accountsPayablePhone: company.accounts_payable_phone || "",
       });
     }
   }, [company]);
@@ -134,6 +146,8 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
           state: formData.state || null,
           zip: formData.zip || null,
           quickbooks_customer_id: formData.quickbooksCustomerId || null,
+          accounts_payable_email: formData.accountsPayableEmail || null,
+          accounts_payable_phone: formData.accountsPayablePhone || null,
         },
       },
       {
@@ -376,6 +390,36 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
                 </div>
               </div>
 
+              {/* Accounts Payable */}
+              <div className="pt-4 border-t">
+                <h4 className="text-sm font-medium mb-3">Accounts Payable</h4>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="accountsPayableEmail">AP Email</Label>
+                    <Input
+                      id="accountsPayableEmail"
+                      type="email"
+                      value={formData.accountsPayableEmail}
+                      onChange={(e) =>
+                        handleChange({ accountsPayableEmail: e.target.value })
+                      }
+                      placeholder="ap@company.com"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="accountsPayablePhone">AP Phone</Label>
+                    <Input
+                      id="accountsPayablePhone"
+                      type="tel"
+                      value={formData.accountsPayablePhone}
+                      onChange={(e) =>
+                        handleChange({ accountsPayablePhone: e.target.value })
+                      }
+                      placeholder="(555) 123-4567"
+                    />
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
@@ -449,6 +493,8 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
               )}
             </CardContent>
           </Card>
+
+          <LocationsSection companyId={id} />
 
           {/* Save Button */}
           <div className="flex items-center gap-4">

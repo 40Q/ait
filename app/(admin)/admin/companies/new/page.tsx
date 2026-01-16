@@ -78,6 +78,8 @@ export default function NewCompanyPage() {
         zip: formData.zip || null,
         quickbooks_customer_id: formData.quickbooksCustomerId || null,
         status: formData.status,
+        accounts_payable_email: null,
+        accounts_payable_phone: null,
       },
       {
         onSuccess: (company) => router.push(`/admin/companies/${company.id}`),
