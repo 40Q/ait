@@ -155,4 +155,6 @@ export interface RequestFilters {
   search?: string;
   from_date?: string;
   to_date?: string;
+  limit?: number;
+  offset?: number;
 }

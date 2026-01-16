@@ -131,6 +131,8 @@ export class RequestRepository extends BaseRepository<
       query = query.lte("created_at", filters.to_date);
     }
 
+    query = this.applyPagination(query, filters);
+
     const { data, error } = await query;
     if (error) throw error;
 
@@ -166,36 +168,15 @@ export class RequestRepository extends BaseRepository<
   }
 
   /**
-   * Get counts by status (for tabs/badges)
+   * Get counts by status - single query with client-side grouping
    */
   async getStatusCounts(companyId?: string): Promise<Record<string, number>> {
-    let query = this.supabase
-      .from("requests")
-      .select("status", { count: "exact" });
-
-    if (companyId) {
-      query = query.eq("company_id", companyId);
-    }
-
-    const statuses = ["pending", "quote_ready", "accepted", "declined"];
-    const counts: Record<string, number> = { all: 0 };
-
-    for (const status of statuses) {
-      let statusQuery = this.supabase
-        .from("requests")
-        .select("*", { count: "exact", head: true })
-        .eq("status", status);
-
-      if (companyId) {
-        statusQuery = statusQuery.eq("company_id", companyId);
-      }
-
-      const { count } = await statusQuery;
-      counts[status] = count ?? 0;
-      counts.all += count ?? 0;
-    }
-
-    return counts;
+    const statuses = ["pending", "quote_ready", "accepted", "declined"] as const;
+    return this.getCountsByField(
+      "status",
+      [...statuses],
+      companyId ? { company_id: companyId } : undefined
+    );
   }
 
   protected applyFilters(

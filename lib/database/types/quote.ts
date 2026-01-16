@@ -127,6 +127,8 @@ export interface QuoteFilters {
   company_id?: string;
   request_id?: string;
   search?: string;
+  limit?: number;
+  offset?: number;
 }
 
 // Service templates for creating quotes

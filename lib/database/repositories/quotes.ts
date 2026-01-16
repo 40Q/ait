@@ -216,6 +216,8 @@ export class QuoteRepository extends BaseRepository<
       );
     }
 
+    query = this.applyPagination(query, filters);
+
     const { data, error } = await query;
     if (error) throw error;
 
@@ -237,28 +239,15 @@ export class QuoteRepository extends BaseRepository<
   }
 
   /**
-   * Get counts by status
+   * Get counts by status - single query with client-side grouping
    */
   async getStatusCounts(companyId?: string): Promise<Record<string, number>> {
-    const statuses = ["draft", "sent", "accepted", "declined", "revision_requested"];
-    const counts: Record<string, number> = { all: 0 };
-
-    for (const status of statuses) {
-      let query = this.supabase
-        .from("quotes")
-        .select("*", { count: "exact", head: true })
-        .eq("status", status);
-
-      if (companyId) {
-        query = query.eq("company_id", companyId);
-      }
-
-      const { count } = await query;
-      counts[status] = count ?? 0;
-      counts.all += count ?? 0;
-    }
-
-    return counts;
+    const statuses = ["draft", "sent", "accepted", "declined", "revision_requested"] as const;
+    return this.getCountsByField(
+      "status",
+      [...statuses],
+      companyId ? { company_id: companyId } : undefined
+    );
   }
 
   protected applyFilters(

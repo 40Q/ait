@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -124,11 +124,11 @@ export function QuoteForm({
     };
   });
 
-  const updateField = (field: keyof QuoteFormData, value: string) => {
+  const updateField = useCallback((field: keyof QuoteFormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-  };
+  }, []);
 
-  const addLineItem = () => {
+  const addLineItem = useCallback(() => {
     const newItem: LineItem = {
       id: Date.now().toString(),
       description: "",
@@ -140,43 +140,47 @@ export function QuoteForm({
       ...prev,
       lineItems: [...prev.lineItems, newItem],
     }));
-  };
+  }, []);
 
-  const updateLineItem = (id: string, field: keyof LineItem, value: string) => {
+  const updateLineItem = useCallback((id: string, field: keyof LineItem, value: string) => {
     setFormData((prev) => ({
       ...prev,
       lineItems: prev.lineItems.map((item) =>
         item.id === id ? { ...item, [field]: value } : item
       ),
     }));
-  };
+  }, []);
 
-  const removeLineItem = (id: string) => {
-    if (formData.lineItems.length > 1) {
-      setFormData((prev) => ({
+  const removeLineItem = useCallback((id: string) => {
+    setFormData((prev) => {
+      if (prev.lineItems.length <= 1) return prev;
+      return {
         ...prev,
         lineItems: prev.lineItems.filter((item) => item.id !== id),
-      }));
-    }
-  };
+      };
+    });
+  }, []);
 
-  // Calculate totals
-  const calculateLineTotal = (item: LineItem): number => {
+  // Memoized line total calculation
+  const calculateLineTotal = useCallback((item: LineItem): number => {
     const qty = parseFloat(item.quantity) || 0;
     const price = parseFloat(item.price) || 0;
     return qty * price;
-  };
+  }, []);
 
-  const subtotal = formData.lineItems.reduce(
-    (sum, item) => sum + calculateLineTotal(item),
-    0
-  );
+  // Memoized totals calculation
+  const { subtotal, discountAmount, total } = useMemo(() => {
+    const subtotal = formData.lineItems.reduce(
+      (sum, item) => sum + calculateLineTotal(item),
+      0
+    );
+    const discountAmount = parseFloat(formData.discount) || 0;
+    const total = Math.max(0, subtotal - discountAmount);
+    return { subtotal, discountAmount, total };
+  }, [formData.lineItems, formData.discount, calculateLineTotal]);
 
-  const discountAmount = parseFloat(formData.discount) || 0;
-  const total = Math.max(0, subtotal - discountAmount);
-
-  // Build submit data
-  const buildSubmitData = (): QuoteFormSubmitData => {
+  // Memoized submit data builder
+  const buildSubmitData = useCallback((): QuoteFormSubmitData => {
     return {
       pickupDate: formData.pickupDate || null,
       pickupTimeWindow: formData.pickupTimeWindow || null,
@@ -196,17 +200,20 @@ export function QuoteForm({
           sort_order: index,
         })),
     };
-  };
+  }, [formData, subtotal, discountAmount, total, calculateLineTotal]);
 
-  const handleSaveDraft = () => {
+  const handleSaveDraft = useCallback(() => {
     onSaveDraft(buildSubmitData());
-  };
+  }, [onSaveDraft, buildSubmitData]);
 
-  const handleSend = () => {
+  const handleSend = useCallback(() => {
     onSend(buildSubmitData());
-  };
+  }, [onSend, buildSubmitData]);
 
-  const canSubmit = formData.lineItems.some((item) => item.description.trim() !== "");
+  const canSubmit = useMemo(
+    () => formData.lineItems.some((item) => item.description.trim() !== ""),
+    [formData.lineItems]
+  );
 
   return (
     <div className="space-y-6">

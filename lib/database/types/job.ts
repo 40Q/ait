@@ -116,6 +116,9 @@ export interface JobFilters {
   from_date?: string;
   to_date?: string;
   has_invoice?: boolean;
+  invoice_status?: "paid" | "unpaid";
+  limit?: number;
+  offset?: number;
 }
 
 // Job timeline for display

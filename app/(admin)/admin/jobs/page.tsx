@@ -40,33 +40,21 @@ export default function AdminJobsPage() {
   // Enable real-time updates
   useRealtimeJobs();
 
-  // Fetch jobs with filters (search is handled by the database)
-  const filters = useMemo(() => ({
-    search: searchQuery || undefined,
-    status: activeTab !== "all" ? (activeTab as JobStatus) : undefined,
-  }), [searchQuery, activeTab]);
+  // Build filters for database query
+  const filters = useMemo(() => {
+    const invoiceFilter = pageFilters.invoice;
+    return {
+      search: searchQuery || undefined,
+      status: activeTab !== "all" ? (activeTab as JobStatus) : undefined,
+      has_invoice: invoiceFilter === "invoiced" ? true :
+                   invoiceFilter === "not_invoiced" ? false : undefined,
+      invoice_status: invoiceFilter === "paid" ? "paid" as const :
+                      invoiceFilter === "unpaid" ? "unpaid" as const : undefined,
+    };
+  }, [searchQuery, activeTab, pageFilters.invoice]);
 
   const { data: jobs = [], isLoading, error } = useJobList(filters);
   const { data: statusCounts } = useJobStatusCounts();
-
-  // Client-side filtering for invoice status only
-  const filteredJobs = useMemo(() => {
-    let result = jobs;
-    const invoiceFilter = pageFilters.invoice;
-
-    // Filter by invoice status
-    if (invoiceFilter === "invoiced") {
-      result = result.filter(j => j.invoice_total !== null);
-    } else if (invoiceFilter === "not_invoiced") {
-      result = result.filter(j => j.invoice_total === null);
-    } else if (invoiceFilter === "paid") {
-      result = result.filter(j => j.invoice_status === "paid");
-    } else if (invoiceFilter === "unpaid") {
-      result = result.filter(j => j.invoice_status === "unpaid" || j.invoice_status === "overdue");
-    }
-
-    return result;
-  }, [jobs, pageFilters.invoice]);
 
   if (error) {
     return (
@@ -146,14 +134,14 @@ export default function AdminJobsPage() {
                           <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                         </TableCell>
                       </TableRow>
-                    ) : filteredJobs.length === 0 ? (
+                    ) : jobs.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={8} className="text-center py-12">
                           <p className="text-muted-foreground">No jobs found</p>
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredJobs.map((job) => (
+                      jobs.map((job) => (
                         <TableRow key={job.id}>
                           <TableCell>
                             <Link

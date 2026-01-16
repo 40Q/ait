@@ -158,4 +158,64 @@ export abstract class BaseRepository<
     query: QueryBuilder,
     filters?: TFilters
   ): QueryBuilder;
+
+  /**
+   * Apply pagination to a query (limit/offset pattern)
+   */
+  protected applyPagination(
+    query: QueryBuilder,
+    filters?: { limit?: number; offset?: number }
+  ): QueryBuilder {
+    if (filters?.limit) {
+      query = query.limit(filters.limit);
+    }
+    if (filters?.offset) {
+      query = query.range(
+        filters.offset,
+        filters.offset + (filters.limit || 50) - 1
+      );
+    }
+    return query;
+  }
+
+  /**
+   * Get counts grouped by a status field
+   * Returns a single query instead of N+1 queries per status
+   */
+  protected async getCountsByField<T extends string>(
+    field: string,
+    possibleValues: T[],
+    additionalFilters?: Record<string, unknown>
+  ): Promise<Record<T | "all", number>> {
+    let query = this.supabase.from(this.tableName).select(field);
+
+    // Apply additional filters (e.g., company_id)
+    if (additionalFilters) {
+      for (const [key, value] of Object.entries(additionalFilters)) {
+        if (value !== undefined) {
+          query = query.eq(key, value);
+        }
+      }
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    // Initialize counts with all possible values set to 0
+    const counts = { all: 0 } as Record<T | "all", number>;
+    for (const value of possibleValues) {
+      counts[value] = 0;
+    }
+
+    // Count occurrences
+    for (const row of data ?? []) {
+      const value = (row as unknown as Record<string, unknown>)[field] as T;
+      if (value in counts) {
+        counts[value]++;
+      }
+      counts.all++;
+    }
+
+    return counts;
+  }
 }

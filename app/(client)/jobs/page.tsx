@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ const statusOptions = [
   ...Object.entries(jobStatusLabels).map(([value, label]) => ({ value, label })),
 ];
 
-function JobCard({ job }: { job: JobListItem }) {
+const JobCard = memo(function JobCard({ job }: { job: JobListItem }) {
   return (
     <Card className="transition-colors hover:bg-muted/50">
       <CardContent>
@@ -63,7 +63,7 @@ function JobCard({ job }: { job: JobListItem }) {
       </CardContent>
     </Card>
   );
-}
+});
 
 export default function JobsPage() {
   const { searchQuery, setSearchQuery, filters, setFilter } = useListPage<{

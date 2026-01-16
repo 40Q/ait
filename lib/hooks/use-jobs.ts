@@ -11,6 +11,7 @@ import {
   type JobUpdate,
   type JobStatus,
 } from "@/lib/database/types";
+import { getQueryOptions } from "./query-config";
 
 /**
  * Hook to fetch a list of jobs with optional filters
@@ -22,6 +23,7 @@ export function useJobList(filters?: JobFilters) {
   return useQuery({
     queryKey: queryKeys.jobs.list(filters),
     queryFn: () => repo.getListItems(filters),
+    ...getQueryOptions("list"),
   });
 }
 
@@ -36,6 +38,7 @@ export function useJob(id: string) {
     queryKey: queryKeys.jobs.detail(id),
     queryFn: () => repo.findByIdWithRelations(id),
     enabled: !!id,
+    ...getQueryOptions("detail"),
   });
 }
 
@@ -91,6 +94,7 @@ export function useJobStatusCounts(companyId?: string) {
   return useQuery({
     queryKey: [...queryKeys.jobs.all, "counts", companyId],
     queryFn: () => repo.getStatusCounts(companyId),
+    ...getQueryOptions("counts"),
   });
 }
 

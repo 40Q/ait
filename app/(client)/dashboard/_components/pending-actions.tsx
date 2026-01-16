@@ -1,15 +1,44 @@
 "use client";
 
+import { memo, useMemo } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { FileText, ArrowRight } from "lucide-react";
 import { useQuoteList } from "@/lib/hooks";
+import type { QuoteListItem } from "@/lib/database/types";
+
+const QuoteActionCard = memo(function QuoteActionCard({ quote }: { quote: QuoteListItem }) {
+  return (
+    <Card className="border-primary/20 bg-primary/5">
+      <CardContent className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="rounded-full bg-primary/10 p-2">
+            <FileText className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <p className="font-medium">Quote Ready for Review</p>
+            <p className="text-sm text-muted-foreground">
+              Quote #{quote.quote_number} is ready for your review
+            </p>
+          </div>
+        </div>
+        <Button asChild size="sm">
+          <Link href={`/requests/${quote.request_id}?tab=quote`}>
+            Review
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+});
 
 export function PendingActions() {
   // Get quotes that are sent and awaiting client response
-  const { data: quotes = [], isLoading } = useQuoteList({ status: "sent" });
+  const filters = useMemo(() => ({ status: "sent" as const }), []);
+  const { data: quotes = [], isLoading } = useQuoteList(filters);
 
   if (isLoading) {
     return <LoadingSpinner size="sm" className="py-4" />;
@@ -20,27 +49,7 @@ export function PendingActions() {
   return (
     <div className="space-y-3">
       {quotes.map((quote) => (
-        <Card key={quote.id} className="border-primary/20 bg-primary/5">
-          <CardContent className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="rounded-full bg-primary/10 p-2">
-                <FileText className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="font-medium">Quote Ready for Review</p>
-                <p className="text-sm text-muted-foreground">
-                  Quote #{quote.quote_number} is ready for your review
-                </p>
-              </div>
-            </div>
-            <Button asChild size="sm">
-              <Link href={`/requests/${quote.request_id}?tab=quote`}>
-                Review
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
+        <QuoteActionCard key={quote.id} quote={quote} />
       ))}
     </div>
   );

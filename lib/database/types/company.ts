@@ -62,6 +62,8 @@ export interface CompanyFilters {
   status?: CompanyStatus;
   quickbooks_status?: QuickBooksStatus;
   search?: string;
+  limit?: number;
+  offset?: number;
 }
 
 // ============================================

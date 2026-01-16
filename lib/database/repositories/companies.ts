@@ -39,36 +39,39 @@ export class CompanyRepository extends BaseRepository<
       throw error;
     }
 
-    // Get job counts
-    const { count: jobCount } = await this.supabase
-      .from("jobs")
-      .select("*", { count: "exact", head: true })
-      .eq("company_id", id);
+    // Run all count queries in parallel
+    const [
+      jobCountResult,
+      activeJobCountResult,
+      requestCountResult,
+      pendingRequestCountResult,
+      invoicesResult,
+    ] = await Promise.all([
+      this.supabase
+        .from("jobs")
+        .select("*", { count: "exact", head: true })
+        .eq("company_id", id),
+      this.supabase
+        .from("jobs")
+        .select("*", { count: "exact", head: true })
+        .eq("company_id", id)
+        .neq("status", "complete"),
+      this.supabase
+        .from("requests")
+        .select("*", { count: "exact", head: true })
+        .eq("company_id", id),
+      this.supabase
+        .from("requests")
+        .select("*", { count: "exact", head: true })
+        .eq("company_id", id)
+        .eq("status", "pending"),
+      this.supabase
+        .from("invoices")
+        .select("amount, status")
+        .eq("company_id", id),
+    ]);
 
-    const { count: activeJobCount } = await this.supabase
-      .from("jobs")
-      .select("*", { count: "exact", head: true })
-      .eq("company_id", id)
-      .neq("status", "complete");
-
-    // Get request counts
-    const { count: requestCount } = await this.supabase
-      .from("requests")
-      .select("*", { count: "exact", head: true })
-      .eq("company_id", id);
-
-    const { count: pendingRequestCount } = await this.supabase
-      .from("requests")
-      .select("*", { count: "exact", head: true })
-      .eq("company_id", id)
-      .eq("status", "pending");
-
-    // Get invoice counts and outstanding amount
-    const { data: invoices } = await this.supabase
-      .from("invoices")
-      .select("amount, status")
-      .eq("company_id", id);
-
+    const invoices = invoicesResult.data;
     const invoiceCount = invoices?.length ?? 0;
     const outstandingAmount =
       invoices
@@ -78,16 +81,15 @@ export class CompanyRepository extends BaseRepository<
     // Determine QuickBooks status
     let quickbooksStatus: QuickBooksStatus = "not_connected";
     if (company.quickbooks_customer_id) {
-      // In a real implementation, we'd check if the connection is valid
       quickbooksStatus = "connected";
     }
 
     return {
       ...company,
-      job_count: jobCount ?? 0,
-      active_job_count: activeJobCount ?? 0,
-      request_count: requestCount ?? 0,
-      pending_request_count: pendingRequestCount ?? 0,
+      job_count: jobCountResult.count ?? 0,
+      active_job_count: activeJobCountResult.count ?? 0,
+      request_count: requestCountResult.count ?? 0,
+      pending_request_count: pendingRequestCountResult.count ?? 0,
       invoice_count: invoiceCount,
       outstanding_amount: outstandingAmount,
       quickbooks_status: quickbooksStatus,
@@ -111,42 +113,62 @@ export class CompanyRepository extends BaseRepository<
       query = query.ilike("name", `%${filters.search}%`);
     }
 
+    query = this.applyPagination(query, filters);
+
     const { data, error } = await query;
     if (error) throw error;
 
-    // Get counts for each company
-    const listItems: CompanyListItem[] = [];
+    const companies = data ?? [];
+    if (companies.length === 0) return [];
 
-    for (const company of data ?? []) {
-      const { count: jobCount } = await this.supabase
+    const companyIds = companies.map((c) => c.id);
+
+    // Batch fetch all job counts and pending request counts in parallel
+    const [jobsResult, pendingRequestsResult] = await Promise.all([
+      this.supabase
         .from("jobs")
-        .select("*", { count: "exact", head: true })
-        .eq("company_id", company.id);
-
-      const { count: pendingRequestCount } = await this.supabase
+        .select("company_id")
+        .in("company_id", companyIds),
+      this.supabase
         .from("requests")
-        .select("*", { count: "exact", head: true })
-        .eq("company_id", company.id)
-        .eq("status", "pending");
+        .select("company_id")
+        .in("company_id", companyIds)
+        .eq("status", "pending"),
+    ]);
 
+    // Build count maps
+    const jobCounts = new Map<string, number>();
+    const pendingRequestCounts = new Map<string, number>();
+
+    for (const job of jobsResult.data ?? []) {
+      jobCounts.set(job.company_id, (jobCounts.get(job.company_id) ?? 0) + 1);
+    }
+
+    for (const request of pendingRequestsResult.data ?? []) {
+      pendingRequestCounts.set(
+        request.company_id,
+        (pendingRequestCounts.get(request.company_id) ?? 0) + 1
+      );
+    }
+
+    // Map companies to list items
+    return companies.map((company) => {
       let quickbooksStatus: QuickBooksStatus = "not_connected";
       if (company.quickbooks_customer_id) {
         quickbooksStatus = "connected";
       }
 
-      listItems.push({
+      return {
         id: company.id,
         name: company.name,
         contact_email: company.contact_email,
         status: company.status,
-        job_count: jobCount ?? 0,
-        pending_request_count: pendingRequestCount ?? 0,
+        job_count: jobCounts.get(company.id) ?? 0,
+        pending_request_count: pendingRequestCounts.get(company.id) ?? 0,
         quickbooks_status: quickbooksStatus,
         created_at: company.created_at,
-      });
-    }
-
-    return listItems;
+      };
+    });
   }
 
   /**

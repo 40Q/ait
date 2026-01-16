@@ -132,11 +132,13 @@ export class JobRepository extends BaseRepository<
       query = query.lte("pickup_date", filters.to_date);
     }
 
+    query = this.applyPagination(query, filters);
+
     const { data, error } = await query;
     if (error) throw error;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data ?? []).map((row: any) => {
+    let result = (data ?? []).map((row: any) => {
       const location = row.location as Location;
       const equipment = (row.equipment as EquipmentItem[]) || [];
       const documents = (row.documents as { id: string }[]) || [];
@@ -161,36 +163,35 @@ export class JobRepository extends BaseRepository<
         created_at: row.created_at,
       } as JobListItem;
     });
+
+    // Apply invoice filtering (post-query due to nested relation)
+    if (filters?.has_invoice === true) {
+      result = result.filter(job => job.invoice_total !== null);
+    } else if (filters?.has_invoice === false) {
+      result = result.filter(job => job.invoice_total === null);
+    }
+
+    if (filters?.invoice_status === "paid") {
+      result = result.filter(job => job.invoice_status === "paid");
+    } else if (filters?.invoice_status === "unpaid") {
+      result = result.filter(job =>
+        job.invoice_status === "unpaid" || job.invoice_status === "overdue"
+      );
+    }
+
+    return result;
   }
 
   /**
-   * Get counts by status
+   * Get counts by status - single query with client-side grouping
    */
   async getStatusCounts(companyId?: string): Promise<Record<string, number>> {
-    const statuses = [
-      "pickup_scheduled",
-      "pickup_complete",
-      "processing",
-      "complete",
-    ];
-    const counts: Record<string, number> = { all: 0 };
-
-    for (const status of statuses) {
-      let query = this.supabase
-        .from("jobs")
-        .select("*", { count: "exact", head: true })
-        .eq("status", status);
-
-      if (companyId) {
-        query = query.eq("company_id", companyId);
-      }
-
-      const { count } = await query;
-      counts[status] = count ?? 0;
-      counts.all += count ?? 0;
-    }
-
-    return counts;
+    const statuses = ["pickup_scheduled", "pickup_complete", "processing", "complete"] as const;
+    return this.getCountsByField(
+      "status",
+      [...statuses],
+      companyId ? { company_id: companyId } : undefined
+    );
   }
 
   /**

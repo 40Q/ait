@@ -11,6 +11,7 @@ import {
   type CompanyLocationInsert,
   type CompanyLocationUpdate,
 } from "@/lib/database/types";
+import { getQueryOptions } from "./query-config";
 
 /**
  * Hook to fetch a list of companies with optional filters
@@ -22,6 +23,7 @@ export function useCompanyList(filters?: CompanyFilters) {
   return useQuery({
     queryKey: queryKeys.companies.list(filters),
     queryFn: () => repo.getListItems(filters),
+    ...getQueryOptions("list"),
   });
 }
 
@@ -36,6 +38,7 @@ export function useCompany(id: string) {
     queryKey: queryKeys.companies.detail(id),
     queryFn: () => repo.findByIdWithStats(id),
     enabled: !!id,
+    ...getQueryOptions("detail"),
   });
 }
 
@@ -50,6 +53,7 @@ export function useCompanySearch(search: string, limit = 10) {
     queryKey: [...queryKeys.companies.all, "search", search],
     queryFn: () => repo.searchByName(search, limit),
     enabled: search.length >= 2,
+    ...getQueryOptions("search"),
   });
 }
 
