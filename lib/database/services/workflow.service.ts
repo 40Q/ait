@@ -9,6 +9,23 @@ import type {
 } from "../types";
 
 /**
+ * Validate that a user belongs to a specific company
+ */
+async function validateUserCompany(
+  supabase: SupabaseClient,
+  userId: string,
+  companyId: string
+): Promise<boolean> {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("company_id")
+    .eq("id", userId)
+    .single();
+
+  return profile?.company_id === companyId;
+}
+
+/**
  * WorkflowService handles cross-entity business operations
  * - Sending quotes (quote + request status updates)
  * - Responding to quotes (accept/decline/revision)
@@ -59,6 +76,8 @@ export class WorkflowService {
    * - Job creation (for accepted quotes)
    * - Timeline events
    * This is necessary because clients can't directly update requests/jobs/timeline due to RLS
+   *
+   * @throws Error if user doesn't belong to the quote's company
    */
   async respondToQuote(
     quoteId: string,
@@ -71,6 +90,16 @@ export class WorkflowService {
     }
     if (quote.status !== "sent") {
       throw new Error("Quote is not awaiting response");
+    }
+
+    const isValidUser = await validateUserCompany(
+      this.supabase,
+      userId,
+      quote.company_id
+    );
+
+    if (!isValidUser) {
+      throw new Error("User is not authorized to respond to this quote");
     }
 
     switch (response.status) {
