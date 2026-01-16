@@ -54,23 +54,8 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // For authenticated users, check MFA status and enforce routing
+  // For authenticated users, enforce role-based routing
   if (user) {
-    // Check if user has MFA enrolled but hasn't completed verification
-    const { data: assuranceLevel } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    const { data: factors } = await supabase.auth.mfa.listFactors();
-
-    const hasMfaEnrolled = factors?.totp && factors.totp.length > 0;
-    const needsMfaVerification = hasMfaEnrolled && assuranceLevel?.currentLevel === "aal1";
-
-    // If MFA is required but not verified, redirect to login (unless already there)
-    if (needsMfaVerification && !isPublicRoute) {
-      // Sign out the partial session to force re-authentication
-      await supabase.auth.signOut();
-      const url = request.nextUrl.clone();
-      url.pathname = "/login";
-      return NextResponse.redirect(url);
-    }
     const profile = await getUserProfile(supabase, user.id);
     const isAdmin = profile?.role === "admin";
     const isAdminRoute = pathname.startsWith("/admin") && !pathname.startsWith("/admin/login");
