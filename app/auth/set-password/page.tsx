@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/brand/logo";
 import { createClient } from "@/lib/supabase/client";
@@ -16,7 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
 
 export default function SetPasswordPage() {
   const router = useRouter();
@@ -48,17 +48,24 @@ export default function SetPasswordPage() {
     checkSession();
   }, [supabase, router]);
 
+  // Password strength validation
+  const passwordChecks = useMemo(() => ({
+    minLength: password.length >= 8,
+    hasUppercase: /[A-Z]/.test(password),
+    hasLowercase: /[a-z]/.test(password),
+    hasNumber: /[0-9]/.test(password),
+    hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+    passwordsMatch: password === confirmPassword && password.length > 0,
+  }), [password, confirmPassword]);
+
+  const isPasswordValid = Object.values(passwordChecks).every(Boolean);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
-
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters");
+    if (!isPasswordValid) {
+      setError("Please meet all password requirements");
       return;
     }
 
@@ -174,11 +181,51 @@ export default function SetPasswordPage() {
                 <p className="font-medium">Password requirements:</p>
                 <ul className="space-y-1">
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 className={`h-4 w-4 ${password.length >= 8 ? "text-green-600" : "text-muted-foreground/50"}`} />
+                    {passwordChecks.minLength ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-muted-foreground/50" />
+                    )}
                     At least 8 characters
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 className={`h-4 w-4 ${password === confirmPassword && password.length > 0 ? "text-green-600" : "text-muted-foreground/50"}`} />
+                    {passwordChecks.hasUppercase ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-muted-foreground/50" />
+                    )}
+                    One uppercase letter
+                  </li>
+                  <li className="flex items-center gap-2">
+                    {passwordChecks.hasLowercase ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-muted-foreground/50" />
+                    )}
+                    One lowercase letter
+                  </li>
+                  <li className="flex items-center gap-2">
+                    {passwordChecks.hasNumber ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-muted-foreground/50" />
+                    )}
+                    One number
+                  </li>
+                  <li className="flex items-center gap-2">
+                    {passwordChecks.hasSpecial ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-muted-foreground/50" />
+                    )}
+                    One special character (!@#$%^&amp;*...)
+                  </li>
+                  <li className="flex items-center gap-2">
+                    {passwordChecks.passwordsMatch ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-muted-foreground/50" />
+                    )}
                     Passwords match
                   </li>
                 </ul>
@@ -193,7 +240,7 @@ export default function SetPasswordPage() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={isLoading || password.length < 8 || password !== confirmPassword}
+                disabled={isLoading || !isPasswordValid}
               >
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Set Password
