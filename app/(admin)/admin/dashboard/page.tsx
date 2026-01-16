@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
   Building2,
   Briefcase,
@@ -13,7 +14,6 @@ import {
   Clock,
   ArrowRight,
   CheckCircle2,
-  Loader2,
 } from "lucide-react";
 import {
   useRequestStatusCounts,
@@ -45,11 +45,7 @@ export default function AdminDashboardPage() {
   const hasPendingActions = pendingRequests > 0 || quotesAwaitingResponse > 0;
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingSpinner size="lg" />;
   }
 
   return (

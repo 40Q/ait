@@ -1,26 +1,15 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Search,
-  ExternalLink,
-  FileText,
-  Calendar,
-  Loader2,
-} from "lucide-react";
-import { useDocumentList } from "@/lib/hooks";
+import { ListFilters } from "@/components/ui/list-filters";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ExternalLink, FileText, Calendar } from "lucide-react";
+import { useDocumentList, useListPage } from "@/lib/hooks";
 import { createClient } from "@/lib/supabase/client";
 import { getSignedUrl, STORAGE_BUCKETS } from "@/lib/storage/upload";
 import { formatDateShort } from "@/lib/utils/date";
@@ -35,18 +24,26 @@ const certificateTypes = (
   Object.keys(documentTypeLabels) as DocumentType[]
 ).filter((type) => type !== "pickup_document");
 
+const typeFilterOptions = [
+  { value: "all", label: "All Types" },
+  ...certificateTypes.map((type) => ({ value: type, label: documentTypeLabels[type] })),
+];
+
 export default function CertificatesPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState("all");
+  const { searchQuery, setSearchQuery, filters: pageFilters, setFilter } = useListPage<{
+    type: string;
+  }>({
+    defaultFilters: { type: "all" },
+  });
   const supabase = createClient();
 
   const filters = useMemo(
     () => ({
       search: searchQuery || undefined,
       document_type:
-        typeFilter !== "all" ? (typeFilter as DocumentType) : undefined,
+        pageFilters.type !== "all" ? (pageFilters.type as DocumentType) : undefined,
     }),
-    [searchQuery, typeFilter]
+    [searchQuery, pageFilters.type]
   );
 
   const { data: documents = [], isLoading } = useDocumentList(filters);
@@ -77,49 +74,28 @@ export default function CertificatesPage() {
         description="View and download all your certificates and reports"
       />
 
-      {/* Filters */}
-      <div className="flex flex-col gap-4 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by name or job..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-full sm:w-56">
-            <SelectValue placeholder="Document Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            {certificateTypes.map((type) => (
-              <SelectItem key={type} value={type}>
-                {documentTypeLabels[type]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <ListFilters
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search by name or job..."
+        filters={[
+          {
+            value: pageFilters.type,
+            onChange: (value) => setFilter("type", value),
+            options: typeFilterOptions,
+            className: "w-full sm:w-56",
+          },
+        ]}
+      />
 
-      {/* Documents List */}
       {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingSpinner />
       ) : certificatesAndReports.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <FileText className="h-12 w-12 text-muted-foreground" />
-            <p className="mt-4 text-lg font-medium">
-              No certificates or reports yet
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Documents will appear here once they are uploaded to your jobs.
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={FileText}
+          title="No certificates or reports yet"
+          description="Documents will appear here once they are uploaded to your jobs."
+        />
       ) : (
         <div className="space-y-3">
           {certificatesAndReports.map((doc) => (

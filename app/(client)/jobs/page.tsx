@@ -1,33 +1,23 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { StatusBadge } from "@/components/ui/status-badge";
-import {
-  Search,
-  FileText,
-  Receipt,
-  ArrowRight,
-  Calendar,
-  Truck,
-  Loader2,
-} from "lucide-react";
-import { useJobList } from "@/lib/hooks";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ListFilters } from "@/components/ui/list-filters";
+import { FileText, Receipt, ArrowRight, Calendar, Truck, Package } from "lucide-react";
+import { useJobList, useListPage } from "@/lib/hooks";
 import { jobStatusLabels, type JobListItem, type JobStatus } from "@/lib/database/types";
 import { formatDateShort } from "@/lib/utils/date";
 
-const allStatuses = Object.keys(jobStatusLabels) as JobStatus[];
+const statusOptions = [
+  { value: "all", label: "All Statuses" },
+  ...Object.entries(jobStatusLabels).map(([value, label]) => ({ value, label })),
+];
 
 function JobCard({ job }: { job: JobListItem }) {
   return (
@@ -76,18 +66,21 @@ function JobCard({ job }: { job: JobListItem }) {
 }
 
 export default function JobsPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const { searchQuery, setSearchQuery, filters, setFilter } = useListPage<{
+    status: string;
+  }>({
+    defaultFilters: { status: "all" },
+  });
 
-  const filters = useMemo(
+  const queryFilters = useMemo(
     () => ({
       search: searchQuery || undefined,
-      status: statusFilter !== "all" ? (statusFilter as JobStatus) : undefined,
+      status: filters.status !== "all" ? (filters.status as JobStatus) : undefined,
     }),
-    [searchQuery, statusFilter]
+    [searchQuery, filters.status]
   );
 
-  const { data: jobs = [], isLoading } = useJobList(filters);
+  const { data: jobs = [], isLoading } = useJobList(queryFilters);
 
   return (
     <div className="space-y-6">
@@ -100,41 +93,24 @@ export default function JobsPage() {
         </Button>
       </PageHeader>
 
-      {/* Filters */}
-      <div className="flex flex-col gap-4 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by Job ID..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            {allStatuses.map((status) => (
-              <SelectItem key={status} value={status}>
-                {jobStatusLabels[status]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <ListFilters
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search by Job ID..."
+        filters={[
+          {
+            value: filters.status,
+            onChange: (value) => setFilter("status", value),
+            options: statusOptions,
+            className: "w-full sm:w-48",
+          },
+        ]}
+      />
 
-      {/* Jobs List */}
       {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingSpinner />
       ) : jobs.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No jobs found</p>
-        </div>
+        <EmptyState icon={Package} title="No jobs found" />
       ) : (
         <div className="space-y-3">
           {jobs.map((job) => (
@@ -143,7 +119,6 @@ export default function JobsPage() {
         </div>
       )}
 
-      {/* Results Count */}
       {!isLoading && jobs.length > 0 && (
         <p className="text-sm text-muted-foreground">
           Showing {jobs.length} job{jobs.length !== 1 ? "s" : ""}

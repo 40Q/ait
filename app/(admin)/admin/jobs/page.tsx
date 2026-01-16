@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -15,29 +14,28 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { StatusBadge } from "@/components/ui/status-badge";
-import {
-  Search,
-  Eye,
-  FileText,
-  Loader2,
-  Plus,
-} from "lucide-react";
-import { useJobList, useJobStatusCounts, useRealtimeJobs } from "@/lib/hooks";
+import { ListFilters } from "@/components/ui/list-filters";
+import { Loader2, Eye, FileText, Plus } from "lucide-react";
+import { useJobList, useJobStatusCounts, useRealtimeJobs, useListPage, useTabFilter } from "@/lib/hooks";
 import { formatDateShort } from "@/lib/utils/date";
 import type { JobStatus } from "@/lib/database/types";
 
+const invoiceFilterOptions = [
+  { value: "all", label: "All Invoices" },
+  { value: "invoiced", label: "Invoiced" },
+  { value: "not_invoiced", label: "Not Invoiced" },
+  { value: "paid", label: "Paid" },
+  { value: "unpaid", label: "Unpaid" },
+];
+
 export default function AdminJobsPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [invoiceFilter, setInvoiceFilter] = useState("all");
-  const [activeTab, setActiveTab] = useState("all");
+  const { searchQuery, setSearchQuery, filters: pageFilters, setFilter } = useListPage<{
+    invoice: string;
+  }>({
+    defaultFilters: { invoice: "all" },
+  });
+  const { activeTab, setActiveTab } = useTabFilter("all");
 
   // Enable real-time updates
   useRealtimeJobs();
@@ -54,6 +52,7 @@ export default function AdminJobsPage() {
   // Client-side filtering for invoice status only
   const filteredJobs = useMemo(() => {
     let result = jobs;
+    const invoiceFilter = pageFilters.invoice;
 
     // Filter by invoice status
     if (invoiceFilter === "invoiced") {
@@ -67,7 +66,7 @@ export default function AdminJobsPage() {
     }
 
     return result;
-  }, [jobs, invoiceFilter]);
+  }, [jobs, pageFilters.invoice]);
 
   if (error) {
     return (
@@ -91,30 +90,19 @@ export default function AdminJobsPage() {
         </Button>
       </PageHeader>
 
-      {/* Filters */}
-      <div className="flex flex-col gap-4 sm:flex-row">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by Job ID or company..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <Select value={invoiceFilter} onValueChange={setInvoiceFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Invoice Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Invoices</SelectItem>
-            <SelectItem value="invoiced">Invoiced</SelectItem>
-            <SelectItem value="not_invoiced">Not Invoiced</SelectItem>
-            <SelectItem value="paid">Paid</SelectItem>
-            <SelectItem value="unpaid">Unpaid</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <ListFilters
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search by Job ID or company..."
+        filters={[
+          {
+            value: pageFilters.invoice,
+            onChange: (value) => setFilter("invoice", value),
+            options: invoiceFilterOptions,
+            className: "w-[180px]",
+          },
+        ]}
+      />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>

@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -16,15 +15,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { StatCard } from "@/components/ui/stat-card";
-import {
-  Search,
-  Eye,
-  FileText,
-  DollarSign,
-  TrendingUp,
-  Loader2,
-} from "lucide-react";
-import { useQuoteList, useQuoteStatusCounts } from "@/lib/hooks";
+import { ListFilters } from "@/components/ui/list-filters";
+import { Loader2, Eye, FileText, DollarSign, TrendingUp } from "lucide-react";
+import { useQuoteList, useQuoteStatusCounts, useListPage, useTabFilter } from "@/lib/hooks";
 import { formatDate } from "@/lib/utils/date";
 import type { QuoteStatus } from "@/lib/database/types";
 
@@ -59,8 +52,8 @@ function QuoteStatusBadge({ status }: { status: QuoteStatus }) {
 }
 
 export default function QuotesPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("all");
+  const { searchQuery, setSearchQuery } = useListPage();
+  const { activeTab, setActiveTab } = useTabFilter("all");
 
   // Fetch quotes with filters (status only, search is client-side)
   const filters = useMemo(() => ({
@@ -124,18 +117,11 @@ export default function QuotesPage() {
         />
       </div>
 
-      {/* Search */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by quote #, request #, or company..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-      </div>
+      <ListFilters
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search by quote #, request #, or company..."
+      />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>

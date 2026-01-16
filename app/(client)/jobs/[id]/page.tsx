@@ -27,7 +27,6 @@ import { useJob, useRealtimeJob } from "@/lib/hooks";
 import { createClient } from "@/lib/supabase/client";
 import { getSignedUrl, STORAGE_BUCKETS } from "@/lib/storage/upload";
 import { formatDate } from "@/lib/utils/date";
-import type { JobStatus } from "@/lib/database/types";
 
 interface JobDetailPageProps {
   params: Promise<{ id: string }>;

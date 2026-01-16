@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, FileText, Receipt, Loader2 } from "lucide-react";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ArrowRight, FileText, Receipt, Briefcase } from "lucide-react";
 import { useJobList } from "@/lib/hooks";
 import { formatDateShort } from "@/lib/utils/date";
 
@@ -11,18 +13,17 @@ export function RecentJobsList() {
   const { data: jobs = [], isLoading } = useJobList();
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingSpinner size="sm" className="py-8" />;
   }
 
   if (jobs.length === 0) {
     return (
-      <p className="text-center text-sm text-muted-foreground py-8">
-        No jobs yet. Submit a pickup request to get started.
-      </p>
+      <EmptyState
+        icon={Briefcase}
+        title="No jobs yet"
+        description="Submit a pickup request to get started."
+        className="py-8"
+      />
     );
   }
 

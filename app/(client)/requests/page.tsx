@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,20 +26,12 @@ import {
   ChevronDown,
   Recycle,
   Box,
-  Loader2,
+  Package,
 } from "lucide-react";
 import { isCyrusOneUser } from "@/lib/user";
-import { useRequestList, useRequestStatusCounts } from "@/lib/hooks";
+import { useRequestList, useRequestStatusCounts, useTabFilter } from "@/lib/hooks";
+import { formatDateShort } from "@/lib/utils/date";
 import type { RequestListItem, RequestStatus } from "@/lib/database/types";
-
-function formatDate(dateString: string | null): string {
-  if (!dateString) return "Not specified";
-  return new Date(dateString).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 function RequestCard({ request }: { request: RequestListItem }) {
   return (
@@ -66,7 +60,7 @@ function RequestCard({ request }: { request: RequestListItem }) {
               </span>
               <span className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
-                Requested: {formatDate(request.preferred_date)}
+                Requested: {formatDateShort(request.preferred_date)}
               </span>
             </div>
           </div>
@@ -146,7 +140,7 @@ function NewRequestButton() {
 }
 
 export default function RequestsPage() {
-  const [activeTab, setActiveTab] = useState("all");
+  const { activeTab, setActiveTab } = useTabFilter("all");
 
   const filters = useMemo(
     () => ({
@@ -184,13 +178,9 @@ export default function RequestsPage() {
         {["all", "pending", "quote_ready", "accepted"].map((status) => (
           <TabsContent key={status} value={status} className="mt-4 space-y-3">
             {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
+              <LoadingSpinner />
             ) : requests.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">No requests found</p>
-              </div>
+              <EmptyState icon={Package} title="No requests found" />
             ) : (
               requests.map((request) => (
                 <RequestCard key={request.id} request={request} />

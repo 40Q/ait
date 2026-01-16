@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, ArrowRight, Loader2 } from "lucide-react";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { FileText, ArrowRight } from "lucide-react";
 import { useQuoteList } from "@/lib/hooks";
 
 export function PendingActions() {
@@ -11,11 +12,7 @@ export function PendingActions() {
   const { data: quotes = [], isLoading } = useQuoteList({ status: "sent" });
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-4">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingSpinner size="sm" className="py-4" />;
   }
 
   if (quotes.length === 0) return null;

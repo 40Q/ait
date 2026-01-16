@@ -5,13 +5,13 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
   ClipboardList,
   FileCheck,
   Briefcase,
   Truck,
   ArrowRight,
-  Loader2,
 } from "lucide-react";
 import { RecentJobsList } from "./_components/recent-jobs-list";
 import { PendingActions } from "./_components/pending-actions";
@@ -51,9 +51,7 @@ export default function DashboardPage() {
 
       {/* Stats Grid */}
       {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingSpinner />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <StatCard

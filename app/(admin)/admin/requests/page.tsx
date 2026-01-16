@@ -1,25 +1,26 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { ListFilters } from "@/components/ui/list-filters";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
-  Search,
   MapPin,
   Calendar,
   ArrowRight,
   HardDrive,
   FileText,
   Sparkles,
-  Loader2,
+  Package,
 } from "lucide-react";
-import { useRequestList, useRequestStatusCounts } from "@/lib/hooks";
+import { useRequestList, useRequestStatusCounts, useListPage, useTabFilter } from "@/lib/hooks";
 import { formatDate } from "@/lib/utils/date";
 import type { RequestListItem, RequestStatus } from "@/lib/database/types";
 
@@ -115,8 +116,8 @@ function RequestCard({ request }: { request: RequestListItem }) {
 }
 
 export default function AdminRequestsPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("all");
+  const { searchQuery, setSearchQuery } = useListPage();
+  const { activeTab, setActiveTab } = useTabFilter("all");
 
   // Fetch requests with filters (search is handled by the database)
   const filters = useMemo(() => ({
@@ -142,18 +143,11 @@ export default function AdminRequestsPage() {
         description="Review and manage pickup requests from clients"
       />
 
-      {/* Filters */}
-      <div className="flex flex-col gap-4 sm:flex-row">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by ID or company..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-      </div>
+      <ListFilters
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search by ID or company..."
+      />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -179,13 +173,9 @@ export default function AdminRequestsPage() {
           (status) => (
             <TabsContent key={status} value={status} className="mt-4 space-y-3">
               {isLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
+                <LoadingSpinner />
               ) : requests.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground">No requests found</p>
-                </div>
+                <EmptyState icon={Package} title="No requests found" />
               ) : (
                 requests.map((request) => (
                   <RequestCard key={request.id} request={request} />
