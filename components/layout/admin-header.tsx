@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { createClient } from "@/lib/supabase/client";
+import { useCurrentUser } from "@/lib/hooks";
 
 interface AdminHeaderProps {
   onMenuClick?: () => void;
@@ -20,6 +21,16 @@ interface AdminHeaderProps {
 
 export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
   const router = useRouter();
+  const { data: currentUser } = useCurrentUser();
+
+  const displayName = currentUser?.full_name || "Admin";
+  const email = currentUser?.email || "";
+  const initials = displayName
+    .split(" ")
+    .map((word) => word[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -54,7 +65,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
             <Button variant="ghost" className="relative h-9 w-9 rounded-full">
               <Avatar className="h-9 w-9">
                 <AvatarFallback className="bg-secondary text-secondary-foreground">
-                  AD
+                  {initials}
                 </AvatarFallback>
               </Avatar>
             </Button>
@@ -62,9 +73,9 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
           <DropdownMenuContent className="w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium">Admin User</p>
+                <p className="text-sm font-medium">{displayName}</p>
                 <p className="text-xs text-muted-foreground">
-                  admin@ait-co.com
+                  {email}
                 </p>
               </div>
             </DropdownMenuLabel>

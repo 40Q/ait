@@ -13,16 +13,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { createClient } from "@/lib/supabase/client";
+import { useCurrentUser } from "@/lib/hooks";
 
 interface HeaderProps {
   onMenuClick?: () => void;
-  companyName?: string;
 }
 
-export function Header({ onMenuClick, companyName = "Acme Corp" }: HeaderProps) {
+export function Header({ onMenuClick }: HeaderProps) {
   const router = useRouter();
+  const { data: currentUser } = useCurrentUser();
 
-  const initials = companyName
+  const displayName = currentUser?.company_name || currentUser?.full_name || "User";
+  const email = currentUser?.email || "";
+
+  const initials = displayName
     .split(" ")
     .map((word) => word[0])
     .join("")
@@ -49,7 +53,7 @@ export function Header({ onMenuClick, companyName = "Acme Corp" }: HeaderProps) 
           <span className="sr-only">Toggle menu</span>
         </Button>
         <h1 className="text-lg font-semibold text-foreground">
-          Welcome back, <span className="text-primary">{companyName}</span>
+          Welcome back, <span className="text-primary">{displayName}</span>
         </h1>
       </div>
 
@@ -67,9 +71,9 @@ export function Header({ onMenuClick, companyName = "Acme Corp" }: HeaderProps) 
           <DropdownMenuContent className="w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium">{companyName}</p>
+                <p className="text-sm font-medium">{displayName}</p>
                 <p className="text-xs text-muted-foreground">
-                  admin@acmecorp.com
+                  {email}
                 </p>
               </div>
             </DropdownMenuLabel>
