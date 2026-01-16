@@ -4,12 +4,13 @@ import type { JobStatus, Location, Contact, EquipmentItem, DocumentType } from "
 export interface JobRow {
   id: string;
   job_number: string;
-  quote_id: string;
-  request_id: string;
+  quote_id: string | null;  // Nullable for jobs created directly
+  request_id: string | null;  // Nullable for jobs created directly
   company_id: string;
   status: JobStatus;
   pickup_date: string;
   pickup_time_window: string | null;
+  logistics_person_name: string | null;  // Person performing the pickup
   location: Location;
   contact: Contact;
   equipment: EquipmentItem[];
@@ -25,10 +26,21 @@ export interface JobRow {
 
 export type JobInsert = Omit<
   JobRow,
-  "id" | "job_number" | "created_at" | "updated_at"
+  | "id"
+  | "job_number"
+  | "created_at"
+  | "updated_at"
+  | "pickup_complete_at"
+  | "processing_started_at"
+  | "completed_at"
+  | "admin_notes"
 > & {
   id?: string;
   job_number?: string;
+  pickup_complete_at?: string | null;
+  processing_started_at?: string | null;
+  completed_at?: string | null;
+  admin_notes?: string | null;
 };
 
 export type JobUpdate = Partial<
@@ -49,11 +61,11 @@ export interface JobWithRelations extends JobRow {
     id: string;
     quote_number: string;
     total: number;
-  };
+  } | null;  // Nullable for jobs created directly
   request: {
     id: string;
     request_number: string;
-  };
+  } | null;  // Nullable for jobs created directly
   company: {
     id: string;
     name: string;

@@ -38,9 +38,13 @@ import {
   Loader2,
   Link as LinkIcon,
   ExternalLink,
+  Pencil,
+  Truck,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useJob, useUpdateJobStatus, useRealtimeJob, useCreateDocument, useDeleteDocument, useCurrentUser } from "@/lib/hooks";
+import { useJob, useUpdateJob, useUpdateJobStatus, useRealtimeJob, useCreateDocument, useDeleteDocument, useCurrentUser } from "@/lib/hooks";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { jobStatusLabels, type JobStatus, type DocumentType } from "@/lib/database/types";
 import { createClient } from "@/lib/supabase/client";
 import { uploadFile, getSignedUrl, STORAGE_BUCKETS } from "@/lib/storage/upload";
@@ -73,6 +77,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
 
   const { data: job, isLoading, error } = useJob(id);
   const { data: currentUser } = useCurrentUser();
+  const updateJob = useUpdateJob();
   const updateJobStatus = useUpdateJobStatus();
   const createDocument = useCreateDocument();
   const deleteDocument = useDeleteDocument();
@@ -83,6 +88,41 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
   const [showStatusDialog, setShowStatusDialog] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<JobStatus | null>(null);
   const [selectedDocType, setSelectedDocType] = useState<string>("");
+
+  // Edit mode state for schedule
+  const [isEditingSchedule, setIsEditingSchedule] = useState(false);
+  const [editPickupDate, setEditPickupDate] = useState("");
+  const [editTimeWindow, setEditTimeWindow] = useState("");
+  const [editLogisticsPerson, setEditLogisticsPerson] = useState("");
+
+  const startEditingSchedule = () => {
+    if (!job) return;
+    setEditPickupDate(job.pickup_date);
+    setEditTimeWindow(job.pickup_time_window || "");
+    setEditLogisticsPerson(job.logistics_person_name || "");
+    setIsEditingSchedule(true);
+  };
+
+  const cancelEditingSchedule = () => {
+    setIsEditingSchedule(false);
+  };
+
+  const saveSchedule = () => {
+    if (!job) return;
+    updateJob.mutate(
+      {
+        id: job.id,
+        data: {
+          pickup_date: editPickupDate,
+          pickup_time_window: editTimeWindow || null,
+          logistics_person_name: editLogisticsPerson || null,
+        },
+      },
+      {
+        onSuccess: () => setIsEditingSchedule(false),
+      }
+    );
+  };
 
   const isUploading = createDocument.isPending;
 
@@ -562,48 +602,112 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                   {job.company?.name || "Unknown Company"}
                 </Link>
               </div>
-              <div>
-                <p className="text-muted-foreground">Quote</p>
-                <Link
-                  href={`/admin/quotes/${job.quote_id}`}
-                  className="font-mono hover:underline"
-                >
-                  {job.quote?.quote_number || job.quote_id}
-                </Link>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Request</p>
-                <Link
-                  href={`/admin/requests/${job.request_id}`}
-                  className="font-mono hover:underline"
-                >
-                  {job.request?.request_number || job.request_id}
-                </Link>
-              </div>
+              {job.quote_id && (
+                <div>
+                  <p className="text-muted-foreground">Quote</p>
+                  <Link
+                    href={`/admin/quotes/${job.quote_id}`}
+                    className="font-mono hover:underline"
+                  >
+                    {job.quote?.quote_number || job.quote_id}
+                  </Link>
+                </div>
+              )}
+              {job.request_id && (
+                <div>
+                  <p className="text-muted-foreground">Request</p>
+                  <Link
+                    href={`/admin/requests/${job.request_id}`}
+                    className="font-mono hover:underline"
+                  >
+                    {job.request?.request_number || job.request_id}
+                  </Link>
+                </div>
+              )}
+              {!job.quote_id && !job.request_id && (
+                <p className="text-muted-foreground text-xs">
+                  Created directly (no quote/request)
+                </p>
+              )}
             </CardContent>
           </Card>
 
           {/* Schedule */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-base">Schedule</CardTitle>
+              {!isEditingSchedule && (
+                <Button variant="ghost" size="icon" onClick={startEditingSchedule}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <div className="flex items-center gap-3">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-muted-foreground">Pickup Date</p>
-                  <p className="font-medium">{new Date(job.pickup_date).toLocaleDateString()}</p>
-                </div>
-              </div>
-              {job.pickup_time_window && (
-                <div className="flex items-center gap-3">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-muted-foreground">Time Window</p>
-                    <p className="font-medium">{job.pickup_time_window}</p>
+              {isEditingSchedule ? (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="pickupDate">Pickup Date</Label>
+                    <Input
+                      id="pickupDate"
+                      type="date"
+                      value={editPickupDate}
+                      onChange={(e) => setEditPickupDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="timeWindow">Time Window</Label>
+                    <Input
+                      id="timeWindow"
+                      placeholder="e.g., 9:00 AM - 12:00 PM"
+                      value={editTimeWindow}
+                      onChange={(e) => setEditTimeWindow(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="logisticsPerson">Logistics Person</Label>
+                    <Input
+                      id="logisticsPerson"
+                      placeholder="Name of pickup driver"
+                      value={editLogisticsPerson}
+                      onChange={(e) => setEditLogisticsPerson(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={saveSchedule} disabled={updateJob.isPending}>
+                      {updateJob.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Save
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={cancelEditingSchedule}>
+                      Cancel
+                    </Button>
                   </div>
                 </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-muted-foreground">Pickup Date</p>
+                      <p className="font-medium">{new Date(job.pickup_date).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                  {job.pickup_time_window && (
+                    <div className="flex items-center gap-3">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-muted-foreground">Time Window</p>
+                        <p className="font-medium">{job.pickup_time_window}</p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <Truck className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-muted-foreground">Logistics Person</p>
+                      <p className="font-medium">{job.logistics_person_name || "Not assigned"}</p>
+                    </div>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>

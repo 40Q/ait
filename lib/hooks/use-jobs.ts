@@ -113,6 +113,22 @@ export function useUpdateJob() {
 }
 
 /**
+ * Hook to create a job directly (without quote)
+ */
+export function useCreateJob() {
+  const queryClient = useQueryClient();
+  const supabase = createClient();
+  const repo = new JobRepository(supabase);
+
+  return useMutation({
+    mutationFn: (data: Parameters<typeof repo.create>[0]) => repo.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.jobs.lists() });
+    },
+  });
+}
+
+/**
  * Hook to update job status (with validation and timeline tracking)
  */
 export function useUpdateJobStatus() {

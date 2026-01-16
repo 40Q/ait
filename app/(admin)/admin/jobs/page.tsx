@@ -28,6 +28,7 @@ import {
   Eye,
   FileText,
   Loader2,
+  Plus,
 } from "lucide-react";
 import { useJobList, useJobStatusCounts, useRealtimeJobs } from "@/lib/hooks";
 import { formatDateShort } from "@/lib/utils/date";
@@ -81,7 +82,14 @@ export default function AdminJobsPage() {
       <PageHeader
         title="Jobs"
         description="Manage jobs and upload documents"
-      />
+      >
+        <Button asChild>
+          <Link href="/admin/jobs/new">
+            <Plus className="mr-2 h-4 w-4" />
+            Create Job
+          </Link>
+        </Button>
+      </PageHeader>
 
       {/* Filters */}
       <div className="flex flex-col gap-4 sm:flex-row">
