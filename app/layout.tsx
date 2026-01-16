@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import NextTopLoader from "nextjs-toploader";
 import { QueryProvider } from "@/lib/providers/query-provider";
 import "./globals.css";
 
@@ -15,6 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased" style={{ fontFamily: "'Glacial Indifference', sans-serif" }}>
+        <NextTopLoader color="#33cc66" showSpinner={false} />
         <QueryProvider>{children}</QueryProvider>
       </body>
     </html>
