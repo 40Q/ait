@@ -152,7 +152,7 @@ function DocumentCard({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => onView(document.file_url)}
+            onClick={() => onView(document.file_path)}
           >
             <ExternalLink className="mr-2 h-4 w-4" />
             View

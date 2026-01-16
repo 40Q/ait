@@ -12,7 +12,7 @@ export interface DocumentListItem {
   id: string;
   name: string;
   document_type: DocumentType;
-  file_url: string;
+  file_path: string;
   created_at: string;
   file_size?: number | null;
   // Optional fields for showing related info
@@ -100,7 +100,7 @@ export function DocumentList({
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => onView(doc.file_url)}
+              onClick={() => onView(doc.file_path)}
             >
               <ExternalLink className="h-4 w-4" />
             </Button>
@@ -108,7 +108,7 @@ export function DocumentList({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => onDelete(doc.id, doc.file_url)}
+                onClick={() => onDelete(doc.id, doc.file_path)}
                 disabled={isDeleting}
               >
                 <Trash2 className="h-4 w-4 text-destructive" />

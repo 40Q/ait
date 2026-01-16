@@ -169,7 +169,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
         company_id: job.company_id,
         name: file.name,
         document_type: selectedDocType as DocumentType,
-        file_url: result.path,
+        file_path: result.path,
         file_size: result.size,
         mime_type: file.type,
         uploaded_by: currentUser.id,

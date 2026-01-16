@@ -7,7 +7,7 @@ export interface DocumentRow {
   company_id: string;
   name: string;
   document_type: DocumentType;
-  file_url: string;
+  file_path: string;
   file_size: number | null;
   mime_type: string | null;
   uploaded_by: string;
@@ -48,7 +48,7 @@ export interface DocumentListItem {
   job_number: string;
   company_id: string;
   company_name: string;
-  file_url: string;
+  file_path: string;
   file_size: number | null;
   uploaded_by_name: string;
   created_at: string;

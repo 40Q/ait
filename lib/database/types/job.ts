@@ -79,7 +79,7 @@ interface DocumentSummary {
   id: string;
   name: string;
   document_type: DocumentType;
-  file_url: string;
+  file_path: string;
   created_at: string;
 }
 
