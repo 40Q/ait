@@ -59,9 +59,13 @@ export type QuoteInsert = Omit<
   | "accepted_by"
   | "signature_name"
   | "sent_at"
+  | "pickup_date"
+  | "pickup_time_window"
 > & {
   id?: string;
   quote_number?: string;
+  pickup_date?: string | null;
+  pickup_time_window?: string | null;
 };
 
 export type QuoteUpdate = Partial<
@@ -114,7 +118,6 @@ export interface QuoteListItem {
   company_id: string;
   company_name: string;
   status: QuoteStatus;
-  pickup_date: string | null;
   total: number;
   valid_until: string;
   created_at: string;

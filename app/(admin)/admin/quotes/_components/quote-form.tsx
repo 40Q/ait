@@ -27,8 +27,6 @@ interface LineItem {
 }
 
 interface QuoteFormData {
-  pickupDate: string;
-  pickupTimeWindow: string;
   validUntil: string;
   lineItems: LineItem[];
   terms: string;
@@ -65,8 +63,6 @@ function parseExistingLineItems(quote: QuoteWithRelations): LineItem[] {
 }
 
 export interface QuoteFormSubmitData {
-  pickupDate: string | null;
-  pickupTimeWindow: string | null;
   validUntil: string;
   subtotal: number;
   discount: number;
@@ -104,8 +100,6 @@ export function QuoteForm({
   const [formData, setFormData] = useState<QuoteFormData>(() => {
     if (existingQuote) {
       return {
-        pickupDate: existingQuote.pickup_date?.split("T")[0] || "",
-        pickupTimeWindow: existingQuote.pickup_time_window || "",
         validUntil: existingQuote.valid_until?.split("T")[0] || getDefaultValidUntil(),
         lineItems: parseExistingLineItems(existingQuote),
         terms: existingQuote.terms || defaultTerms,
@@ -113,8 +107,6 @@ export function QuoteForm({
       };
     }
     return {
-      pickupDate: request.preferred_date?.split("T")[0] || "",
-      pickupTimeWindow: "",
       validUntil: getDefaultValidUntil(),
       lineItems: [
         { id: "1", description: "", additionalInfo: "", quantity: "1", price: "" },
@@ -182,8 +174,6 @@ export function QuoteForm({
   // Memoized submit data builder
   const buildSubmitData = useCallback((): QuoteFormSubmitData => {
     return {
-      pickupDate: formData.pickupDate || null,
-      pickupTimeWindow: formData.pickupTimeWindow || null,
       validUntil: formData.validUntil,
       subtotal,
       discount: discountAmount,
@@ -271,31 +261,13 @@ export function QuoteForm({
         </CardContent>
       </Card>
 
-      {/* Quote Schedule & Validity */}
+      {/* Quote Validity */}
       <Card>
         <CardHeader>
           <CardTitle>Quote Details</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="pickupDate">Pickup Date</Label>
-              <Input
-                id="pickupDate"
-                type="date"
-                value={formData.pickupDate}
-                onChange={(e) => updateField("pickupDate", e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pickupTimeWindow">Time Window</Label>
-              <Input
-                id="pickupTimeWindow"
-                value={formData.pickupTimeWindow}
-                onChange={(e) => updateField("pickupTimeWindow", e.target.value)}
-                placeholder="e.g., 9:00 AM - 12:00 PM"
-              />
-            </div>
+          <div className="max-w-xs">
             <div className="space-y-2">
               <Label htmlFor="validUntil">Quote Valid Until</Label>
               <Input

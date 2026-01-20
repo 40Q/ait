@@ -19,17 +19,17 @@ import {
   type DocumentListItem,
 } from "@/lib/database/types";
 
-// Certificate/report types (excluding pickup_document)
-const certificateTypes = (
+// Document types (excluding pickup_document which is shown in Pickup Details)
+const documentTypes = (
   Object.keys(documentTypeLabels) as DocumentType[]
 ).filter((type) => type !== "pickup_document");
 
 const typeFilterOptions = [
   { value: "all", label: "All Types" },
-  ...certificateTypes.map((type) => ({ value: type, label: documentTypeLabels[type] })),
+  ...documentTypes.map((type) => ({ value: type, label: documentTypeLabels[type] })),
 ];
 
-export default function CertificatesPage() {
+export default function DocumentsPage() {
   const { searchQuery, setSearchQuery, filters: pageFilters, setFilter } = useListPage<{
     type: string;
   }>({
@@ -48,8 +48,8 @@ export default function CertificatesPage() {
 
   const { data: documents = [], isLoading } = useDocumentList(filters);
 
-  // Filter to only show certificates and reports (not pickup documents)
-  const certificatesAndReports = documents.filter(
+  // Filter to only show documents (not pickup documents which have their own page)
+  const filteredDocuments = documents.filter(
     (doc) => doc.document_type !== "pickup_document"
   );
 
@@ -70,8 +70,8 @@ export default function CertificatesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Certificates & Reports"
-        description="View and download all your certificates and reports"
+        title="Documents"
+        description="View and download all your documents"
       />
 
       <ListFilters
@@ -90,25 +90,25 @@ export default function CertificatesPage() {
 
       {isLoading ? (
         <LoadingSpinner />
-      ) : certificatesAndReports.length === 0 ? (
+      ) : filteredDocuments.length === 0 ? (
         <EmptyState
           icon={FileText}
-          title="No certificates or reports yet"
+          title="No documents yet"
           description="Documents will appear here once they are uploaded to your jobs."
         />
       ) : (
         <div className="space-y-3">
-          {certificatesAndReports.map((doc) => (
+          {filteredDocuments.map((doc) => (
             <DocumentCard key={doc.id} document={doc} onView={handleView} />
           ))}
         </div>
       )}
 
       {/* Results Count */}
-      {!isLoading && certificatesAndReports.length > 0 && (
+      {!isLoading && filteredDocuments.length > 0 && (
         <p className="text-sm text-muted-foreground">
-          Showing {certificatesAndReports.length} document
-          {certificatesAndReports.length !== 1 ? "s" : ""}
+          Showing {filteredDocuments.length} document
+          {filteredDocuments.length !== 1 ? "s" : ""}
         </p>
       )}
     </div>

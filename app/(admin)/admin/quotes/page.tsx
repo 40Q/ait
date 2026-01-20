@@ -156,7 +156,6 @@ export default function QuotesPage() {
                     <TableHead>Quote #</TableHead>
                     <TableHead>Company</TableHead>
                     <TableHead>Request</TableHead>
-                    <TableHead>Pickup Date</TableHead>
                     <TableHead>Valid Until</TableHead>
                     <TableHead className="text-right">Total</TableHead>
                     <TableHead>Status</TableHead>
@@ -166,13 +165,13 @@ export default function QuotesPage() {
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-12">
+                      <TableCell colSpan={7} className="text-center py-12">
                         <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                       </TableCell>
                     </TableRow>
                   ) : quotes.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-12">
+                      <TableCell colSpan={7} className="text-center py-12">
                         <p className="text-muted-foreground">No quotes found</p>
                       </TableCell>
                     </TableRow>
@@ -203,7 +202,6 @@ export default function QuotesPage() {
                             {quote.request_number}
                           </Link>
                         </TableCell>
-                        <TableCell>{formatDate(quote.pickup_date) || "Not specified"}</TableCell>
                         <TableCell>
                           <span
                             className={

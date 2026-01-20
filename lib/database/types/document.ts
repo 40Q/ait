@@ -70,6 +70,7 @@ export const documentTypeLabels: Record<DocumentType, string> = {
   asset_serialization: "Asset Serialization Report",
   warehouse_report: "Warehouse Processing Report",
   pickup_document: "Pickup Document",
+  miscellaneous: "Miscellaneous",
 };
 
 // Document type short labels
@@ -80,4 +81,5 @@ export const documentTypeShortLabels: Record<DocumentType, string> = {
   asset_serialization: "Asset Serial",
   warehouse_report: "Warehouse",
   pickup_document: "Pickup",
+  miscellaneous: "Misc",
 };

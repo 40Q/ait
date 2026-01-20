@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 export type JobStatus =
+  | "needs_scheduling"
   | "pickup_scheduled"
   | "pickup_complete"
   | "in_progress"
@@ -28,6 +29,10 @@ const statusConfig: Record<
   { label: string; className: string }
 > = {
   // Job statuses
+  needs_scheduling: {
+    label: "Needs Scheduling",
+    className: "bg-yellow-100 text-yellow-700 hover:bg-yellow-100",
+  },
   pickup_scheduled: {
     label: "Pickup Scheduled",
     className: "bg-blue-100 text-blue-700 hover:bg-blue-100",

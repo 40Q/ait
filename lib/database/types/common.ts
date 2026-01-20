@@ -10,6 +10,7 @@ export type QuoteStatus =
   | "revision_requested";
 
 export type JobStatus =
+  | "needs_scheduling"
   | "pickup_scheduled"
   | "pickup_complete"
   | "processing"
@@ -23,7 +24,8 @@ export type DocumentType =
   | "hd_serialization"
   | "asset_serialization"
   | "warehouse_report"
-  | "pickup_document";
+  | "pickup_document"
+  | "miscellaneous";
 
 export type DockType = "none" | "ground_level" | "truck_level";
 

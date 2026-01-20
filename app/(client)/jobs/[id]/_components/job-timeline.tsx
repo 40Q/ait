@@ -20,6 +20,7 @@ interface JobTimelineProps {
 }
 
 const statusOrder: JobStatus[] = [
+  "needs_scheduling",
   "pickup_scheduled",
   "pickup_complete",
   "processing",
@@ -27,13 +28,15 @@ const statusOrder: JobStatus[] = [
 ];
 
 const statusLabels: Record<JobStatus, string> = {
+  needs_scheduling: "Needs Scheduling",
   pickup_scheduled: "Pickup Scheduled",
   pickup_complete: "Pickup Complete",
   processing: "Processing",
   complete: "Complete",
 };
 
-const statusToTimelineKey: Record<JobStatus, keyof JobTimelineProps["timeline"]> = {
+const statusToTimelineKey: Record<JobStatus, keyof JobTimelineProps["timeline"] | null> = {
+  needs_scheduling: null,
   pickup_scheduled: "pickup_scheduled_at",
   pickup_complete: "pickup_complete_at",
   processing: "processing_started_at",
@@ -46,7 +49,7 @@ export function JobTimeline({ currentStatus, timeline }: JobTimelineProps) {
   const steps: TimelineStep[] = statusOrder.map((status) => ({
     id: status,
     label: statusLabels[status],
-    date: timeline[statusToTimelineKey[status]],
+    date: statusToTimelineKey[status] ? timeline[statusToTimelineKey[status]] : null,
   }));
 
   return (

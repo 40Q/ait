@@ -88,10 +88,12 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
             <StatusBadge status={job.status} />
           </div>
           <div className="mt-2 flex flex-wrap gap-4 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
-              Pickup: {formatDate(job.pickup_date)}
-            </span>
+            {job.pickup_date && (
+              <span className="flex items-center gap-1">
+                <Calendar className="h-4 w-4" />
+                Pickup: {formatDate(job.pickup_date)}
+              </span>
+            )}
             <span className="flex items-center gap-1">
               <MapPin className="h-4 w-4" />
               {job.location.city}, {job.location.state}
@@ -127,11 +129,11 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
       </Card>
 
       {/* Documents Tabs */}
-      <Tabs defaultValue="certificates">
+      <Tabs defaultValue="documents">
         <TabsList>
-          <TabsTrigger value="certificates" className="gap-2">
+          <TabsTrigger value="documents" className="gap-2">
             <FileCheck className="h-4 w-4" />
-            Certificates
+            Documents
             {job.documents.length > 0 && (
               <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
                 {job.documents.length}
@@ -153,16 +155,16 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="certificates" className="mt-4">
+        <TabsContent value="documents" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Certificates & Reports</CardTitle>
+              <CardTitle className="text-base">Documents</CardTitle>
             </CardHeader>
             <CardContent>
               <DocumentList
                 documents={job.documents}
                 onView={handleViewDocument}
-                emptyMessage="Certificates and reports will be uploaded once processing is complete"
+                emptyMessage="Documents will be uploaded once processing is complete"
               />
             </CardContent>
           </Card>
@@ -182,7 +184,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                     <div className="flex items-center gap-3">
                       <span className="flex items-center gap-1.5">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{formatDate(job.pickup_date)}</span>
+                        <span className="font-medium">{job.pickup_date ? formatDate(job.pickup_date) : "Not scheduled"}</span>
                       </span>
                       {job.pickup_time_window && (
                         <span className="flex items-center gap-1.5">
@@ -197,10 +199,12 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                     className={
                       isPickupComplete
                         ? "border-green-200 bg-green-50 text-green-700"
-                        : "border-yellow-200 bg-yellow-50 text-yellow-700"
+                        : job.pickup_date
+                        ? "border-yellow-200 bg-yellow-50 text-yellow-700"
+                        : "border-gray-200 bg-gray-50 text-gray-700"
                     }
                   >
-                    {isPickupComplete ? "Completed" : "Scheduled"}
+                    {isPickupComplete ? "Completed" : job.pickup_date ? "Scheduled" : "Pending"}
                   </Badge>
                 </div>
               </div>

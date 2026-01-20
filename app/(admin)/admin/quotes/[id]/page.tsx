@@ -8,8 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft,
-  Calendar,
-  Clock,
   Send,
   Pencil,
   Building2,
@@ -158,34 +156,6 @@ export default function QuoteDetailPage({ params }: QuoteDetailPageProps) {
               </div>
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
-              {/* Schedule */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                {quote.pickup_date && (
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-full bg-muted p-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Pickup Date</p>
-                      <p className="font-medium">{new Date(quote.pickup_date).toLocaleDateString()}</p>
-                    </div>
-                  </div>
-                )}
-                {quote.pickup_time_window && (
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-full bg-muted p-2">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Time Window</p>
-                      <p className="font-medium">{quote.pickup_time_window}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <Separator />
-
               {/* Line Items */}
               <div>
                 <h4 className="font-medium mb-4">Pricing Breakdown</h4>

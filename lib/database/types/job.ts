@@ -8,7 +8,7 @@ export interface JobRow {
   request_id: string | null;  // Nullable for jobs created directly
   company_id: string;
   status: JobStatus;
-  pickup_date: string;
+  pickup_date: string | null;  // Nullable until scheduled
   pickup_time_window: string | null;
   logistics_person_name: string | null;  // Person performing the pickup
   location: Location;
@@ -98,7 +98,7 @@ export interface JobListItem {
   company_id: string;
   company_name: string;
   status: JobStatus;
-  pickup_date: string;
+  pickup_date: string | null;
   location_summary: string;
   equipment_summary: string;
   equipment_count: number;
@@ -131,6 +131,7 @@ export interface JobTimeline {
 
 // Status transition rules
 export const jobStatusTransitions: Record<JobStatus, JobStatus[]> = {
+  needs_scheduling: ["pickup_scheduled"],
   pickup_scheduled: ["pickup_complete"],
   pickup_complete: ["processing"],
   processing: ["complete"],
@@ -138,6 +139,7 @@ export const jobStatusTransitions: Record<JobStatus, JobStatus[]> = {
 };
 
 export const jobStatusLabels: Record<JobStatus, string> = {
+  needs_scheduling: "Needs Scheduling",
   pickup_scheduled: "Pickup Scheduled",
   pickup_complete: "Pickup Complete",
   processing: "Processing",

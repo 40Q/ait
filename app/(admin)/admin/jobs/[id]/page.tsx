@@ -51,6 +51,7 @@ import { uploadFile, getSignedUrl, STORAGE_BUCKETS } from "@/lib/storage/upload"
 import { DocumentList } from "@/components/ui/document-list";
 
 const allJobStatuses: JobStatus[] = [
+  "needs_scheduling",
   "pickup_scheduled",
   "pickup_complete",
   "processing",
@@ -64,6 +65,7 @@ const documentTypes = [
   { value: "asset_serialization", label: "Asset Serialization Report" },
   { value: "warehouse_report", label: "Warehouse Processing Report" },
   { value: "pickup_document", label: "Pickup Document" },
+  { value: "miscellaneous", label: "Miscellaneous" },
 ];
 
 interface JobDetailPageProps {
@@ -97,7 +99,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
 
   const startEditingSchedule = () => {
     if (!job) return;
-    setEditPickupDate(job.pickup_date);
+    setEditPickupDate(job.pickup_date || "");
     setEditTimeWindow(job.pickup_time_window || "");
     setEditLogisticsPerson(job.logistics_person_name || "");
     setIsEditingSchedule(true);
@@ -208,6 +210,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
   };
 
   const timelineSteps = [
+    { key: "created_at", label: "Needs Scheduling", status: "needs_scheduling" },
     { key: "pickup_scheduled_at", label: "Pickup Scheduled", status: "pickup_scheduled" },
     { key: "pickup_complete_at", label: "Pickup Complete", status: "pickup_complete" },
     { key: "processing_started_at", label: "Processing", status: "processing" },
@@ -216,7 +219,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
 
   const getStepStatus = (stepStatus: string) => {
     if (!job) return "upcoming";
-    const statusOrder = ["pickup_scheduled", "pickup_complete", "processing", "complete"];
+    const statusOrder = ["needs_scheduling", "pickup_scheduled", "pickup_complete", "processing", "complete"];
     const currentIndex = statusOrder.indexOf(job.status);
     const stepIndex = statusOrder.indexOf(stepStatus);
 
@@ -688,7 +691,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-muted-foreground">Pickup Date</p>
-                      <p className="font-medium">{new Date(job.pickup_date).toLocaleDateString()}</p>
+                      <p className="font-medium">{job.pickup_date ? new Date(job.pickup_date).toLocaleDateString() : "Not scheduled"}</p>
                     </div>
                   </div>
                   {job.pickup_time_window && (

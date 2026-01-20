@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Calendar, Clock, Check, X, MessageSquare, Loader2, PenLine } from "lucide-react";
+import { Check, X, MessageSquare, Loader2, PenLine } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -129,21 +129,6 @@ export function QuoteReview({ quote, userId }: QuoteReviewProps) {
         </CardHeader>
 
         <CardContent className="space-y-6">
-          {/* Confirmed Schedule */}
-          <div className="rounded-lg bg-muted/50 p-4">
-            <h4 className="mb-2 font-medium">Confirmed Pickup Schedule</h4>
-            <div className="flex flex-wrap gap-4 text-sm">
-              <span className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                {quote.pickup_date ? formatDate(quote.pickup_date) : "TBD"}
-              </span>
-              <span className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                {quote.pickup_time_window || "TBD"}
-              </span>
-            </div>
-          </div>
-
           {/* Line Items */}
           <div>
             <h4 className="mb-3 font-medium">Pricing Breakdown</h4>
@@ -249,7 +234,7 @@ export function QuoteReview({ quote, userId }: QuoteReviewProps) {
             </DialogTitle>
             <DialogDescription>
               Please review and sign below to accept this quote. A job will be
-              scheduled for pickup on {quote.pickup_date ? formatDate(quote.pickup_date) : "the confirmed date"}.
+              created and our team will contact you to schedule the pickup.
             </DialogDescription>
           </DialogHeader>
 

@@ -39,8 +39,8 @@ export const clientNavItems: NavItem[] = [
     icon: Briefcase,
   },
   {
-    title: "Certificates",
-    href: "/certificates",
+    title: "Documents",
+    href: "/documents",
     icon: FileCheck,
   },
   {

@@ -64,8 +64,6 @@ export default function EditQuotePage({ params }: EditQuotePageProps) {
         id: quote.id,
         quote: {
           status: "draft",
-          pickup_date: data.pickupDate,
-          pickup_time_window: data.pickupTimeWindow,
           valid_until: data.validUntil,
           subtotal: data.subtotal,
           discount: data.discount,
@@ -88,8 +86,6 @@ export default function EditQuotePage({ params }: EditQuotePageProps) {
       {
         id: quote.id,
         quote: {
-          pickup_date: data.pickupDate,
-          pickup_time_window: data.pickupTimeWindow,
           valid_until: data.validUntil,
           subtotal: data.subtotal,
           discount: data.discount,
