@@ -9,6 +9,7 @@ import type {
   QuoteListItem,
   QuoteLineItemRow,
   QuoteLineItemInsert,
+  PaginatedResult,
 } from "../types";
 
 export class QuoteRepository extends BaseRepository<
@@ -172,9 +173,15 @@ export class QuoteRepository extends BaseRepository<
   }
 
   /**
-   * Get list items for tables
+   * Get paginated list items for tables
    */
-  async getListItems(filters?: QuoteFilters): Promise<QuoteListItem[]> {
+  async getListItems(
+    filters?: QuoteFilters,
+    page: number = 1,
+    pageSize: number = 20
+  ): Promise<PaginatedResult<QuoteListItem>> {
+    const offset = (page - 1) * pageSize;
+
     let query = this.supabase
       .from("quotes")
       .select(
@@ -190,7 +197,8 @@ export class QuoteRepository extends BaseRepository<
         sent_at,
         request:requests(request_number),
         company:companies(name)
-      `
+      `,
+        { count: "exact" }
       )
       .order("created_at", { ascending: false });
 
@@ -210,18 +218,31 @@ export class QuoteRepository extends BaseRepository<
     }
 
     if (filters?.search) {
-      query = query.or(
-        `quote_number.ilike.%${filters.search}%`
-      );
+      // Search by quote number or company name
+      const { data: matchingCompanies } = await this.supabase
+        .from("companies")
+        .select("id")
+        .ilike("name", `%${filters.search}%`);
+
+      const matchingCompanyIds = matchingCompanies?.map(c => c.id) || [];
+
+      if (matchingCompanyIds.length > 0) {
+        query = query.or(
+          `quote_number.ilike.%${filters.search}%,company_id.in.(${matchingCompanyIds.join(",")})`
+        );
+      } else {
+        query = query.ilike("quote_number", `%${filters.search}%`);
+      }
     }
 
-    query = this.applyPagination(query, filters);
+    // Apply pagination
+    query = query.range(offset, offset + pageSize - 1);
 
-    const { data, error } = await query;
+    const { data, count, error } = await query;
     if (error) throw error;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data ?? []).map((row: any) => ({
+    const items = (data ?? []).map((row: any) => ({
       id: row.id,
       quote_number: row.quote_number,
       request_id: row.request_id,
@@ -234,6 +255,16 @@ export class QuoteRepository extends BaseRepository<
       created_at: row.created_at,
       sent_at: row.sent_at,
     } as QuoteListItem));
+
+    const total = count ?? 0;
+
+    return {
+      data: items,
+      total,
+      page,
+      limit: pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   /**

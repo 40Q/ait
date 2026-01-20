@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -8,8 +8,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
+import { Pagination } from "@/components/ui/pagination";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FetchingIndicator } from "@/components/ui/fetching-indicator";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,7 +31,7 @@ import {
   Package,
 } from "lucide-react";
 import { isCyrusOneUser } from "@/lib/user";
-import { useRequestList, useRequestStatusCounts, useTabFilter } from "@/lib/hooks";
+import { useRequestList, useRequestStatusCounts, usePagination } from "@/lib/hooks";
 import { formatDateShort } from "@/lib/utils/date";
 import type { RequestListItem, RequestStatus } from "@/lib/database/types";
 
@@ -140,7 +142,12 @@ function NewRequestButton() {
 }
 
 export default function RequestsPage() {
-  const { activeTab, setActiveTab } = useTabFilter("all");
+  const [activeTab, setActiveTab] = useState("all");
+
+  // Pagination
+  const { currentPage, pageSize, setPage, setPageSize } = usePagination({
+    initialPageSize: 20,
+  });
 
   const filters = useMemo(
     () => ({
@@ -149,8 +156,16 @@ export default function RequestsPage() {
     [activeTab]
   );
 
-  const { data: requests = [], isLoading } = useRequestList(filters);
+  const { data: paginatedData, isLoading, isFetching } = useRequestList(filters, currentPage, pageSize);
   const { data: statusCounts } = useRequestStatusCounts();
+
+  const requests = paginatedData?.data ?? [];
+
+  // Reset to page 1 when tab changes
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value);
+    setPage(1);
+  }, [setPage]);
 
   return (
     <div className="space-y-6">
@@ -161,7 +176,7 @@ export default function RequestsPage() {
         <NewRequestButton />
       </PageHeader>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="all">All ({statusCounts?.all ?? 0})</TabsTrigger>
           <TabsTrigger value="pending">
@@ -179,16 +194,34 @@ export default function RequestsPage() {
           <TabsContent key={status} value={status} className="mt-4 space-y-3">
             {isLoading ? (
               <LoadingSpinner />
-            ) : requests.length === 0 ? (
-              <EmptyState icon={Package} title="No requests found" />
             ) : (
-              requests.map((request) => (
-                <RequestCard key={request.id} request={request} />
-              ))
+              <FetchingIndicator isFetching={isFetching}>
+                {requests.length === 0 ? (
+                  <EmptyState icon={Package} title="No requests found" />
+                ) : (
+                  <div className="space-y-3">
+                    {requests.map((request) => (
+                      <RequestCard key={request.id} request={request} />
+                    ))}
+                  </div>
+                )}
+              </FetchingIndicator>
             )}
           </TabsContent>
         ))}
       </Tabs>
+
+      {/* Pagination */}
+      {paginatedData && paginatedData.totalPages > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={paginatedData.totalPages}
+          totalItems={paginatedData.total}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
+      )}
     </div>
   );
 }

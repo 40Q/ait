@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo } from "react";
+import { memo } from "react";
 import Link from "next/link";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
@@ -53,8 +53,9 @@ const JobItem = memo(function JobItem({ job }: { job: JobListItem }) {
 
 export function RecentJobsList() {
   // Fetch only 5 recent jobs using pagination
-  const filters = useMemo(() => ({ limit: 5 }), []);
-  const { data: jobs = [], isLoading } = useJobList(filters);
+  const { data: paginatedData, isLoading } = useJobList(undefined, 1, 5);
+
+  const jobs = paginatedData?.data ?? [];
 
   if (isLoading) {
     return <LoadingSpinner size="sm" className="py-8" />;

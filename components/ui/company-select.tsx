@@ -27,14 +27,16 @@ export function CompanySelect({
   const [search, setSearch] = useState("");
   const [selectedName, setSelectedName] = useState("");
 
-  // Preload initial companies
-  const { data: initialCompanies = [], isLoading: loadingInitial } = useCompanyList();
+  // Preload initial companies (limited to 10)
+  const { data: initialData, isLoading: loadingInitial } = useCompanyList(undefined, 1, 10);
   // Search results when user types
   const { data: searchResults = [], isLoading: loadingSearch, isFetching } = useCompanySearch(search, 20);
 
-  // Use search results if searching, otherwise use initial companies (limited to 10)
+  const initialCompanies = initialData?.data ?? [];
+
+  // Use search results if searching, otherwise use initial companies
   const isSearching = search.length >= 2;
-  const companies = isSearching ? searchResults : initialCompanies.slice(0, 10);
+  const companies = isSearching ? searchResults : initialCompanies;
   const showLoading = isSearching ? (loadingSearch || isFetching) : loadingInitial;
 
   // Update selected name when value changes externally

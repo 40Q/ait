@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { DocumentRepository } from "@/lib/database/repositories";
 import {
@@ -8,17 +8,24 @@ import {
   type DocumentFilters,
   type DocumentInsert,
 } from "@/lib/database/types";
+import { getQueryOptions } from "./query-config";
 
 /**
- * Hook to fetch a list of documents with optional filters
+ * Hook to fetch a paginated list of documents with optional filters
  */
-export function useDocumentList(filters?: DocumentFilters) {
+export function useDocumentList(
+  filters?: DocumentFilters,
+  page: number = 1,
+  pageSize: number = 20
+) {
   const supabase = createClient();
   const repo = new DocumentRepository(supabase);
 
   return useQuery({
-    queryKey: queryKeys.documents.list(filters),
-    queryFn: () => repo.getListItems(filters),
+    queryKey: [...queryKeys.documents.list(filters), page, pageSize],
+    queryFn: () => repo.getListItems(filters, page, pageSize),
+    placeholderData: keepPreviousData,
+    ...getQueryOptions("list"),
   });
 }
 

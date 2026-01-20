@@ -1,15 +1,18 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { ListFilters } from "@/components/ui/list-filters";
+import { FetchingIndicator } from "@/components/ui/fetching-indicator";
+import { Pagination } from "@/components/ui/pagination";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ExternalLink, FileText, Calendar } from "lucide-react";
-import { useDocumentList, useListPage } from "@/lib/hooks";
+import { useDocumentList, usePagination } from "@/lib/hooks";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { createClient } from "@/lib/supabase/client";
 import { getSignedUrl, STORAGE_BUCKETS } from "@/lib/storage/upload";
 import { formatDateShort } from "@/lib/utils/date";
@@ -30,28 +33,44 @@ const typeFilterOptions = [
 ];
 
 export default function DocumentsPage() {
-  const { searchQuery, setSearchQuery, filters: pageFilters, setFilter } = useListPage<{
-    type: string;
-  }>({
-    defaultFilters: { type: "all" },
-  });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
   const supabase = createClient();
+
+  // Pagination
+  const { currentPage, pageSize, setPage, setPageSize } = usePagination({
+    initialPageSize: 20,
+  });
 
   const filters = useMemo(
     () => ({
-      search: searchQuery || undefined,
+      search: debouncedSearch || undefined,
       document_type:
-        pageFilters.type !== "all" ? (pageFilters.type as DocumentType) : undefined,
+        typeFilter !== "all" ? (typeFilter as DocumentType) : undefined,
     }),
-    [searchQuery, pageFilters.type]
+    [debouncedSearch, typeFilter]
   );
 
-  const { data: documents = [], isLoading } = useDocumentList(filters);
+  const { data: paginatedData, isLoading, isFetching } = useDocumentList(filters, currentPage, pageSize);
+
+  const documents = paginatedData?.data ?? [];
 
   // Filter to only show documents (not pickup documents which have their own page)
   const filteredDocuments = documents.filter(
     (doc) => doc.document_type !== "pickup_document"
   );
+
+  // Reset to page 1 when filters change
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    setPage(1);
+  }, [setPage]);
+
+  const handleTypeFilterChange = useCallback((value: string) => {
+    setTypeFilter(value);
+    setPage(1);
+  }, [setPage]);
 
   const handleView = async (filePath: string) => {
     try {
@@ -75,12 +94,13 @@ export default function DocumentsPage() {
 
       <ListFilters
         searchValue={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={handleSearchChange}
         searchPlaceholder="Search by name or job..."
+        isLoading={isFetching}
         filters={[
           {
-            value: pageFilters.type,
-            onChange: (value) => setFilter("type", value),
+            value: typeFilter,
+            onChange: handleTypeFilterChange,
             options: typeFilterOptions,
             className: "w-full sm:w-56",
           },
@@ -89,26 +109,34 @@ export default function DocumentsPage() {
 
       {isLoading ? (
         <LoadingSpinner />
-      ) : filteredDocuments.length === 0 ? (
-        <EmptyState
-          icon={FileText}
-          title="No documents yet"
-          description="Documents will appear here once they are uploaded to your jobs."
-        />
       ) : (
-        <div className="space-y-3">
-          {filteredDocuments.map((doc) => (
-            <DocumentCard key={doc.id} document={doc} onView={handleView} />
-          ))}
-        </div>
+        <FetchingIndicator isFetching={isFetching}>
+          {filteredDocuments.length === 0 ? (
+            <EmptyState
+              icon={FileText}
+              title="No documents yet"
+              description="Documents will appear here once they are uploaded to your jobs."
+            />
+          ) : (
+            <div className="space-y-3">
+              {filteredDocuments.map((doc) => (
+                <DocumentCard key={doc.id} document={doc} onView={handleView} />
+              ))}
+            </div>
+          )}
+        </FetchingIndicator>
       )}
 
-      {/* Results Count */}
-      {!isLoading && filteredDocuments.length > 0 && (
-        <p className="text-sm text-muted-foreground">
-          Showing {filteredDocuments.length} document
-          {filteredDocuments.length !== 1 ? "s" : ""}
-        </p>
+      {/* Pagination */}
+      {paginatedData && paginatedData.totalPages > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={paginatedData.totalPages}
+          totalItems={paginatedData.total}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       )}
     </div>
   );

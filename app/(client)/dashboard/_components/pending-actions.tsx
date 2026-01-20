@@ -38,7 +38,9 @@ const QuoteActionCard = memo(function QuoteActionCard({ quote }: { quote: QuoteL
 export function PendingActions() {
   // Get quotes that are sent and awaiting client response
   const filters = useMemo(() => ({ status: "sent" as const }), []);
-  const { data: quotes = [], isLoading } = useQuoteList(filters);
+  const { data: paginatedData, isLoading } = useQuoteList(filters);
+
+  const quotes = paginatedData?.data ?? [];
 
   if (isLoading) {
     return <LoadingSpinner size="sm" className="py-4" />;

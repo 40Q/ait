@@ -8,6 +8,7 @@ import type {
   RequestWithRelations,
   RequestListItem,
   EquipmentItem,
+  PaginatedResult,
 } from "../types";
 
 export class RequestRepository extends BaseRepository<
@@ -68,9 +69,15 @@ export class RequestRepository extends BaseRepository<
   }
 
   /**
-   * Get list items for tables/cards
+   * Get paginated list items for tables/cards
    */
-  async getListItems(filters?: RequestFilters): Promise<RequestListItem[]> {
+  async getListItems(
+    filters?: RequestFilters,
+    page: number = 1,
+    pageSize: number = 20
+  ): Promise<PaginatedResult<RequestListItem>> {
+    const offset = (page - 1) * pageSize;
+
     let query = this.supabase
       .from("requests")
       .select(
@@ -90,7 +97,8 @@ export class RequestRepository extends BaseRepository<
         created_at,
         company:companies(name),
         quote:quotes(id, total)
-      `
+      `,
+        { count: "exact" }
       )
       .order("created_at", { ascending: false });
 
@@ -131,13 +139,14 @@ export class RequestRepository extends BaseRepository<
       query = query.lte("created_at", filters.to_date);
     }
 
-    query = this.applyPagination(query, filters);
+    // Apply pagination
+    query = query.range(offset, offset + pageSize - 1);
 
-    const { data, error } = await query;
+    const { data, count, error } = await query;
     if (error) throw error;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data ?? []).map((row: any) => {
+    const items = (data ?? []).map((row: any) => {
       const equipment = (row.equipment as EquipmentItem[]) || [];
       const equipmentCount = equipment.reduce((sum: number, e: EquipmentItem) => sum + e.quantity, 0);
       const quote = Array.isArray(row.quote) ? row.quote[0] : row.quote;
@@ -165,6 +174,16 @@ export class RequestRepository extends BaseRepository<
         created_at: row.created_at,
       } as RequestListItem;
     });
+
+    const total = count ?? 0;
+
+    return {
+      data: items,
+      total,
+      page,
+      limit: pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   /**

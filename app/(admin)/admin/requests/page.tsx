@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -9,8 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ListFilters } from "@/components/ui/list-filters";
+import { FetchingIndicator } from "@/components/ui/fetching-indicator";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
 import {
   MapPin,
   Calendar,
@@ -20,8 +22,9 @@ import {
   Sparkles,
   Package,
 } from "lucide-react";
-import { useRequestList, useRequestStatusCounts, useListPage, useTabFilter } from "@/lib/hooks";
+import { useRequestList, useRequestStatusCounts, usePagination } from "@/lib/hooks";
 import { formatDate } from "@/lib/utils/date";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import type { RequestListItem, RequestStatus } from "@/lib/database/types";
 
 function RequestCard({ request }: { request: RequestListItem }) {
@@ -116,17 +119,36 @@ function RequestCard({ request }: { request: RequestListItem }) {
 }
 
 export default function AdminRequestsPage() {
-  const { searchQuery, setSearchQuery } = useListPage();
-  const { activeTab, setActiveTab } = useTabFilter("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
 
-  // Fetch requests with filters (search is handled by the database)
+  // Pagination
+  const { currentPage, pageSize, setPage, setPageSize } = usePagination({
+    initialPageSize: 20,
+  });
+
+  // Build filters
   const filters = useMemo(() => ({
-    search: searchQuery || undefined,
+    search: debouncedSearch || undefined,
     status: activeTab !== "all" ? (activeTab as RequestStatus) : undefined,
-  }), [searchQuery, activeTab]);
+  }), [debouncedSearch, activeTab]);
 
-  const { data: requests = [], isLoading, error } = useRequestList(filters);
+  const { data: paginatedData, isLoading, isFetching, error } = useRequestList(filters, currentPage, pageSize);
   const { data: statusCounts } = useRequestStatusCounts();
+
+  // Reset to page 1 when filters change
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    setPage(1);
+  }, [setPage]);
+
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value);
+    setPage(1);
+  }, [setPage]);
+
+  const requests = paginatedData?.data ?? [];
 
   if (error) {
     return (
@@ -145,12 +167,13 @@ export default function AdminRequestsPage() {
 
       <ListFilters
         searchValue={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={handleSearchChange}
         searchPlaceholder="Search by ID or company..."
+        isLoading={isFetching}
       />
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="all">
             All ({statusCounts?.all ?? 0})
@@ -174,17 +197,35 @@ export default function AdminRequestsPage() {
             <TabsContent key={status} value={status} className="mt-4 space-y-3">
               {isLoading ? (
                 <LoadingSpinner />
-              ) : requests.length === 0 ? (
-                <EmptyState icon={Package} title="No requests found" />
               ) : (
-                requests.map((request) => (
-                  <RequestCard key={request.id} request={request} />
-                ))
+                <FetchingIndicator isFetching={isFetching}>
+                  {requests.length === 0 ? (
+                    <EmptyState icon={Package} title="No requests found" />
+                  ) : (
+                    <div className="space-y-3">
+                      {requests.map((request) => (
+                        <RequestCard key={request.id} request={request} />
+                      ))}
+                    </div>
+                  )}
+                </FetchingIndicator>
               )}
             </TabsContent>
           )
         )}
       </Tabs>
+
+      {/* Pagination */}
+      {paginatedData && paginatedData.totalPages > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={paginatedData.totalPages}
+          totalItems={paginatedData.total}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
+      )}
     </div>
   );
 }

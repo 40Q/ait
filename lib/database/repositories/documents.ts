@@ -7,6 +7,7 @@ import type {
   DocumentFilters,
   DocumentWithRelations,
   DocumentListItem,
+  PaginatedResult,
 } from "../types";
 
 export class DocumentRepository extends BaseRepository<
@@ -64,9 +65,15 @@ export class DocumentRepository extends BaseRepository<
   }
 
   /**
-   * Get list items for tables
+   * Get paginated list items for tables
    */
-  async getListItems(filters?: DocumentFilters): Promise<DocumentListItem[]> {
+  async getListItems(
+    filters?: DocumentFilters,
+    page: number = 1,
+    pageSize: number = 20
+  ): Promise<PaginatedResult<DocumentListItem>> {
+    const offset = (page - 1) * pageSize;
+
     let query = this.supabase
       .from("documents")
       .select(
@@ -82,7 +89,8 @@ export class DocumentRepository extends BaseRepository<
         job:jobs(job_number),
         company:companies(name),
         uploaded_by_profile:profiles!uploaded_by(full_name)
-      `
+      `,
+        { count: "exact" }
       )
       .order("created_at", { ascending: false });
 
@@ -101,11 +109,43 @@ export class DocumentRepository extends BaseRepository<
       query = query.eq("company_id", filters.company_id);
     }
 
-    const { data, error } = await query;
+    // Server-side search by document name, job number, or company name
+    if (filters?.search) {
+      // Get matching job IDs
+      const { data: matchingJobs } = await this.supabase
+        .from("jobs")
+        .select("id")
+        .ilike("job_number", `%${filters.search}%`);
+
+      // Get matching company IDs
+      const { data: matchingCompanies } = await this.supabase
+        .from("companies")
+        .select("id")
+        .ilike("name", `%${filters.search}%`);
+
+      const matchingJobIds = matchingJobs?.map(j => j.id) || [];
+      const matchingCompanyIds = matchingCompanies?.map(c => c.id) || [];
+
+      // Build OR condition
+      const conditions: string[] = [`name.ilike.%${filters.search}%`];
+      if (matchingJobIds.length > 0) {
+        conditions.push(`job_id.in.(${matchingJobIds.join(",")})`);
+      }
+      if (matchingCompanyIds.length > 0) {
+        conditions.push(`company_id.in.(${matchingCompanyIds.join(",")})`);
+      }
+
+      query = query.or(conditions.join(","));
+    }
+
+    // Apply pagination
+    query = query.range(offset, offset + pageSize - 1);
+
+    const { data, count, error } = await query;
     if (error) throw error;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let items = (data ?? []).map((row: any) => ({
+    const items = (data ?? []).map((row: any) => ({
       id: row.id,
       name: row.name,
       document_type: row.document_type,
@@ -119,18 +159,15 @@ export class DocumentRepository extends BaseRepository<
       created_at: row.created_at,
     } as DocumentListItem));
 
-    // Filter by search term across name, job_number, and company_name
-    if (filters?.search) {
-      const searchLower = filters.search.toLowerCase();
-      items = items.filter(
-        (item) =>
-          item.name.toLowerCase().includes(searchLower) ||
-          item.job_number.toLowerCase().includes(searchLower) ||
-          item.company_name.toLowerCase().includes(searchLower)
-      );
-    }
+    const total = count ?? 0;
 
-    return items;
+    return {
+      data: items,
+      total,
+      page,
+      limit: pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   /**

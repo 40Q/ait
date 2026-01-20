@@ -4,6 +4,7 @@ import {
   useQuery,
   useMutation,
   useQueryClient,
+  keepPreviousData,
 } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { RequestRepository, TimelineRepository } from "@/lib/database/repositories";
@@ -12,21 +13,25 @@ import {
   type RequestFilters,
   type RequestInsert,
   type RequestUpdate,
-  type RequestListItem,
-  type RequestWithRelations,
-  type PaginationParams,
 } from "@/lib/database/types";
+import { getQueryOptions } from "./query-config";
 
 /**
- * Hook to fetch a list of requests with optional filters
+ * Hook to fetch a paginated list of requests with optional filters
  */
-export function useRequestList(filters?: RequestFilters) {
+export function useRequestList(
+  filters?: RequestFilters,
+  page: number = 1,
+  pageSize: number = 20
+) {
   const supabase = createClient();
   const repo = new RequestRepository(supabase);
 
   return useQuery({
-    queryKey: queryKeys.requests.list(filters),
-    queryFn: () => repo.getListItems(filters),
+    queryKey: [...queryKeys.requests.list(filters), page, pageSize],
+    queryFn: () => repo.getListItems(filters, page, pageSize),
+    placeholderData: keepPreviousData,
+    ...getQueryOptions("list"),
   });
 }
 

@@ -12,6 +12,7 @@ import type {
   CompanyLocationInsert,
   CompanyLocationUpdate,
   CompanyLocationListItem,
+  PaginatedResult,
 } from "../types";
 
 export class CompanyRepository extends BaseRepository<
@@ -97,12 +98,18 @@ export class CompanyRepository extends BaseRepository<
   }
 
   /**
-   * Get list items for tables
+   * Get paginated list items for tables
    */
-  async getListItems(filters?: CompanyFilters): Promise<CompanyListItem[]> {
+  async getListItems(
+    filters?: CompanyFilters,
+    page: number = 1,
+    pageSize: number = 20
+  ): Promise<PaginatedResult<CompanyListItem>> {
+    const offset = (page - 1) * pageSize;
+
     let query = this.supabase
       .from("companies")
-      .select("*")
+      .select("*", { count: "exact" })
       .order("name", { ascending: true });
 
     if (filters?.status) {
@@ -113,13 +120,22 @@ export class CompanyRepository extends BaseRepository<
       query = query.ilike("name", `%${filters.search}%`);
     }
 
-    query = this.applyPagination(query, filters);
+    // Apply pagination
+    query = query.range(offset, offset + pageSize - 1);
 
-    const { data, error } = await query;
+    const { data, count, error } = await query;
     if (error) throw error;
 
     const companies = data ?? [];
-    if (companies.length === 0) return [];
+    if (companies.length === 0) {
+      return {
+        data: [],
+        total: count ?? 0,
+        page,
+        limit: pageSize,
+        totalPages: Math.ceil((count ?? 0) / pageSize),
+      };
+    }
 
     const companyIds = companies.map((c) => c.id);
 
@@ -152,7 +168,7 @@ export class CompanyRepository extends BaseRepository<
     }
 
     // Map companies to list items
-    return companies.map((company) => {
+    const items = companies.map((company) => {
       let quickbooksStatus: QuickBooksStatus = "not_connected";
       if (company.quickbooks_customer_id) {
         quickbooksStatus = "connected";
@@ -169,6 +185,16 @@ export class CompanyRepository extends BaseRepository<
         created_at: company.created_at,
       };
     });
+
+    const total = count ?? 0;
+
+    return {
+      data: items,
+      total,
+      page,
+      limit: pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   /**

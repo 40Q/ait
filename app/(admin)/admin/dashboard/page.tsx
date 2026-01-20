@@ -28,14 +28,17 @@ export default function AdminDashboardPage() {
   const { data: requestCounts, isLoading: loadingRequests } = useRequestStatusCounts();
   const { data: quoteCounts, isLoading: loadingQuotes } = useQuoteStatusCounts();
   const { data: jobCounts, isLoading: loadingJobs } = useJobStatusCounts();
-  const { data: companies = [], isLoading: loadingCompanies } = useCompanyList();
-  const { data: recentRequests = [] } = useRequestList();
+  const { data: companiesData, isLoading: loadingCompanies } = useCompanyList();
+  const { data: requestsData } = useRequestList(undefined, 1, 5);
+
+  const companies = companiesData?.data ?? [];
+  const recentRequests = requestsData?.data ?? [];
 
   const isLoading = loadingRequests || loadingQuotes || loadingJobs || loadingCompanies;
 
   const pendingRequests = requestCounts?.pending ?? 0;
   const quotesAwaitingResponse = quoteCounts?.sent ?? 0;
-  const totalCompanies = companies.length;
+  const totalCompanies = companiesData?.total ?? 0;
   const activeJobs =
     (jobCounts?.pickup_scheduled ?? 0) +
     (jobCounts?.pickup_complete ?? 0) +
@@ -101,7 +104,7 @@ export default function AdminDashboardPage() {
             </p>
           ) : (
             <div className="space-y-4">
-              {recentRequests.slice(0, 5).map((request) => (
+              {recentRequests.map((request) => (
                 <div key={request.id} className="flex items-start gap-3 text-sm">
                   <ClipboardList className="h-4 w-4 mt-0.5 text-blue-500" />
                   <div className="flex-1 space-y-1">

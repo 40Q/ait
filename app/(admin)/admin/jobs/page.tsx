@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -16,8 +16,11 @@ import {
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ListFilters } from "@/components/ui/list-filters";
+import { FetchingIndicator } from "@/components/ui/fetching-indicator";
+import { Pagination } from "@/components/ui/pagination";
 import { Loader2, Eye, FileText, Plus } from "lucide-react";
-import { useJobList, useJobStatusCounts, useRealtimeJobs, useListPage, useTabFilter } from "@/lib/hooks";
+import { useJobList, useJobStatusCounts, useRealtimeJobs, usePagination } from "@/lib/hooks";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { formatDateShort } from "@/lib/utils/date";
 import type { JobStatus } from "@/lib/database/types";
 
@@ -30,31 +33,51 @@ const invoiceFilterOptions = [
 ];
 
 export default function AdminJobsPage() {
-  const { searchQuery, setSearchQuery, filters: pageFilters, setFilter } = useListPage<{
-    invoice: string;
-  }>({
-    defaultFilters: { invoice: "all" },
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
+  const [invoiceFilter, setInvoiceFilter] = useState("all");
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
+
+  // Pagination
+  const { currentPage, pageSize, setPage, setPageSize } = usePagination({
+    initialPageSize: 20,
   });
-  const { activeTab, setActiveTab } = useTabFilter("all");
 
   // Enable real-time updates
   useRealtimeJobs();
 
   // Build filters for database query
   const filters = useMemo(() => {
-    const invoiceFilter = pageFilters.invoice;
     return {
-      search: searchQuery || undefined,
+      search: debouncedSearch || undefined,
       status: activeTab !== "all" ? (activeTab as JobStatus) : undefined,
       has_invoice: invoiceFilter === "invoiced" ? true :
                    invoiceFilter === "not_invoiced" ? false : undefined,
       invoice_status: invoiceFilter === "paid" ? "paid" as const :
                       invoiceFilter === "unpaid" ? "unpaid" as const : undefined,
     };
-  }, [searchQuery, activeTab, pageFilters.invoice]);
+  }, [debouncedSearch, activeTab, invoiceFilter]);
 
-  const { data: jobs = [], isLoading, error } = useJobList(filters);
+  const { data: paginatedData, isLoading, isFetching, error } = useJobList(filters, currentPage, pageSize);
   const { data: statusCounts } = useJobStatusCounts();
+
+  // Reset to page 1 when filters change
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    setPage(1);
+  }, [setPage]);
+
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value);
+    setPage(1);
+  }, [setPage]);
+
+  const handleInvoiceFilterChange = useCallback((value: string) => {
+    setInvoiceFilter(value);
+    setPage(1);
+  }, [setPage]);
+
+  const jobs = paginatedData?.data ?? [];
 
   if (error) {
     return (
@@ -80,12 +103,13 @@ export default function AdminJobsPage() {
 
       <ListFilters
         searchValue={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={handleSearchChange}
         searchPlaceholder="Search by Job ID or company..."
+        isLoading={isFetching}
         filters={[
           {
-            value: pageFilters.invoice,
-            onChange: (value) => setFilter("invoice", value),
+            value: invoiceFilter,
+            onChange: handleInvoiceFilterChange,
             options: invoiceFilterOptions,
             className: "w-[180px]",
           },
@@ -93,7 +117,7 @@ export default function AdminJobsPage() {
       />
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="all">All ({statusCounts?.all ?? 0})</TabsTrigger>
           <TabsTrigger value="pickup_scheduled">
@@ -113,6 +137,7 @@ export default function AdminJobsPage() {
         {["all", "pickup_scheduled", "pickup_complete", "processing", "complete"].map(
           (status) => (
             <TabsContent key={status} value={status} className="mt-4">
+              <FetchingIndicator isFetching={isFetching}>
               <div className="rounded-md border overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -215,10 +240,23 @@ export default function AdminJobsPage() {
                   </TableBody>
                 </Table>
               </div>
+              </FetchingIndicator>
             </TabsContent>
           )
         )}
       </Tabs>
+
+      {/* Pagination */}
+      {paginatedData && paginatedData.totalPages > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={paginatedData.totalPages}
+          totalItems={paginatedData.total}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
+      )}
     </div>
   );
 }

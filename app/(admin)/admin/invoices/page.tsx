@@ -95,7 +95,7 @@ export default function InvoicesPage() {
 
   const { data: statusCounts } = useInvoiceStatusCounts();
   const { data: qbStatus } = useQuickBooksStatus();
-  const { data: jobs = [] } = useJobList();
+  const { data: jobsData } = useJobList(undefined, 1, 100);
 
   // Mutations and actions
   const syncInvoices = useSyncInvoices();
@@ -121,8 +121,9 @@ export default function InvoicesPage() {
   // Filter jobs for the selected invoice's company
   const availableJobs = useMemo(() => {
     if (!selectedInvoice) return [];
+    const jobs = jobsData?.data ?? [];
     return jobs.filter((job) => job.company_id === selectedInvoice.company_id);
-  }, [jobs, selectedInvoice]);
+  }, [jobsData?.data, selectedInvoice]);
 
   // Reset to first page when filters change
   const handleStatusFilterChange = (value: string) => {

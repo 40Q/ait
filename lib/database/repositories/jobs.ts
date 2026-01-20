@@ -9,6 +9,7 @@ import type {
   JobListItem,
   EquipmentItem,
   Location,
+  PaginatedResult,
 } from "../types";
 
 export class JobRepository extends BaseRepository<
@@ -73,9 +74,15 @@ export class JobRepository extends BaseRepository<
   }
 
   /**
-   * Get list items for tables
+   * Get paginated list items for tables
    */
-  async getListItems(filters?: JobFilters): Promise<JobListItem[]> {
+  async getListItems(
+    filters?: JobFilters,
+    page: number = 1,
+    pageSize: number = 20
+  ): Promise<PaginatedResult<JobListItem>> {
+    const offset = (page - 1) * pageSize;
+
     let query = this.supabase
       .from("jobs")
       .select(
@@ -91,7 +98,8 @@ export class JobRepository extends BaseRepository<
         company:companies(name),
         documents(id),
         invoices(id, amount, status)
-      `
+      `,
+        { count: "exact" }
       )
       .order("created_at", { ascending: false });
 
@@ -132,13 +140,14 @@ export class JobRepository extends BaseRepository<
       query = query.lte("pickup_date", filters.to_date);
     }
 
-    query = this.applyPagination(query, filters);
+    // Apply pagination
+    query = query.range(offset, offset + pageSize - 1);
 
-    const { data, error } = await query;
+    const { data, count, error } = await query;
     if (error) throw error;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let result = (data ?? []).map((row: any) => {
+    let items = (data ?? []).map((row: any) => {
       const location = row.location as Location;
       const equipment = (row.equipment as EquipmentItem[]) || [];
       const documents = (row.documents as { id: string }[]) || [];
@@ -165,21 +174,30 @@ export class JobRepository extends BaseRepository<
     });
 
     // Apply invoice filtering (post-query due to nested relation)
+    // Note: This affects total count accuracy when filtering by invoice
     if (filters?.has_invoice === true) {
-      result = result.filter(job => job.invoice_total !== null);
+      items = items.filter(job => job.invoice_total !== null);
     } else if (filters?.has_invoice === false) {
-      result = result.filter(job => job.invoice_total === null);
+      items = items.filter(job => job.invoice_total === null);
     }
 
     if (filters?.invoice_status === "paid") {
-      result = result.filter(job => job.invoice_status === "paid");
+      items = items.filter(job => job.invoice_status === "paid");
     } else if (filters?.invoice_status === "unpaid") {
-      result = result.filter(job =>
+      items = items.filter(job =>
         job.invoice_status === "unpaid" || job.invoice_status === "overdue"
       );
     }
 
-    return result;
+    const total = count ?? 0;
+
+    return {
+      data: items,
+      total,
+      page,
+      limit: pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   /**

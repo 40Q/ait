@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -16,8 +16,11 @@ import {
 } from "@/components/ui/table";
 import { StatCard } from "@/components/ui/stat-card";
 import { ListFilters } from "@/components/ui/list-filters";
+import { FetchingIndicator } from "@/components/ui/fetching-indicator";
+import { Pagination } from "@/components/ui/pagination";
 import { Loader2, Eye, FileText, DollarSign, TrendingUp } from "lucide-react";
-import { useQuoteList, useQuoteStatusCounts, useListPage, useTabFilter } from "@/lib/hooks";
+import { useQuoteList, useQuoteStatusCounts, usePagination } from "@/lib/hooks";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { formatDate } from "@/lib/utils/date";
 import type { QuoteStatus } from "@/lib/database/types";
 
@@ -52,36 +55,43 @@ function QuoteStatusBadge({ status }: { status: QuoteStatus }) {
 }
 
 export default function QuotesPage() {
-  const { searchQuery, setSearchQuery } = useListPage();
-  const { activeTab, setActiveTab } = useTabFilter("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
 
-  // Fetch quotes with filters (status only, search is client-side)
+  // Pagination
+  const { currentPage, pageSize, setPage, setPageSize } = usePagination({
+    initialPageSize: 20,
+  });
+
+  // Build filters for server-side filtering
   const filters = useMemo(() => ({
     status: activeTab !== "all" ? (activeTab as QuoteStatus) : undefined,
-  }), [activeTab]);
+    search: debouncedSearch || undefined,
+  }), [activeTab, debouncedSearch]);
 
-  const { data: allQuotes = [], isLoading, error } = useQuoteList(filters);
+  const { data: paginatedData, isLoading, isFetching, error } = useQuoteList(filters, currentPage, pageSize);
   const { data: statusCounts } = useQuoteStatusCounts();
 
-  // Client-side search across quote_number, request_number, and company_name
-  const quotes = useMemo(() => {
-    if (!searchQuery.trim()) return allQuotes;
-    const query = searchQuery.toLowerCase();
-    return allQuotes.filter(
-      (quote) =>
-        quote.quote_number.toLowerCase().includes(query) ||
-        quote.request_number.toLowerCase().includes(query) ||
-        quote.company_name.toLowerCase().includes(query)
-    );
-  }, [allQuotes, searchQuery]);
+  // Reset to page 1 when filters change
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    setPage(1);
+  }, [setPage]);
 
-  // Calculate stats from current quotes
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value);
+    setPage(1);
+  }, [setPage]);
+
+  const quotes = paginatedData?.data ?? [];
+
+  // Calculate stats
   const totalQuotes = statusCounts?.all ?? 0;
   const acceptedCount = statusCounts?.accepted ?? 0;
   const acceptanceRate = totalQuotes > 0 ? Math.round((acceptedCount / totalQuotes) * 100) : 0;
-  const avgQuoteValue = quotes.length > 0
-    ? Math.round(quotes.reduce((sum, q) => sum + q.total, 0) / quotes.length)
-    : 0;
+  // For avg value, we'd need a separate stats query - for now show 0 or implement later
+  const avgQuoteValue = 0;
 
   if (error) {
     return (
@@ -119,12 +129,13 @@ export default function QuotesPage() {
 
       <ListFilters
         searchValue={searchQuery}
-        onSearchChange={setSearchQuery}
-        searchPlaceholder="Search by quote #, request #, or company..."
+        onSearchChange={handleSearchChange}
+        searchPlaceholder="Search by quote # or company..."
+        isLoading={isFetching}
       />
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="all">All ({statusCounts?.all ?? 0})</TabsTrigger>
           <TabsTrigger value="draft">Draft ({statusCounts?.draft ?? 0})</TabsTrigger>
@@ -149,6 +160,7 @@ export default function QuotesPage() {
           "declined",
         ].map((status) => (
           <TabsContent key={status} value={status} className="mt-4">
+            <FetchingIndicator isFetching={isFetching}>
             <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -233,9 +245,22 @@ export default function QuotesPage() {
                 </TableBody>
               </Table>
             </div>
+            </FetchingIndicator>
           </TabsContent>
         ))}
       </Tabs>
+
+      {/* Pagination */}
+      {paginatedData && paginatedData.totalPages > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={paginatedData.totalPages}
+          totalItems={paginatedData.total}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
+      )}
     </div>
   );
 }

@@ -1,16 +1,19 @@
 "use client";
 
-import { useMemo, memo } from "react";
+import { useMemo, memo, useState, useCallback } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { Pagination } from "@/components/ui/pagination";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ListFilters } from "@/components/ui/list-filters";
+import { FetchingIndicator } from "@/components/ui/fetching-indicator";
 import { FileText, Receipt, ArrowRight, Calendar, Truck, Package } from "lucide-react";
-import { useJobList, useListPage } from "@/lib/hooks";
+import { useJobList, usePagination } from "@/lib/hooks";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { jobStatusLabels, type JobListItem, type JobStatus } from "@/lib/database/types";
 import { formatDateShort } from "@/lib/utils/date";
 
@@ -66,21 +69,37 @@ const JobCard = memo(function JobCard({ job }: { job: JobListItem }) {
 });
 
 export default function JobsPage() {
-  const { searchQuery, setSearchQuery, filters, setFilter } = useListPage<{
-    status: string;
-  }>({
-    defaultFilters: { status: "all" },
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
+
+  // Pagination
+  const { currentPage, pageSize, setPage, setPageSize } = usePagination({
+    initialPageSize: 20,
   });
 
   const queryFilters = useMemo(
     () => ({
-      search: searchQuery || undefined,
-      status: filters.status !== "all" ? (filters.status as JobStatus) : undefined,
+      search: debouncedSearch || undefined,
+      status: statusFilter !== "all" ? (statusFilter as JobStatus) : undefined,
     }),
-    [searchQuery, filters.status]
+    [debouncedSearch, statusFilter]
   );
 
-  const { data: jobs = [], isLoading } = useJobList(queryFilters);
+  const { data: paginatedData, isLoading, isFetching } = useJobList(queryFilters, currentPage, pageSize);
+
+  const jobs = paginatedData?.data ?? [];
+
+  // Reset to page 1 when filters change
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    setPage(1);
+  }, [setPage]);
+
+  const handleStatusChange = useCallback((value: string) => {
+    setStatusFilter(value);
+    setPage(1);
+  }, [setPage]);
 
   return (
     <div className="space-y-6">
@@ -95,12 +114,13 @@ export default function JobsPage() {
 
       <ListFilters
         searchValue={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={handleSearchChange}
         searchPlaceholder="Search by Job ID..."
+        isLoading={isFetching}
         filters={[
           {
-            value: filters.status,
-            onChange: (value) => setFilter("status", value),
+            value: statusFilter,
+            onChange: handleStatusChange,
             options: statusOptions,
             className: "w-full sm:w-48",
           },
@@ -109,20 +129,30 @@ export default function JobsPage() {
 
       {isLoading ? (
         <LoadingSpinner />
-      ) : jobs.length === 0 ? (
-        <EmptyState icon={Package} title="No jobs found" />
       ) : (
-        <div className="space-y-3">
-          {jobs.map((job) => (
-            <JobCard key={job.id} job={job} />
-          ))}
-        </div>
+        <FetchingIndicator isFetching={isFetching}>
+          {jobs.length === 0 ? (
+            <EmptyState icon={Package} title="No jobs found" />
+          ) : (
+            <div className="space-y-3">
+              {jobs.map((job) => (
+                <JobCard key={job.id} job={job} />
+              ))}
+            </div>
+          )}
+        </FetchingIndicator>
       )}
 
-      {!isLoading && jobs.length > 0 && (
-        <p className="text-sm text-muted-foreground">
-          Showing {jobs.length} job{jobs.length !== 1 ? "s" : ""}
-        </p>
+      {/* Pagination */}
+      {paginatedData && paginatedData.totalPages > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={paginatedData.totalPages}
+          totalItems={paginatedData.total}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       )}
     </div>
   );

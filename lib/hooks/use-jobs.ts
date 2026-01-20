@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { JobRepository } from "@/lib/database/repositories";
 import { WorkflowService } from "@/lib/database/services";
@@ -14,15 +14,20 @@ import {
 import { getQueryOptions } from "./query-config";
 
 /**
- * Hook to fetch a list of jobs with optional filters
+ * Hook to fetch a paginated list of jobs with optional filters
  */
-export function useJobList(filters?: JobFilters) {
+export function useJobList(
+  filters?: JobFilters,
+  page: number = 1,
+  pageSize: number = 20
+) {
   const supabase = createClient();
   const repo = new JobRepository(supabase);
 
   return useQuery({
-    queryKey: queryKeys.jobs.list(filters),
-    queryFn: () => repo.getListItems(filters),
+    queryKey: [...queryKeys.jobs.list(filters), page, pageSize],
+    queryFn: () => repo.getListItems(filters, page, pageSize),
+    placeholderData: keepPreviousData,
     ...getQueryOptions("list"),
   });
 }

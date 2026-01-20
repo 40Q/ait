@@ -48,7 +48,9 @@ function PickupCard({ job }: { job: JobListItem }) {
 }
 
 export default function PickupDetailsPage() {
-  const { data: jobs, isLoading, error } = useJobList({ status: "pickup_scheduled" });
+  const { data: paginatedData, isLoading, error } = useJobList({ status: "pickup_scheduled" });
+
+  const jobs = paginatedData?.data ?? [];
 
   return (
     <div className="space-y-6">
@@ -81,7 +83,7 @@ export default function PickupDetailsPage() {
         </div>
       ) : !error && (
         <>
-          {!jobs || jobs.length === 0 ? (
+          {jobs.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                 <Truck className="h-12 w-12 text-muted-foreground" />

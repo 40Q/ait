@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { CompanyRepository } from "@/lib/database/repositories";
 import {
@@ -14,15 +14,20 @@ import {
 import { getQueryOptions } from "./query-config";
 
 /**
- * Hook to fetch a list of companies with optional filters
+ * Hook to fetch a paginated list of companies with optional filters
  */
-export function useCompanyList(filters?: CompanyFilters) {
+export function useCompanyList(
+  filters?: CompanyFilters,
+  page: number = 1,
+  pageSize: number = 20
+) {
   const supabase = createClient();
   const repo = new CompanyRepository(supabase);
 
   return useQuery({
-    queryKey: queryKeys.companies.list(filters),
-    queryFn: () => repo.getListItems(filters),
+    queryKey: [...queryKeys.companies.list(filters), page, pageSize],
+    queryFn: () => repo.getListItems(filters, page, pageSize),
+    placeholderData: keepPreviousData,
     ...getQueryOptions("list"),
   });
 }
@@ -94,15 +99,19 @@ export function useUpdateCompany() {
 }
 
 /**
- * Hook to fetch users for a company
+ * Hook to fetch active users for a company.
+ * Uses admin API to filter out banned users.
  */
 export function useCompanyUsers(companyId: string) {
-  const supabase = createClient();
-  const repo = new CompanyRepository(supabase);
-
   return useQuery({
     queryKey: [...queryKeys.companies.detail(companyId), "users"],
-    queryFn: () => repo.getCompanyUsers(companyId),
+    queryFn: async () => {
+      const response = await fetch(`/api/admin/companies/${companyId}/users`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch company users");
+      }
+      return response.json() as Promise<{ id: string; email: string; full_name: string | null }[]>;
+    },
     enabled: !!companyId,
   });
 }

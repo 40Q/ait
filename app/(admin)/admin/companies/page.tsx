@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Pagination } from "@/components/ui/pagination";
 import {
   Table,
   TableBody,
@@ -23,7 +24,9 @@ import {
   XCircle,
   Loader2,
 } from "lucide-react";
-import { useCompanyList } from "@/lib/hooks";
+import { FetchingIndicator } from "@/components/ui/fetching-indicator";
+import { useCompanyList, usePagination } from "@/lib/hooks";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import type { CompanyListItem } from "@/lib/database/types";
 
 type QuickBooksStatus = "connected" | "error" | "not_connected";
@@ -56,7 +59,27 @@ function QuickBooksStatusBadge({ status }: { status: QuickBooksStatus }) {
 
 export default function CompaniesPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const { data: companies = [], isLoading, error } = useCompanyList({ search: searchQuery || undefined });
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
+
+  // Pagination
+  const { currentPage, pageSize, setPage, setPageSize } = usePagination({
+    initialPageSize: 20,
+  });
+
+  // Build filters
+  const filters = useMemo(() => ({
+    search: debouncedSearch || undefined,
+  }), [debouncedSearch]);
+
+  const { data: paginatedData, isLoading, isFetching, error } = useCompanyList(filters, currentPage, pageSize);
+
+  // Reset to page 1 when search changes
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    setPage(1);
+  }, [setPage]);
+
+  const companies = paginatedData?.data ?? [];
 
   if (error) {
     return (
@@ -83,17 +106,22 @@ export default function CompaniesPage() {
       {/* Search */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          {isFetching ? (
+            <Loader2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground animate-spin" />
+          ) : (
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          )}
           <Input
             placeholder="Search companies..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchChange}
             className="pl-9"
           />
         </div>
       </div>
 
       {/* Table */}
+      <FetchingIndicator isFetching={isFetching}>
       <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
@@ -161,6 +189,19 @@ export default function CompaniesPage() {
           </TableBody>
         </Table>
       </div>
+      </FetchingIndicator>
+
+      {/* Pagination */}
+      {paginatedData && paginatedData.totalPages > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={paginatedData.totalPages}
+          totalItems={paginatedData.total}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
+      )}
     </div>
   );
 }

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
 import {
   Select,
   SelectContent,
@@ -13,7 +14,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Search, Upload, Loader2 } from "lucide-react";
-import { useDocumentList, useDeleteDocument } from "@/lib/hooks";
+import { FetchingIndicator } from "@/components/ui/fetching-indicator";
+import { useDocumentList, useDeleteDocument, usePagination } from "@/lib/hooks";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { type DocumentType } from "@/lib/database/types";
 import { DocumentList } from "@/components/ui/document-list";
 import { createClient } from "@/lib/supabase/client";
@@ -32,16 +35,35 @@ const documentTypes: { value: string; label: string }[] = [
 export default function DocumentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
   const supabase = createClient();
+
+  // Pagination
+  const { currentPage, pageSize, setPage, setPageSize } = usePagination({
+    initialPageSize: 20,
+  });
 
   // Fetch documents with filters
   const filters = useMemo(() => ({
-    search: searchQuery || undefined,
+    search: debouncedSearch || undefined,
     document_type: typeFilter !== "all" ? (typeFilter as DocumentType) : undefined,
-  }), [searchQuery, typeFilter]);
+  }), [debouncedSearch, typeFilter]);
 
-  const { data: documents = [], isLoading, error } = useDocumentList(filters);
+  const { data: paginatedData, isLoading, isFetching, error } = useDocumentList(filters, currentPage, pageSize);
   const deleteDocument = useDeleteDocument();
+
+  const documents = paginatedData?.data ?? [];
+
+  // Reset to page 1 when filters change
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    setPage(1);
+  }, [setPage]);
+
+  const handleTypeFilterChange = useCallback((value: string) => {
+    setTypeFilter(value);
+    setPage(1);
+  }, [setPage]);
 
   const handleView = async (filePath: string) => {
     try {
@@ -86,15 +108,19 @@ export default function DocumentsPage() {
       {/* Filters */}
       <div className="flex flex-col gap-4 sm:flex-row">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          {isFetching ? (
+            <Loader2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground animate-spin" />
+          ) : (
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          )}
           <Input
             placeholder="Search by name, job ID, or company..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchChange}
             className="pl-9"
           />
         </div>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
+        <Select value={typeFilter} onValueChange={handleTypeFilterChange}>
           <SelectTrigger className="w-[220px]">
             <SelectValue placeholder="Document Type" />
           </SelectTrigger>
@@ -114,24 +140,31 @@ export default function DocumentsPage() {
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <DocumentList
-          documents={documents}
-          onView={handleView}
-          onDelete={handleDelete}
-          isDeleting={deleteDocument.isPending}
-          showJob
-          showCompany
-          showSize
-          showUploader
-          emptyMessage="No documents found"
-        />
+        <FetchingIndicator isFetching={isFetching}>
+          <DocumentList
+            documents={documents}
+            onView={handleView}
+            onDelete={handleDelete}
+            isDeleting={deleteDocument.isPending}
+            showJob
+            showCompany
+            showSize
+            showUploader
+            emptyMessage="No documents found"
+          />
+        </FetchingIndicator>
       )}
 
-      {/* Results Count */}
-      {!isLoading && documents.length > 0 && (
-        <p className="text-sm text-muted-foreground">
-          Showing {documents.length} documents
-        </p>
+      {/* Pagination */}
+      {paginatedData && paginatedData.totalPages > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={paginatedData.totalPages}
+          totalItems={paginatedData.total}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       )}
     </div>
   );

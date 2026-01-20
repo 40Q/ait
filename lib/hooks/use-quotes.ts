@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { QuoteRepository } from "@/lib/database/repositories";
 import { WorkflowService } from "@/lib/database/services";
@@ -12,17 +12,24 @@ import {
   type QuoteResponse,
   type QuoteLineItemInsert,
 } from "@/lib/database/types";
+import { getQueryOptions } from "./query-config";
 
 /**
- * Hook to fetch a list of quotes with optional filters
+ * Hook to fetch a paginated list of quotes with optional filters
  */
-export function useQuoteList(filters?: QuoteFilters) {
+export function useQuoteList(
+  filters?: QuoteFilters,
+  page: number = 1,
+  pageSize: number = 20
+) {
   const supabase = createClient();
   const repo = new QuoteRepository(supabase);
 
   return useQuery({
-    queryKey: queryKeys.quotes.list(filters),
-    queryFn: () => repo.getListItems(filters),
+    queryKey: [...queryKeys.quotes.list(filters), page, pageSize],
+    queryFn: () => repo.getListItems(filters, page, pageSize),
+    placeholderData: keepPreviousData,
+    ...getQueryOptions("list"),
   });
 }
 

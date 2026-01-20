@@ -65,12 +65,14 @@ export function useCalendarJobs(
   const fromDate = getMonthStart(year, month);
   const toDate = getMonthEnd(year, month);
 
-  // Fetch current month jobs
-  const { data: jobs = [], isLoading } = useJobList({
+  // Fetch current month jobs (with large page size to get all jobs for the month)
+  const { data: paginatedData, isLoading } = useJobList({
     status: statuses,
     from_date: fromDate,
     to_date: toDate,
-  });
+  }, 1, 100);
+
+  const jobs = paginatedData?.data ?? [];
 
   // Prefetch next month's jobs
   const nextMonthStart = getMonthStart(year, month + 1);
@@ -79,7 +81,7 @@ export function useCalendarJobs(
     status: statuses,
     from_date: nextMonthStart,
     to_date: nextMonthEnd,
-  });
+  }, 1, 100);
 
   // Group jobs by date for calendar display
   const jobsByDate = useMemo(() => {
@@ -106,9 +108,9 @@ export function useCalendarJobs(
   // Get jobs with pickup dates, sorted by date
   const sortedJobs = useMemo(() => {
     return jobs
-      .filter((j) => j.pickup_date)
+      .filter((j: JobListItem) => j.pickup_date)
       .sort(
-        (a, b) =>
+        (a: JobListItem, b: JobListItem) =>
           new Date(a.pickup_date!).getTime() - new Date(b.pickup_date!).getTime()
       );
   }, [jobs]);
