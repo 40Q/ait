@@ -10,3 +10,4 @@ export * from "./job";
 export * from "./document";
 export * from "./company";
 export * from "./timeline";
+export * from "./invoice";

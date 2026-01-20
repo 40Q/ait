@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { StatCard } from "@/components/ui/stat-card";
 import {
   Table,
   TableBody,
@@ -22,134 +21,185 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { StatusBadge, type InvoiceStatus } from "@/components/ui/status-badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Pagination } from "@/components/ui/pagination";
+import { InvoiceStats } from "@/components/invoices";
 import {
   Search,
   RefreshCw,
-  ExternalLink,
   Download,
   Link as LinkIcon,
-  DollarSign,
-  CheckCircle2,
-  AlertCircle,
-  Clock,
+  Loader2,
 } from "lucide-react";
-
-interface InvoiceItem {
-  id: string;
-  invoiceNumber: string;
-  companyId: string;
-  companyName: string;
-  jobId?: string;
-  date: string;
-  dueDate: string;
-  amount: number;
-  status: InvoiceStatus;
-  quickbooksSyncedAt: string;
-}
-
-// Mock data
-const invoices: InvoiceItem[] = [
-  {
-    id: "1",
-    invoiceNumber: "INV-2024-1250",
-    companyId: "4",
-    companyName: "DataFlow LLC",
-    jobId: "W2512005",
-    date: "Dec 15, 2024",
-    dueDate: "Jan 15, 2025",
-    amount: 3200,
-    status: "unpaid",
-    quickbooksSyncedAt: "Today at 2:30 PM",
-  },
-  {
-    id: "2",
-    invoiceNumber: "INV-2024-1248",
-    companyId: "1",
-    companyName: "Acme Corporation",
-    jobId: "W2512004",
-    date: "Dec 10, 2024",
-    dueDate: "Jan 10, 2025",
-    amount: 4500,
-    status: "paid",
-    quickbooksSyncedAt: "Today at 2:30 PM",
-  },
-  {
-    id: "3",
-    invoiceNumber: "INV-2024-1245",
-    companyId: "3",
-    companyName: "Global Systems",
-    jobId: "W2512003",
-    date: "Dec 5, 2024",
-    dueDate: "Jan 5, 2025",
-    amount: 2800,
-    status: "unpaid",
-    quickbooksSyncedAt: "Today at 2:30 PM",
-  },
-  {
-    id: "4",
-    invoiceNumber: "INV-2024-1240",
-    companyId: "2",
-    companyName: "TechStart Inc",
-    date: "Dec 1, 2024",
-    dueDate: "Dec 31, 2024",
-    amount: 1500,
-    status: "overdue",
-    quickbooksSyncedAt: "Today at 2:30 PM",
-  },
-  {
-    id: "5",
-    invoiceNumber: "INV-2024-1235",
-    companyId: "1",
-    companyName: "Acme Corporation",
-    jobId: "W2512002",
-    date: "Nov 28, 2024",
-    dueDate: "Dec 28, 2024",
-    amount: 5200,
-    status: "paid",
-    quickbooksSyncedAt: "Today at 2:30 PM",
-  },
-];
+import {
+  useInvoiceList,
+  useInvoiceStatusCounts,
+  useSyncInvoices,
+  useQuickBooksStatus,
+  useLinkInvoiceToJob,
+  useRealtimeInvoices,
+  useJobList,
+  useDownloadInvoicePdf,
+  useInvoiceStats,
+  usePagination,
+} from "@/lib/hooks";
+import { formatDateShort, formatRelativeTime } from "@/lib/utils/date";
+import type { InvoiceListItem, InvoiceStatus, InvoiceFilters } from "@/lib/database/types";
+import { toast } from "sonner";
 
 export default function InvoicesPage() {
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<InvoiceListItem | null>(null);
+  const [selectedJobId, setSelectedJobId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [linkedFilter, setLinkedFilter] = useState("all");
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [linkedFilter, setLinkedFilter] = useState<string>("all");
 
-  const filteredInvoices = invoices.filter((invoice) => {
-    const matchesSearch =
-      invoice.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      invoice.companyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (invoice.jobId &&
-        invoice.jobId.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    const matchesStatus =
-      statusFilter === "all" || invoice.status === statusFilter;
-
-    const matchesLinked =
-      linkedFilter === "all" ||
-      (linkedFilter === "linked" && invoice.jobId) ||
-      (linkedFilter === "not_linked" && !invoice.jobId);
-
-    return matchesSearch && matchesStatus && matchesLinked;
+  // Pagination
+  const { currentPage, pageSize, setPage, setPageSize } = usePagination({
+    initialPageSize: 20,
   });
 
-  // Calculate stats
-  const totalAmount = invoices.reduce((sum, inv) => sum + inv.amount, 0);
-  const paidAmount = invoices
-    .filter((inv) => inv.status === "paid")
-    .reduce((sum, inv) => sum + inv.amount, 0);
-  const unpaidAmount = invoices
-    .filter((inv) => inv.status === "unpaid" || inv.status === "overdue")
-    .reduce((sum, inv) => sum + inv.amount, 0);
-  const unlinkedCount = invoices.filter((inv) => !inv.jobId).length;
+  // Build filters for the query
+  const filters: InvoiceFilters = useMemo(() => {
+    const f: InvoiceFilters = {};
+    if (statusFilter !== "all") {
+      f.status = statusFilter as InvoiceStatus;
+    }
+    if (linkedFilter === "linked") {
+      f.has_job = true;
+    } else if (linkedFilter === "not_linked") {
+      f.has_job = false;
+    }
+    return f;
+  }, [statusFilter, linkedFilter]);
+
+  // Fetch paginated data
+  const { data: paginatedData, isLoading: invoicesLoading } = useInvoiceList(
+    filters,
+    currentPage,
+    pageSize
+  );
+
+  // Fetch stats (server-side calculation)
+  const { data: stats } = useInvoiceStats();
+
+  const { data: statusCounts } = useInvoiceStatusCounts();
+  const { data: qbStatus } = useQuickBooksStatus();
+  const { data: jobs = [] } = useJobList();
+
+  // Mutations and actions
+  const syncInvoices = useSyncInvoices();
+  const linkInvoice = useLinkInvoiceToJob();
+  const { downloadPdf, downloadingId } = useDownloadInvoicePdf();
+
+  // Real-time updates
+  useRealtimeInvoices();
+
+  // Client-side search filtering on the current page
+  const displayedInvoices = useMemo(() => {
+    const invoices = paginatedData?.data ?? [];
+    if (!searchQuery) return invoices;
+
+    const searchLower = searchQuery.toLowerCase();
+    return invoices.filter((invoice) =>
+      invoice.invoice_number.toLowerCase().includes(searchLower) ||
+      invoice.company_name.toLowerCase().includes(searchLower) ||
+      (invoice.job_number?.toLowerCase().includes(searchLower) ?? false)
+    );
+  }, [paginatedData?.data, searchQuery]);
+
+  // Filter jobs for the selected invoice's company
+  const availableJobs = useMemo(() => {
+    if (!selectedInvoice) return [];
+    return jobs.filter((job) => job.company_id === selectedInvoice.company_id);
+  }, [jobs, selectedInvoice]);
+
+  // Reset to first page when filters change
+  const handleStatusFilterChange = (value: string) => {
+    setStatusFilter(value);
+    setPage(1);
+  };
+
+  const handleLinkedFilterChange = (value: string) => {
+    setLinkedFilter(value);
+    setPage(1);
+  };
 
   const handleSync = async () => {
-    setIsSyncing(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setIsSyncing(false);
+    try {
+      const result = await syncInvoices.mutateAsync();
+      toast.success(
+        `Synced ${result.result.synced} invoices (${result.result.skipped} skipped)`
+      );
+      if (result.result.errors.length > 0) {
+        console.warn("Sync errors:", result.result.errors);
+        toast.warning(`${result.result.errors.length} errors during sync`);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to sync invoices");
+    }
   };
+
+  const handleLinkClick = (invoice: InvoiceListItem) => {
+    setSelectedInvoice(invoice);
+    setSelectedJobId(invoice.job_id || "");
+    setLinkDialogOpen(true);
+  };
+
+  const handleLinkSubmit = async () => {
+    if (!selectedInvoice) return;
+
+    try {
+      await linkInvoice.mutateAsync({
+        invoiceId: selectedInvoice.id,
+        jobId: selectedJobId || null,
+      });
+      toast.success(
+        selectedJobId ? "Invoice linked to job" : "Invoice unlinked from job"
+      );
+      setLinkDialogOpen(false);
+      setSelectedInvoice(null);
+      setSelectedJobId("");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to link invoice");
+    }
+  };
+
+  const handleDownloadPdf = async (invoice: InvoiceListItem) => {
+    try {
+      await downloadPdf(invoice);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to download PDF");
+    }
+  };
+
+  if (invoicesLoading) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Invoices"
+          description="Manage invoices synced from QuickBooks"
+        />
+        <div className="grid gap-4 sm:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
+        </div>
+        <Skeleton className="h-16" />
+        <Skeleton className="h-96" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -157,38 +207,22 @@ export default function InvoicesPage() {
         title="Invoices"
         description="Manage invoices synced from QuickBooks"
       >
-        <Button onClick={handleSync} disabled={isSyncing}>
+        <Button onClick={handleSync} disabled={syncInvoices.isPending || !qbStatus?.connected}>
           <RefreshCw
-            className={`mr-2 h-4 w-4 ${isSyncing ? "animate-spin" : ""}`}
+            className={`mr-2 h-4 w-4 ${syncInvoices.isPending ? "animate-spin" : ""}`}
           />
-          {isSyncing ? "Syncing..." : "Sync All Companies"}
+          {syncInvoices.isPending ? "Syncing..." : "Sync Invoices"}
         </Button>
       </PageHeader>
 
       {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-4">
-        <StatCard
-          title="Total Invoiced"
-          value={`$${totalAmount.toLocaleString()}`}
-          icon={DollarSign}
-        />
-        <StatCard
-          title="Total Paid"
-          value={`$${paidAmount.toLocaleString()}`}
-          icon={CheckCircle2}
-        />
-        <StatCard
-          title="Outstanding"
-          value={`$${unpaidAmount.toLocaleString()}`}
-          icon={Clock}
-        />
-        <StatCard
-          title="Unlinked"
-          value={unlinkedCount}
-          description="Need to link to jobs"
-          icon={AlertCircle}
-        />
-      </div>
+      <InvoiceStats
+        totalAmount={stats?.totalAmount ?? 0}
+        paidAmount={stats?.paidAmount ?? 0}
+        unpaidAmount={stats?.unpaidAmount ?? 0}
+        unlinkedCount={stats?.unlinkedCount ?? 0}
+        showUnlinked
+      />
 
       {/* Sync Status */}
       <Card>
@@ -196,17 +230,25 @@ export default function InvoicesPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-green-500" />
-                <span className="text-sm font-medium">QuickBooks Connected</span>
+                <div
+                  className={`h-2 w-2 rounded-full ${
+                    qbStatus?.connected ? "bg-green-500" : "bg-red-500"
+                  }`}
+                />
+                <span className="text-sm font-medium">
+                  {qbStatus?.connected
+                    ? "QuickBooks Connected"
+                    : "QuickBooks Not Connected"}
+                </span>
               </div>
-              <span className="text-sm text-muted-foreground">
-                Last synced: Today at 2:30 PM
-              </span>
+              {qbStatus?.connected && (
+                <span className="text-sm text-muted-foreground">
+                  Last synced: {formatRelativeTime(qbStatus.lastSync)}
+                </span>
+              )}
             </div>
             <Button variant="outline" size="sm" asChild>
-              <Link href="/admin/settings">
-                Configure
-              </Link>
+              <Link href="/admin/settings">Configure</Link>
             </Button>
           </div>
         </CardContent>
@@ -217,24 +259,30 @@ export default function InvoicesPage() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search by invoice #, company, or job..."
+            placeholder="Search current page..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
           <SelectTrigger className="w-[150px]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="paid">Paid</SelectItem>
-            <SelectItem value="unpaid">Unpaid</SelectItem>
-            <SelectItem value="overdue">Overdue</SelectItem>
+            <SelectItem value="paid">
+              Paid {statusCounts?.paid ? `(${statusCounts.paid})` : ""}
+            </SelectItem>
+            <SelectItem value="unpaid">
+              Unpaid {statusCounts?.unpaid ? `(${statusCounts.unpaid})` : ""}
+            </SelectItem>
+            <SelectItem value="overdue">
+              Overdue {statusCounts?.overdue ? `(${statusCounts.overdue})` : ""}
+            </SelectItem>
           </SelectContent>
         </Select>
-        <Select value={linkedFilter} onValueChange={setLinkedFilter}>
+        <Select value={linkedFilter} onValueChange={handleLinkedFilterChange}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Linked Status" />
           </SelectTrigger>
@@ -262,61 +310,82 @@ export default function InvoicesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredInvoices.map((invoice) => (
+            {displayedInvoices.map((invoice) => (
               <TableRow key={invoice.id}>
                 <TableCell>
                   <span className="font-mono font-medium">
-                    {invoice.invoiceNumber}
+                    {invoice.invoice_number}
                   </span>
                 </TableCell>
                 <TableCell>
                   <Link
-                    href={`/admin/companies/${invoice.companyId}`}
+                    href={`/admin/companies/${invoice.company_id}`}
                     className="hover:underline"
                   >
-                    {invoice.companyName}
+                    {invoice.company_name}
                   </Link>
                 </TableCell>
                 <TableCell>
-                  {invoice.jobId ? (
-                    <Link
-                      href={`/admin/jobs/${invoice.jobId}`}
-                      className="font-mono text-sm hover:underline"
-                    >
-                      {invoice.jobId}
-                    </Link>
+                  {invoice.job_id ? (
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/admin/jobs/${invoice.job_id}`}
+                        className="font-mono text-sm hover:underline"
+                      >
+                        {invoice.job_number}
+                      </Link>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => handleLinkClick(invoice)}
+                        title="Change linked job"
+                      >
+                        <LinkIcon className="h-3 w-3" />
+                      </Button>
+                    </div>
                   ) : (
-                    <Button variant="ghost" size="sm" className="h-auto py-1 px-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto py-1 px-2"
+                      onClick={() => handleLinkClick(invoice)}
+                    >
                       <LinkIcon className="mr-1 h-3 w-3" />
                       Link to Job
                     </Button>
                   )}
                 </TableCell>
-                <TableCell>{invoice.date}</TableCell>
+                <TableCell>{formatDateShort(invoice.invoice_date)}</TableCell>
                 <TableCell>
                   <span
                     className={
                       invoice.status === "overdue" ? "text-red-500" : ""
                     }
                   >
-                    {invoice.dueDate}
+                    {formatDateShort(invoice.due_date)}
                   </span>
                 </TableCell>
                 <TableCell className="text-right font-medium">
                   ${invoice.amount.toLocaleString()}
                 </TableCell>
                 <TableCell>
-                  <StatusBadge status={invoice.status} />
+                  <StatusBadge status={invoice.status as InvoiceStatus} />
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" title="View in QuickBooks">
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" title="Download PDF">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="Download PDF"
+                    onClick={() => handleDownloadPdf(invoice)}
+                    disabled={!invoice.quickbooks_id || downloadingId === invoice.id}
+                  >
+                    {downloadingId === invoice.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
                       <Download className="h-4 w-4" />
-                    </Button>
-                  </div>
+                    )}
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}
@@ -324,16 +393,81 @@ export default function InvoicesPage() {
         </Table>
       </div>
 
-      {filteredInvoices.length === 0 && (
+      {displayedInvoices.length === 0 && (
         <div className="text-center py-12">
-          <p className="text-muted-foreground">No invoices found</p>
+          <p className="text-muted-foreground">
+            {(paginatedData?.total ?? 0) === 0
+              ? "No invoices synced yet. Click 'Sync Invoices' to import from QuickBooks."
+              : "No invoices found matching your filters."}
+          </p>
         </div>
       )}
 
-      {/* Results Count */}
-      <p className="text-sm text-muted-foreground">
-        Showing {filteredInvoices.length} of {invoices.length} invoices
-      </p>
+      {/* Pagination */}
+      {paginatedData && paginatedData.totalPages > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={paginatedData.totalPages}
+          totalItems={paginatedData.total}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
+      )}
+
+      {/* Link Invoice Dialog */}
+      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Link Invoice to Job</DialogTitle>
+            <DialogDescription>
+              {selectedInvoice && (
+                <>
+                  Link invoice{" "}
+                  <span className="font-mono font-medium">
+                    {selectedInvoice.invoice_number}
+                  </span>{" "}
+                  to a job from {selectedInvoice.company_name}.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Select
+              value={selectedJobId || "none"}
+              onValueChange={(v) => setSelectedJobId(v === "none" ? "" : v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a job..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No job (unlink)</SelectItem>
+                {availableJobs.map((job) => (
+                  <SelectItem key={job.id} value={job.id}>
+                    {job.job_number} - {job.location_summary}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {availableJobs.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No jobs found for this company.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLinkDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleLinkSubmit} disabled={linkInvoice.isPending}>
+              {linkInvoice.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              {selectedJobId ? "Link Invoice" : "Unlink Invoice"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

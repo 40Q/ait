@@ -1,8 +1,8 @@
-import Link from "next/link";
+"use client";
+
+import { useState, useMemo } from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -10,168 +10,137 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { StatusBadge, type InvoiceStatus } from "@/components/ui/status-badge";
-import { StatCard } from "@/components/ui/stat-card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Pagination } from "@/components/ui/pagination";
+import { InvoiceCard, InvoiceStats } from "@/components/invoices";
+import { Search } from "lucide-react";
 import {
-  Search,
-  Download,
-  ExternalLink,
-  DollarSign,
-  CheckCircle,
-  Clock,
-  Calendar,
-} from "lucide-react";
-
-interface Invoice {
-  id: string;
-  number: string;
-  jobId: string;
-  jobName: string;
-  date: string;
-  dueDate: string;
-  amount: number;
-  status: InvoiceStatus;
-}
-
-// Mock data
-const invoices: Invoice[] = [
-  {
-    id: "1",
-    number: "INV-2024-1234",
-    jobId: "W2512003",
-    jobName: "Q4 Office Equipment Recycling",
-    date: "Dec 15, 2024",
-    dueDate: "Jan 15, 2025",
-    amount: 1200,
-    status: "unpaid",
-  },
-  {
-    id: "2",
-    number: "INV-2024-1198",
-    jobId: "W2512002",
-    jobName: "Server Room Decommission",
-    date: "Dec 10, 2024",
-    dueDate: "Jan 10, 2025",
-    amount: 3500,
-    status: "paid",
-  },
-  {
-    id: "3",
-    number: "INV-2024-1156",
-    jobId: "W2512001",
-    jobName: "Laptop Trade-in Program",
-    date: "Dec 3, 2024",
-    dueDate: "Jan 3, 2025",
-    amount: 890,
-    status: "paid",
-  },
-  {
-    id: "4",
-    number: "INV-2024-1089",
-    jobId: "W2511002",
-    jobName: "Monitor Recycling Batch",
-    date: "Nov 25, 2024",
-    dueDate: "Dec 25, 2024",
-    amount: 450,
-    status: "overdue",
-  },
-];
-
-const totalInvoiced = invoices.reduce((sum, inv) => sum + inv.amount, 0);
-const totalPaid = invoices
-  .filter((inv) => inv.status === "paid")
-  .reduce((sum, inv) => sum + inv.amount, 0);
-const totalOutstanding = totalInvoiced - totalPaid;
-
-function InvoiceCard({ invoice }: { invoice: Invoice }) {
-  return (
-    <Card className="transition-colors hover:bg-muted/50">
-      <CardContent>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono font-medium">{invoice.number}</span>
-              <StatusBadge status={invoice.status} />
-            </div>
-            <div>
-              <Link
-                href={`/jobs/${invoice.jobId}`}
-                className="text-sm hover:text-primary hover:underline"
-              >
-                {invoice.jobId}
-              </Link>
-              <span className="text-sm text-muted-foreground"> - {invoice.jobName}</span>
-            </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5" />
-                {invoice.date}
-              </span>
-              <span className={invoice.status === "overdue" ? "text-destructive" : ""}>
-                Due: {invoice.dueDate}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between gap-4 sm:justify-end">
-            <span className="text-lg font-bold">
-              ${invoice.amount.toLocaleString()}
-            </span>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm">
-                <ExternalLink className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">View</span>
-              </Button>
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">PDF</span>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+  useInvoiceList,
+  useCurrentUser,
+  useRealtimeInvoices,
+  useDownloadInvoicePdf,
+  useInvoiceStats,
+  usePagination,
+} from "@/lib/hooks";
+import type { InvoiceListItem, InvoiceStatus, InvoiceFilters } from "@/lib/database/types";
+import { toast } from "sonner";
 
 export default function InvoicesPage() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  // Pagination
+  const { currentPage, pageSize, setPage, setPageSize } = usePagination({
+    initialPageSize: 10,
+  });
+
+  // Get current user's company
+  const { data: currentUser, isLoading: userLoading } = useCurrentUser();
+  const companyId = currentUser?.company_id;
+
+  // Build filters
+  const filters: InvoiceFilters | undefined = useMemo(() => {
+    if (!companyId) return undefined;
+    const f: InvoiceFilters = { company_id: companyId };
+    if (statusFilter !== "all") {
+      f.status = statusFilter as InvoiceStatus;
+    }
+    return f;
+  }, [companyId, statusFilter]);
+
+  // Fetch paginated invoices
+  const { data: paginatedData, isLoading: invoicesLoading } = useInvoiceList(
+    filters,
+    currentPage,
+    pageSize
+  );
+
+  // Fetch stats (server-side calculation)
+  const { data: stats } = useInvoiceStats(companyId ?? undefined);
+
+  // PDF download
+  const { downloadPdf, downloadingId } = useDownloadInvoicePdf();
+
+  // Real-time updates
+  useRealtimeInvoices(companyId ?? undefined);
+
+  // Client-side search filtering on current page
+  const displayedInvoices = useMemo(() => {
+    const invoices = paginatedData?.data ?? [];
+    if (!searchQuery) return invoices;
+
+    const searchLower = searchQuery.toLowerCase();
+    return invoices.filter((invoice) =>
+      invoice.invoice_number.toLowerCase().includes(searchLower) ||
+      (invoice.job_number?.toLowerCase().includes(searchLower) ?? false)
+    );
+  }, [paginatedData?.data, searchQuery]);
+
+  // Reset to first page when status filter changes
+  const handleStatusFilterChange = (value: string) => {
+    setStatusFilter(value);
+    setPage(1);
+  };
+
+  const handleDownloadPdf = async (invoice: InvoiceListItem) => {
+    try {
+      await downloadPdf(invoice);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to download PDF");
+    }
+  };
+
+  const isLoading = userLoading || invoicesLoading;
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Invoices"
+          description="View and manage all your invoices"
+        />
+        <div className="grid gap-4 sm:grid-cols-3">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
+        </div>
+        <Skeleton className="h-12" />
+        <div className="space-y-3">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Invoices"
         description="View and manage all your invoices"
-      ></PageHeader>
+      />
 
       {/* Summary Stats */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard
-          title="Total Invoiced"
-          value={`$${totalInvoiced.toLocaleString()}`}
-          icon={DollarSign}
-        />
-        <StatCard
-          title="Total Paid"
-          value={`$${totalPaid.toLocaleString()}`}
-          icon={CheckCircle}
-        />
-        <StatCard
-          title="Outstanding"
-          value={`$${totalOutstanding.toLocaleString()}`}
-          description={`${invoices.filter((i) => i.status !== "paid").length} invoices`}
-          icon={Clock}
-        />
-      </div>
+      <InvoiceStats
+        totalAmount={stats?.totalAmount ?? 0}
+        paidAmount={stats?.paidAmount ?? 0}
+        unpaidAmount={stats?.unpaidAmount ?? 0}
+        unpaidCount={stats?.unpaidCount ?? 0}
+      />
 
       {/* Filters */}
       <div className="flex flex-col gap-4 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search by job..."
+            placeholder="Search current page..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
           />
         </div>
-        <Select defaultValue="all">
+        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
           <SelectTrigger className="w-full sm:w-40">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
@@ -182,38 +151,42 @@ export default function InvoicesPage() {
             <SelectItem value="overdue">Overdue</SelectItem>
           </SelectContent>
         </Select>
-        <Select defaultValue="all">
-          <SelectTrigger className="w-full sm:w-40">
-            <SelectValue placeholder="Date Range" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Time</SelectItem>
-            <SelectItem value="30">Last 30 days</SelectItem>
-            <SelectItem value="90">Last 90 days</SelectItem>
-            <SelectItem value="year">This Year</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Invoices List */}
-      <div className="space-y-3">
-        {invoices.map((invoice) => (
-          <InvoiceCard key={invoice.id} invoice={invoice} />
-        ))}
-      </div>
+      {displayedInvoices.length > 0 ? (
+        <div className="space-y-3">
+          {displayedInvoices.map((invoice) => (
+            <InvoiceCard
+              key={invoice.id}
+              invoice={invoice}
+              onDownloadPdf={handleDownloadPdf}
+              isDownloading={downloadingId === invoice.id}
+              linkPrefix="/jobs"
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">
+            {(paginatedData?.total ?? 0) === 0
+              ? "No invoices found. Invoices will appear here once they are synced from QuickBooks."
+              : "No invoices found matching your filters."}
+          </p>
+        </div>
+      )}
 
       {/* Pagination */}
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>Showing 1-{invoices.length} of {invoices.length} invoices</span>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" disabled>
-            Previous
-          </Button>
-          <Button variant="outline" size="sm" disabled>
-            Next
-          </Button>
-        </div>
-      </div>
+      {paginatedData && paginatedData.totalPages > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={paginatedData.totalPages}
+          totalItems={paginatedData.total}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
+      )}
     </div>
   );
 }

@@ -81,10 +81,28 @@ export type { LocalMaterialsFormData } from "./use-submit-materials";
 // Timeline hooks
 export { useTimeline, useRequestFullTimeline, useCreateTimelineEvent } from "./use-timeline";
 
+// Invoice hooks
+export {
+  useInvoiceList,
+  useInvoice,
+  useJobInvoices,
+  useInvoiceStatusCounts,
+  useUpdateInvoice,
+  useLinkInvoiceToJob,
+  useSyncInvoices,
+  useQuickBooksStatus,
+  useDisconnectQuickBooks,
+  useRealtimeInvoices,
+  useDownloadInvoicePdf,
+  useInvoiceStats,
+  useInvoiceFilters,
+} from "./use-invoices";
+
 // Utility hooks
 export { useListPage, useTabFilter } from "./use-list-page";
 export { useFormSubmit } from "./use-form-submit";
 export { useDocumentOperations } from "./use-document-operations";
+export { usePagination } from "./use-pagination";
 
 // Calendar hooks
 export { useCalendarNavigation, useCalendarJobs } from "./use-calendar";

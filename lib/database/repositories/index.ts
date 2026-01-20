@@ -7,3 +7,4 @@ export { JobRepository } from "./jobs";
 export { DocumentRepository } from "./documents";
 export { CompanyRepository } from "./companies";
 export { TimelineRepository } from "./timeline";
+export { InvoiceRepository } from "./invoices";
