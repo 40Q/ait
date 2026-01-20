@@ -34,7 +34,7 @@ export function useDocumentOperations({
     try {
       setIsLoading(true);
       setError(null);
-      const signedUrl = await getSignedUrl(supabase, bucket, filePath, 60);
+      const signedUrl = await getSignedUrl(supabase, bucket, filePath);
       window.open(signedUrl, "_blank");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to view document";
@@ -49,7 +49,7 @@ export function useDocumentOperations({
     try {
       setIsLoading(true);
       setError(null);
-      const signedUrl = await getSignedUrl(supabase, bucket, filePath, 60);
+      const signedUrl = await getSignedUrl(supabase, bucket, filePath);
 
       const link = document.createElement("a");
       link.href = signedUrl;

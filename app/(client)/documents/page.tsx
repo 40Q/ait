@@ -58,8 +58,7 @@ export default function DocumentsPage() {
       const signedUrl = await getSignedUrl(
         supabase,
         STORAGE_BUCKETS.DOCUMENTS,
-        filePath,
-        60
+        filePath
       );
       window.open(signedUrl, "_blank");
     } catch (error) {

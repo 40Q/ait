@@ -202,7 +202,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
 
   const handleViewDocument = async (filePath: string) => {
     try {
-      const signedUrl = await getSignedUrl(supabase, STORAGE_BUCKETS.DOCUMENTS, filePath, 60);
+      const signedUrl = await getSignedUrl(supabase, STORAGE_BUCKETS.DOCUMENTS, filePath);
       window.open(signedUrl, "_blank");
     } catch (error) {
       console.error("Failed to view document:", error);
