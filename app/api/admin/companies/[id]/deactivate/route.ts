@@ -10,9 +10,9 @@ interface RouteParams {
 /**
  * POST /api/admin/companies/[id]/deactivate
  *
- * Deactivates a company and removes all associated users.
+ * Deactivates a company and bans all associated users.
  * - Sets company status to 'inactive'
- * - Deletes all auth users linked to the company
+ * - Bans all auth users linked to the company (prevents login)
  *
  * Requires: Admin authentication
  */
@@ -62,28 +62,29 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Delete all users associated with this company using admin API
+    // Ban all users associated with this company
     const adminClient = createAdminClient();
-    const deletedUsers: string[] = [];
+    const deactivatedUsers: string[] = [];
     const failedUsers: string[] = [];
 
     for (const profile of profiles || []) {
-      const { error: deleteError } = await adminClient.auth.admin.deleteUser(
-        profile.id
+      const { error: banError } = await adminClient.auth.admin.updateUserById(
+        profile.id,
+        { ban_duration: "876600h" } // ~100 years
       );
 
-      if (deleteError) {
-        console.error(`Error deleting user ${profile.email}:`, deleteError);
+      if (banError) {
+        console.error(`Error deactivating user ${profile.email}:`, banError);
         failedUsers.push(profile.email);
       } else {
-        deletedUsers.push(profile.email);
+        deactivatedUsers.push(profile.email);
       }
     }
 
     return NextResponse.json({
       success: true,
       message: "Company deactivated successfully",
-      deletedUsers: deletedUsers.length,
+      deactivatedUsers: deactivatedUsers.length,
       failedUsers: failedUsers.length > 0 ? failedUsers : undefined,
     });
   } catch (error) {

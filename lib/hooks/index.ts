@@ -65,6 +65,7 @@ export {
 
 // Admin hooks
 export { useInviteUser } from "./use-invite-user";
+export { useDeactivateUser } from "./use-deactivate-user";
 
 // User hooks
 export { useCurrentUser } from "./use-current-user";

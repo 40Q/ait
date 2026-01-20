@@ -34,12 +34,14 @@ import {
   Mail,
   AlertTriangle,
   Users,
+  Trash2,
 } from "lucide-react";
 import {
   useCompany,
   useCompanyUsers,
   useUpdateCompany,
   useInviteUser,
+  useDeactivateUser,
 } from "@/lib/hooks";
 import { LocationsSection } from "@/components/locations";
 import type { CompanyStatus } from "@/lib/database/types";
@@ -69,6 +71,7 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
   const { data: companyUsers = [], refetch: refetchUsers } = useCompanyUsers(id);
   const updateCompany = useUpdateCompany();
   const inviteUser = useInviteUser();
+  const deactivateUser = useDeactivateUser();
 
   const [formData, setFormData] = useState<CompanyFormData>({
     name: "",
@@ -96,6 +99,7 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
   const [deactivateError, setDeactivateError] = useState<string | null>(null);
   const [deactivateSuccess, setDeactivateSuccess] = useState(false);
   const [showReactivateConfirm, setShowReactivateConfirm] = useState(false);
+  const [userToDeactivate, setUserToDeactivate] = useState<{ id: string; email: string } | null>(null);
 
   // Populate form when company data loads
   useEffect(() => {
@@ -234,6 +238,17 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
       setDeactivateError("An unexpected error occurred");
       setIsDeactivating(false);
     }
+  };
+
+  const handleDeactivateUser = () => {
+    if (!userToDeactivate) return;
+
+    deactivateUser.mutate(userToDeactivate.id, {
+      onSuccess: () => {
+        setUserToDeactivate(null);
+        refetchUsers();
+      },
+    });
   };
 
   const canSubmit = formData.name;
@@ -533,9 +548,26 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
               {companyUsers.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No users yet</p>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  {companyUsers.map((u) => u.email).join(", ")}
-                </p>
+                <ul className="space-y-2">
+                  {companyUsers.map((user) => (
+                    <li
+                      key={user.id}
+                      className="flex items-center justify-between text-sm"
+                    >
+                      <span className="text-muted-foreground truncate flex-1 mr-2">
+                        {user.email}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={() => setUserToDeactivate({ id: user.id, email: user.email })}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
               )}
             </CardContent>
           </Card>
@@ -686,6 +718,37 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmReactivation}>
               Reactivate & Invite
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Deactivate User Confirmation Dialog */}
+      <AlertDialog open={!!userToDeactivate} onOpenChange={(open) => !open && setUserToDeactivate(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deactivate User?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <span className="block">
+                Are you sure you want to deactivate <strong>{userToDeactivate?.email}</strong>?
+              </span>
+              <span className="block">
+                They will no longer be able to access the portal. All data will be preserved.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deactivateUser.error && (
+            <p className="text-sm text-destructive">{deactivateUser.error.message}</p>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deactivateUser.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeactivateUser}
+              disabled={deactivateUser.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deactivateUser.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Deactivate
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
