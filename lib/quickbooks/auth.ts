@@ -1,4 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js";
+import { createHmac, timingSafeEqual } from "crypto";
 
 // QuickBooks OAuth configuration
 export const QB_CONFIG = {
@@ -44,9 +45,6 @@ export function getAuthorizationUrl(state: string): string {
     scope: "com.intuit.quickbooks.accounting",
     state,
   });
-
-  console.log("QuickBooks redirect_uri:", QB_CONFIG.redirectUri);
-  console.log("QuickBooks auth URL:", `${endpoint}?${params.toString()}`);
 
   return `${endpoint}?${params.toString()}`;
 }
@@ -222,6 +220,54 @@ export async function getValidAccessToken(
 }
 
 /**
+ * Get a valid access token for a specific realm, refreshing if necessary.
+ * Used by webhook handlers that need to process events for a specific realm.
+ */
+export async function getValidAccessTokenForRealm(
+  supabase: SupabaseClient,
+  realmId: string
+): Promise<{ accessToken: string; realmId: string } | null> {
+  const { data: tokens, error } = await supabase
+    .from("quickbooks_tokens")
+    .select("*")
+    .eq("realm_id", realmId)
+    .single();
+
+  if (error || !tokens) return null;
+
+  const now = new Date();
+  const accessTokenExpiry = new Date(tokens.access_token_expires_at);
+  const refreshTokenExpiry = new Date(tokens.refresh_token_expires_at);
+
+  // Check if refresh token is expired
+  if (refreshTokenExpiry < now) {
+    return null;
+  }
+
+  // Check if access token is expired or about to expire (5 min buffer)
+  const bufferTime = 5 * 60 * 1000; // 5 minutes
+  if (accessTokenExpiry.getTime() - bufferTime < now.getTime()) {
+    // Refresh the token
+    try {
+      const newTokens = await refreshAccessToken(tokens.refresh_token);
+      await storeTokens(
+        supabase,
+        tokens.realm_id,
+        newTokens.access_token,
+        newTokens.refresh_token,
+        newTokens.expires_in,
+        newTokens.x_refresh_token_expires_in
+      );
+      return { accessToken: newTokens.access_token, realmId: tokens.realm_id };
+    } catch {
+      return null;
+    }
+  }
+
+  return { accessToken: tokens.access_token, realmId: tokens.realm_id };
+}
+
+/**
  * Delete tokens from the database
  */
 export async function deleteTokens(supabase: SupabaseClient): Promise<void> {
@@ -233,22 +279,27 @@ export async function deleteTokens(supabase: SupabaseClient): Promise<void> {
 }
 
 /**
- * Verify webhook signature
+ * Verify webhook signature using timing-safe comparison
  */
 export function verifyWebhookSignature(
   payload: string,
   signature: string
 ): boolean {
-  if (!QB_CONFIG.webhookVerifierToken) {
-    console.warn("No webhook verifier token configured");
+  if (!QB_CONFIG.webhookVerifierToken || !signature) {
     return false;
   }
 
-  const crypto = require("crypto");
-  const hash = crypto
-    .createHmac("sha256", QB_CONFIG.webhookVerifierToken)
+  const expectedSignature = createHmac("sha256", QB_CONFIG.webhookVerifierToken)
     .update(payload)
     .digest("base64");
 
-  return hash === signature;
+  // Use timing-safe comparison to prevent timing attacks
+  const sigBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expectedSignature);
+
+  if (sigBuffer.length !== expectedBuffer.length) {
+    return false;
+  }
+
+  return timingSafeEqual(sigBuffer, expectedBuffer);
 }

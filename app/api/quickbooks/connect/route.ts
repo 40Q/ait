@@ -1,8 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/auth/helpers";
 import { getAuthorizationUrl } from "@/lib/quickbooks/auth";
 import { randomBytes } from "crypto";
+
+// Cookie name for OAuth state
+export const QB_STATE_COOKIE = "qb_oauth_state";
 
 /**
  * GET /api/quickbooks/connect
@@ -12,7 +15,7 @@ import { randomBytes } from "crypto";
  *
  * Requires: Admin authentication
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -28,14 +31,23 @@ export async function GET() {
     }
 
     // Generate a random state parameter for CSRF protection
-    const state = randomBytes(16).toString("hex");
-
-    // TODO: Store state in session/cookie for validation in callback
-    // For now, we'll skip state validation in the callback
+    const state = randomBytes(32).toString("hex");
 
     const authUrl = getAuthorizationUrl(state);
 
-    return NextResponse.redirect(authUrl);
+    // Create response with redirect
+    const response = NextResponse.redirect(authUrl);
+
+    // Store state in an HTTP-only cookie for validation in callback
+    response.cookies.set(QB_STATE_COOKIE, state, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 600, // 10 minutes
+      path: "/",
+    });
+
+    return response;
   } catch (error) {
     console.error("QuickBooks connect error:", error);
     return NextResponse.json(

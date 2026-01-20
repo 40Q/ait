@@ -36,6 +36,7 @@ import {
   Users,
   Trash2,
 } from "lucide-react";
+import { QuickBooksCustomerSelect } from "@/components/ui/quickbooks-customer-select";
 import {
   useCompany,
   useCompanyUsers,
@@ -86,10 +87,6 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
     accountsPayableEmail: "",
     accountsPayablePhone: "",
   });
-  const [isTestingQB, setIsTestingQB] = useState(false);
-  const [qbTestResult, setQbTestResult] = useState<"success" | "error" | null>(
-    null
-  );
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteFullName, setInviteFullName] = useState("");
   const [inviteSuccess, setInviteSuccess] = useState(false);
@@ -123,18 +120,6 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
   const handleChange = (data: Partial<CompanyFormData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
     setSaveSuccess(false);
-    if (data.quickbooksCustomerId !== undefined) {
-      setQbTestResult(null);
-    }
-  };
-
-  const testQuickBooksConnection = async () => {
-    if (!formData.quickbooksCustomerId) return;
-
-    setIsTestingQB(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setQbTestResult(Math.random() > 0.2 ? "success" : "error");
-    setIsTestingQB(false);
   };
 
   const handleSubmit = async () => {
@@ -443,66 +428,33 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
             <CardHeader>
               <CardTitle>QuickBooks Integration</CardTitle>
               <CardDescription>
-                Link this company to QuickBooks for invoice syncing
+                Link this company to a QuickBooks customer for invoice syncing
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="quickbooksCustomerId">
-                  QuickBooks Customer ID
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="quickbooksCustomerId"
-                    value={formData.quickbooksCustomerId}
-                    onChange={(e) =>
-                      handleChange({ quickbooksCustomerId: e.target.value })
-                    }
-                    placeholder="QB-12345"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={testQuickBooksConnection}
-                    disabled={!formData.quickbooksCustomerId || isTestingQB}
-                  >
-                    {isTestingQB ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="mr-2 h-4 w-4" />
-                    )}
-                    Test
-                  </Button>
-                </div>
-                {qbTestResult === "success" && (
-                  <p className="text-xs text-green-600 flex items-center gap-1">
-                    <CheckCircle2 className="h-3 w-3" />
-                    Connection successful
-                  </p>
-                )}
-                {qbTestResult === "error" && (
-                  <p className="text-xs text-red-600">
-                    Connection failed - Customer ID not found
-                  </p>
-                )}
+                <Label>QuickBooks Customer</Label>
+                <QuickBooksCustomerSelect
+                  value={formData.quickbooksCustomerId}
+                  onChange={(customerId) =>
+                    handleChange({ quickbooksCustomerId: customerId })
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  Search and select a customer from QuickBooks to link invoices
+                </p>
               </div>
 
-              {company.quickbooks_status === "connected" && (
+              {company.quickbooks_status === "connected" && formData.quickbooksCustomerId && (
                 <div className="rounded-lg bg-muted p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-green-500" />
-                      <span className="text-sm font-medium">
-                        Connected to QuickBooks
-                      </span>
-                    </div>
-                    <Button variant="ghost" size="sm">
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      View in QuickBooks
-                    </Button>
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-green-500" />
+                    <span className="text-sm font-medium">
+                      Linked to QuickBooks
+                    </span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
-                    Last synced: Today at 2:30 PM
+                    Customer ID: {formData.quickbooksCustomerId}
                   </p>
                 </div>
               )}

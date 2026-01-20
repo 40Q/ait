@@ -50,12 +50,6 @@ export async function POST() {
     // Fetch all invoices from QuickBooks
     const qbInvoices = await client.getInvoices();
 
-    // Log invoices and their customer IDs for debugging
-    console.log("QuickBooks invoices found:", qbInvoices.length);
-    for (const inv of qbInvoices) {
-      console.log(`  Invoice ${inv.DocNumber}: Customer ID = ${inv.CustomerRef.value} (${inv.CustomerRef.name})`);
-    }
-
     // Get all companies with QuickBooks customer IDs
     const { data: companies, error: companiesError } = await supabase
       .from("companies")

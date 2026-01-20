@@ -146,6 +146,21 @@ export class QuickBooksClient {
   }
 
   /**
+   * Search customers by name
+   */
+  async searchCustomers(searchTerm: string): Promise<QuickBooksCustomer[]> {
+    // QuickBooks uses LIKE with % wildcard for partial matching
+    const escapedTerm = searchTerm.replace(/'/g, "\\'");
+    const query = `SELECT * FROM Customer WHERE DisplayName LIKE '%${escapedTerm}%' MAXRESULTS 25`;
+
+    const response = await this.request<{
+      QueryResponse: { Customer?: QuickBooksCustomer[] };
+    }>(`/query?query=${encodeURIComponent(query)}`);
+
+    return response.QueryResponse.Customer || [];
+  }
+
+  /**
    * Get a single customer by ID
    */
   async getCustomer(customerId: string): Promise<QuickBooksCustomer> {

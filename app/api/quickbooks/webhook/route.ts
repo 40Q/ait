@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { verifyWebhookSignature } from "@/lib/quickbooks/auth";
+import { verifyWebhookSignature, getValidAccessTokenForRealm } from "@/lib/quickbooks/auth";
 import { QuickBooksClient, getInvoiceStatus } from "@/lib/quickbooks/client";
 
 interface WebhookPayload {
@@ -26,21 +26,14 @@ interface WebhookPayload {
  * Note: Uses service role client since this is a server-to-server call.
  */
 export async function POST(request: NextRequest) {
-  console.log("=== QuickBooks Webhook Received ===");
   try {
     const payload = await request.text();
     const signature = request.headers.get("intuit-signature") || "";
 
-    console.log("Webhook payload:", payload);
-    console.log("Webhook signature:", signature);
-
     // Verify webhook signature
     if (!verifyWebhookSignature(payload, signature)) {
-      console.warn("Invalid webhook signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
-
-    console.log("Webhook signature verified!");
 
     const data: WebhookPayload = JSON.parse(payload);
 
@@ -51,28 +44,17 @@ export async function POST(request: NextRequest) {
     for (const notification of data.eventNotifications) {
       const { realmId, dataChangeEvent } = notification;
 
-      // Get tokens for this realm
-      const { data: tokenData } = await supabase
-        .from("quickbooks_tokens")
-        .select("*")
-        .eq("realm_id", realmId)
-        .single();
+      // Get valid access token for this realm (refreshes if expired)
+      const tokenInfo = await getValidAccessTokenForRealm(supabase, realmId);
 
-      if (!tokenData) {
-        console.warn(`No tokens found for realm: ${realmId}`);
-        continue;
-      }
-
-      // Check if token is still valid (basic check)
-      const tokenExpiry = new Date(tokenData.access_token_expires_at);
-      if (tokenExpiry < new Date()) {
-        console.warn(`Token expired for realm: ${realmId}`);
+      if (!tokenInfo) {
+        console.error(`No valid tokens for realm ${realmId}`);
         continue;
       }
 
       const client = new QuickBooksClient(
-        tokenData.access_token,
-        tokenData.realm_id
+        tokenInfo.accessToken,
+        tokenInfo.realmId
       );
 
       // Get companies map
@@ -93,7 +75,6 @@ export async function POST(request: NextRequest) {
         if (entity.name !== "Invoice") continue;
 
         if (entity.operation === "Delete" || entity.operation === "Void") {
-          // Delete the invoice from our database
           await supabase
             .from("invoices")
             .delete()
@@ -128,8 +109,8 @@ export async function POST(request: NextRequest) {
                 onConflict: "quickbooks_id",
               }
             );
-          } catch (error) {
-            console.error(`Failed to sync invoice ${entity.id}:`, error);
+          } catch {
+            // Invoice fetch failed - may have been deleted
           }
         }
       }
