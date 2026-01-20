@@ -31,8 +31,6 @@ export interface QuoteRow {
   company_id: string;
   created_by: string;
   status: QuoteStatus;
-  pickup_date: string | null;
-  pickup_time_window: string | null;
   valid_until: string;
   subtotal: number;
   discount: number;
@@ -59,13 +57,9 @@ export type QuoteInsert = Omit<
   | "accepted_by"
   | "signature_name"
   | "sent_at"
-  | "pickup_date"
-  | "pickup_time_window"
 > & {
   id?: string;
   quote_number?: string;
-  pickup_date?: string | null;
-  pickup_time_window?: string | null;
 };
 
 export type QuoteUpdate = Partial<

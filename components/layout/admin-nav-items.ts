@@ -7,6 +7,7 @@ import {
   FolderOpen,
   Receipt,
   Settings,
+  Calendar,
   LucideIcon,
 } from "lucide-react";
 
@@ -44,18 +45,23 @@ export const adminNavItems: AdminNavItem[] = [
     icon: Briefcase,
   },
   {
+    title: "Calendar",
+    href: "/admin/calendar",
+    icon: Calendar,
+  },
+  {
     title: "Documents",
     href: "/admin/documents",
     icon: FolderOpen,
   },
-  // {
-  //   title: "Invoices",
-  //   href: "/admin/invoices",
-  //   icon: Receipt,
-  // },
-  // {
-  //   title: "Settings",
-  //   href: "/admin/settings",
-  //   icon: Settings,
-  // },
+  {
+    title: "Invoices",
+    href: "/admin/invoices",
+    icon: Receipt,
+  },
+  {
+    title: "Settings",
+    href: "/admin/settings",
+    icon: Settings,
+  },
 ];

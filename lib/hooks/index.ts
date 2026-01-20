@@ -85,3 +85,6 @@ export { useTimeline, useRequestFullTimeline, useCreateTimelineEvent } from "./u
 export { useListPage, useTabFilter } from "./use-list-page";
 export { useFormSubmit } from "./use-form-submit";
 export { useDocumentOperations } from "./use-document-operations";
+
+// Calendar hooks
+export { useCalendarNavigation, useCalendarJobs } from "./use-calendar";
