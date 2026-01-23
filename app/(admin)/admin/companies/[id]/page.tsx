@@ -45,20 +45,12 @@ import {
   useDeactivateUser,
 } from "@/lib/hooks";
 import { LocationsSection } from "@/components/locations";
+import { useFormValidation } from "@/lib/hooks/use-form-validation";
+import { companyFormSchema, type CompanyFormInput } from "@/lib/validation";
 import type { CompanyStatus } from "@/lib/database/types";
 
-interface CompanyFormData {
-  name: string;
-  contactEmail: string;
-  phone: string;
-  address: string;
-  city: string;
-  state: string;
-  zip: string;
-  quickbooksCustomerId: string;
+interface CompanyFormData extends CompanyFormInput {
   status: CompanyStatus;
-  accountsPayableEmail: string;
-  accountsPayablePhone: string;
 }
 
 interface CompanyDetailPageProps {
@@ -73,6 +65,7 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
   const updateCompany = useUpdateCompany();
   const inviteUser = useInviteUser();
   const deactivateUser = useDeactivateUser();
+  const { errors, validate, clearFieldError } = useFormValidation<CompanyFormInput>(companyFormSchema);
 
   const [formData, setFormData] = useState<CompanyFormData>({
     name: "",
@@ -120,23 +113,32 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
   const handleChange = (data: Partial<CompanyFormData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
     setSaveSuccess(false);
+    // Clear errors for changed fields
+    Object.keys(data).forEach((key) => {
+      clearFieldError(key as keyof CompanyFormInput);
+    });
   };
 
   const handleSubmit = async () => {
+    const result = validate(formData);
+    if (!result.success) {
+      return;
+    }
+
     updateCompany.mutate(
       {
         id,
         data: {
-          name: formData.name,
-          contact_email: formData.contactEmail || null,
-          phone: formData.phone || null,
-          address: formData.address || null,
-          city: formData.city || null,
-          state: formData.state || null,
-          zip: formData.zip || null,
-          quickbooks_customer_id: formData.quickbooksCustomerId || null,
-          accounts_payable_email: formData.accountsPayableEmail || null,
-          accounts_payable_phone: formData.accountsPayablePhone || null,
+          name: result.data.name,
+          contact_email: result.data.contactEmail || null,
+          phone: result.data.phone || null,
+          address: result.data.address || null,
+          city: result.data.city || null,
+          state: result.data.state || null,
+          zip: result.data.zip || null,
+          quickbooks_customer_id: result.data.quickbooksCustomerId || null,
+          accounts_payable_email: result.data.accountsPayableEmail || null,
+          accounts_payable_phone: result.data.accountsPayablePhone || null,
         },
       },
       {
@@ -236,7 +238,6 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
     });
   };
 
-  const canSubmit = formData.name;
   const isActive = company?.status === "active";
 
   if (isLoading) {
@@ -328,7 +329,11 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
                   id="name"
                   value={formData.name}
                   onChange={(e) => handleChange({ name: e.target.value })}
+                  aria-invalid={!!errors.name}
                 />
+                {errors.name && (
+                  <p className="text-sm text-destructive">{errors.name}</p>
+                )}
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -341,7 +346,11 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
                     onChange={(e) =>
                       handleChange({ contactEmail: e.target.value })
                     }
+                    aria-invalid={!!errors.contactEmail}
                   />
+                  {errors.contactEmail && (
+                    <p className="text-sm text-destructive">{errors.contactEmail}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone</Label>
@@ -350,7 +359,11 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => handleChange({ phone: e.target.value })}
+                    aria-invalid={!!errors.phone}
                   />
+                  {errors.phone && (
+                    <p className="text-sm text-destructive">{errors.phone}</p>
+                  )}
                 </div>
               </div>
 
@@ -360,7 +373,11 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
                   id="address"
                   value={formData.address}
                   onChange={(e) => handleChange({ address: e.target.value })}
+                  aria-invalid={!!errors.address}
                 />
+                {errors.address && (
+                  <p className="text-sm text-destructive">{errors.address}</p>
+                )}
               </div>
 
               <div className="grid gap-4 sm:grid-cols-3">
@@ -370,7 +387,11 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
                     id="city"
                     value={formData.city}
                     onChange={(e) => handleChange({ city: e.target.value })}
+                    aria-invalid={!!errors.city}
                   />
+                  {errors.city && (
+                    <p className="text-sm text-destructive">{errors.city}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="state">State</Label>
@@ -378,7 +399,11 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
                     id="state"
                     value={formData.state}
                     onChange={(e) => handleChange({ state: e.target.value })}
+                    aria-invalid={!!errors.state}
                   />
+                  {errors.state && (
+                    <p className="text-sm text-destructive">{errors.state}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="zip">ZIP Code</Label>
@@ -386,7 +411,11 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
                     id="zip"
                     value={formData.zip}
                     onChange={(e) => handleChange({ zip: e.target.value })}
+                    aria-invalid={!!errors.zip}
                   />
+                  {errors.zip && (
+                    <p className="text-sm text-destructive">{errors.zip}</p>
+                  )}
                 </div>
               </div>
 
@@ -404,7 +433,11 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
                         handleChange({ accountsPayableEmail: e.target.value })
                       }
                       placeholder="ap@company.com"
+                      aria-invalid={!!errors.accountsPayableEmail}
                     />
+                    {errors.accountsPayableEmail && (
+                      <p className="text-sm text-destructive">{errors.accountsPayableEmail}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="accountsPayablePhone">AP Phone</Label>
@@ -416,7 +449,11 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
                         handleChange({ accountsPayablePhone: e.target.value })
                       }
                       placeholder="(555) 123-4567"
+                      aria-invalid={!!errors.accountsPayablePhone}
                     />
+                    {errors.accountsPayablePhone && (
+                      <p className="text-sm text-destructive">{errors.accountsPayablePhone}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -465,7 +502,7 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
 
           {/* Save Button */}
           <div className="flex items-center gap-4">
-            <Button onClick={handleSubmit} disabled={!canSubmit || updateCompany.isPending}>
+            <Button onClick={handleSubmit} disabled={updateCompany.isPending}>
               {updateCompany.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save Changes
             </Button>

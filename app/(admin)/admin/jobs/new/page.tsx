@@ -18,6 +18,8 @@ import {
 import { CompanySelect } from "@/components/ui/company-select";
 import { ArrowLeft, Loader2, Plus, Trash2 } from "lucide-react";
 import { useCreateJob } from "@/lib/hooks";
+import { useFormValidation } from "@/lib/hooks/use-form-validation";
+import { jobFormSchema, type JobFormInput } from "@/lib/validation";
 import type { EquipmentItem, Location, Contact } from "@/lib/database/types";
 
 interface JobFormData {
@@ -70,11 +72,18 @@ const availableServices = [
 export default function NewJobPage() {
   const router = useRouter();
   const createJob = useCreateJob();
+  const { errors, validate, clearFieldError } = useFormValidation<JobFormInput>(jobFormSchema);
 
   const [formData, setFormData] = useState<JobFormData>(initialFormData);
 
   const handleChange = (data: Partial<JobFormData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
+    // Clear errors for changed fields
+    Object.keys(data).forEach((key) => {
+      if (key in jobFormSchema.shape) {
+        clearFieldError(key as keyof JobFormInput);
+      }
+    });
   };
 
   const addEquipmentItem = () => {
@@ -110,29 +119,49 @@ export default function NewJobPage() {
   };
 
   const handleSubmit = () => {
-    const location: Location = {
+    // Validate form fields
+    const result = validate({
+      company_id: formData.company_id,
+      pickup_date: formData.pickup_date,
+      pickup_time_window: formData.pickup_time_window,
+      logistics_person_name: formData.logistics_person_name,
       address: formData.address,
       city: formData.city,
       state: formData.state,
       zip_code: formData.zip_code,
-      building_info: formData.building_info || undefined,
+      building_info: formData.building_info,
+      contact_name: formData.contact_name,
+      contact_email: formData.contact_email,
+      contact_phone: formData.contact_phone,
+    });
+
+    if (!result.success) {
+      return;
+    }
+
+    const location: Location = {
+      address: result.data.address,
+      city: result.data.city,
+      state: result.data.state,
+      zip_code: result.data.zip_code,
+      building_info: result.data.building_info || undefined,
     };
 
     const contact: Contact = {
-      name: formData.contact_name,
-      email: formData.contact_email,
-      phone: formData.contact_phone,
+      name: result.data.contact_name,
+      email: result.data.contact_email,
+      phone: result.data.contact_phone,
     };
 
     createJob.mutate(
       {
-        company_id: formData.company_id,
+        company_id: result.data.company_id,
         quote_id: null,
         request_id: null,
         status: "pickup_scheduled",
-        pickup_date: formData.pickup_date,
-        pickup_time_window: formData.pickup_time_window || null,
-        logistics_person_name: formData.logistics_person_name || null,
+        pickup_date: result.data.pickup_date,
+        pickup_time_window: result.data.pickup_time_window || null,
+        logistics_person_name: result.data.logistics_person_name || null,
         location,
         contact,
         equipment: formData.equipment.filter((e) => e.type),
@@ -144,12 +173,6 @@ export default function NewJobPage() {
       }
     );
   };
-
-  const canSubmit =
-    formData.company_id &&
-    formData.pickup_date &&
-    formData.address &&
-    formData.contact_name;
 
   return (
     <div className="space-y-6">
@@ -180,6 +203,9 @@ export default function NewJobPage() {
                 onValueChange={(value) => handleChange({ company_id: value })}
                 placeholder="Search for a company..."
               />
+              {errors.company_id && (
+                <p className="text-sm text-destructive">{errors.company_id}</p>
+              )}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -190,7 +216,11 @@ export default function NewJobPage() {
                   type="date"
                   value={formData.pickup_date}
                   onChange={(e) => handleChange({ pickup_date: e.target.value })}
+                  aria-invalid={!!errors.pickup_date}
                 />
+                {errors.pickup_date && (
+                  <p className="text-sm text-destructive">{errors.pickup_date}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="timeWindow">Time Window</Label>
@@ -228,7 +258,11 @@ export default function NewJobPage() {
                 id="address"
                 value={formData.address}
                 onChange={(e) => handleChange({ address: e.target.value })}
+                aria-invalid={!!errors.address}
               />
+              {errors.address && (
+                <p className="text-sm text-destructive">{errors.address}</p>
+              )}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-3">
@@ -283,7 +317,11 @@ export default function NewJobPage() {
                 id="contactName"
                 value={formData.contact_name}
                 onChange={(e) => handleChange({ contact_name: e.target.value })}
+                aria-invalid={!!errors.contact_name}
               />
+              {errors.contact_name && (
+                <p className="text-sm text-destructive">{errors.contact_name}</p>
+              )}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -293,7 +331,11 @@ export default function NewJobPage() {
                   type="email"
                   value={formData.contact_email}
                   onChange={(e) => handleChange({ contact_email: e.target.value })}
+                  aria-invalid={!!errors.contact_email}
                 />
+                {errors.contact_email && (
+                  <p className="text-sm text-destructive">{errors.contact_email}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="contactPhone">Phone</Label>
@@ -399,7 +441,7 @@ export default function NewJobPage() {
         <Button variant="outline" asChild>
           <Link href="/admin/jobs">Cancel</Link>
         </Button>
-        <Button onClick={handleSubmit} disabled={!canSubmit || createJob.isPending}>
+        <Button onClick={handleSubmit} disabled={createJob.isPending}>
           {createJob.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Create Job
         </Button>

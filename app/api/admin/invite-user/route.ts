@@ -2,13 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin } from "@/lib/auth/helpers";
-
-interface InviteUserRequest {
-  email: string;
-  fullName: string;
-  companyId: string;
-  role?: "client" | "admin";
-}
+import { validateRequest, inviteUserSchema } from "@/lib/validation";
 
 /**
  * POST /api/admin/invite-user
@@ -35,15 +29,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Parse request body
-    const body: InviteUserRequest = await request.json();
-
-    if (!body.email || !body.companyId) {
-      return NextResponse.json(
-        { error: "Email and companyId are required" },
-        { status: 400 }
-      );
+    // Validate request body
+    const validation = await validateRequest(request, inviteUserSchema);
+    if (!validation.success) {
+      return validation.response;
     }
+    const body = validation.data;
 
     // Use admin client to invite the user
     const adminClient = createAdminClient();

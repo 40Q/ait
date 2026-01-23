@@ -26,6 +26,8 @@ import {
   useSubmitLogistics,
   type LocalLogisticsFormData,
 } from "@/lib/hooks";
+import { useFormValidation } from "@/lib/hooks/use-form-validation";
+import { logisticsFormSchema } from "@/lib/validation";
 
 const initialFormData: LocalLogisticsFormData = {
   authorizedPersonName: "",
@@ -53,22 +55,23 @@ export default function LogisticsPage() {
   const [formData, setFormData] =
     useState<LocalLogisticsFormData>(initialFormData);
   const { submit, isSubmitting, error } = useSubmitLogistics();
+  const { errors, validate, clearFieldError } = useFormValidation<LocalLogisticsFormData>(logisticsFormSchema);
 
   const handleChange = (data: Partial<LocalLogisticsFormData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
+    // Clear errors for changed fields
+    Object.keys(data).forEach((key) => {
+      clearFieldError(key as keyof LocalLogisticsFormData);
+    });
   };
 
   const handleSubmit = async () => {
+    const result = validate(formData);
+    if (!result.success) {
+      return;
+    }
     await submit(formData);
   };
-
-  const canSubmit =
-    formData.authorizedPersonName &&
-    formData.contactPhone &&
-    formData.contactEmail &&
-    formData.pickupAddress &&
-    formData.destinationAddress &&
-    formData.isMaterialPrepared !== null;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -98,7 +101,11 @@ export default function LogisticsPage() {
                 handleChange({ authorizedPersonName: e.target.value })
               }
               placeholder="Your name"
+              aria-invalid={!!errors.authorizedPersonName}
             />
+            {errors.authorizedPersonName && (
+              <p className="text-sm text-destructive">{errors.authorizedPersonName}</p>
+            )}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -112,7 +119,11 @@ export default function LogisticsPage() {
                 value={formData.contactPhone}
                 onChange={(e) => handleChange({ contactPhone: e.target.value })}
                 placeholder="(555) 123-4567"
+                aria-invalid={!!errors.contactPhone}
               />
+              {errors.contactPhone && (
+                <p className="text-sm text-destructive">{errors.contactPhone}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="contactEmail">
@@ -124,7 +135,11 @@ export default function LogisticsPage() {
                 value={formData.contactEmail}
                 onChange={(e) => handleChange({ contactEmail: e.target.value })}
                 placeholder="email@example.com"
+                aria-invalid={!!errors.contactEmail}
               />
+              {errors.contactEmail && (
+                <p className="text-sm text-destructive">{errors.contactEmail}</p>
+              )}
             </div>
           </div>
 
@@ -206,7 +221,11 @@ export default function LogisticsPage() {
               onChange={(e) => handleChange({ pickupAddress: e.target.value })}
               placeholder="Full address where material will be picked up"
               rows={2}
+              aria-invalid={!!errors.pickupAddress}
             />
+            {errors.pickupAddress && (
+              <p className="text-sm text-destructive">{errors.pickupAddress}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -221,7 +240,11 @@ export default function LogisticsPage() {
               }
               placeholder="Full address where material will be delivered"
               rows={2}
+              aria-invalid={!!errors.destinationAddress}
             />
+            {errors.destinationAddress && (
+              <p className="text-sm text-destructive">{errors.destinationAddress}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -292,6 +315,9 @@ export default function LogisticsPage() {
                 </Label>
               </div>
             </RadioGroup>
+            {errors.isMaterialPrepared && (
+              <p className="text-sm text-destructive">{errors.isMaterialPrepared}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -463,7 +489,7 @@ export default function LogisticsPage() {
           )}
           <Button
             onClick={handleSubmit}
-            disabled={!canSubmit || isSubmitting}
+            disabled={isSubmitting}
             className="w-full sm:w-auto"
           >
             {isSubmitting ? (

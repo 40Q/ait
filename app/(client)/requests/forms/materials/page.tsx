@@ -14,6 +14,8 @@ import {
   useSubmitMaterials,
   type LocalMaterialsFormData,
 } from "@/lib/hooks";
+import { useFormValidation } from "@/lib/hooks/use-form-validation";
+import { materialsFormSchema } from "@/lib/validation";
 
 const initialFormData: LocalMaterialsFormData = {
   hasWood: false,
@@ -29,17 +31,23 @@ const initialFormData: LocalMaterialsFormData = {
 export default function MaterialsPage() {
   const [formData, setFormData] = useState<LocalMaterialsFormData>(initialFormData);
   const { submit, isSubmitting, error } = useSubmitMaterials();
+  const { errors, validate, clearFieldError } = useFormValidation<LocalMaterialsFormData>(materialsFormSchema);
 
   const handleChange = (data: Partial<LocalMaterialsFormData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
+    // Clear errors for changed fields
+    Object.keys(data).forEach((key) => {
+      clearFieldError(key as keyof LocalMaterialsFormData);
+    });
   };
 
   const handleSubmit = async () => {
+    const result = validate(formData);
+    if (!result.success) {
+      return;
+    }
     await submit(formData);
   };
-
-  const hasSelectedMaterial = formData.hasWood || formData.hasMetal || formData.hasElectronics;
-  const canSubmit = hasSelectedMaterial && formData.pickupLocation && formData.siteContactName;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -60,7 +68,7 @@ export default function MaterialsPage() {
             <div
               className={`flex flex-col items-center gap-3 rounded-lg border-2 p-4 cursor-pointer transition-colors ${
                 formData.hasWood ? "border-primary bg-primary/5" : "border-muted"
-              }`}
+              } ${errors.hasWood ? "border-destructive" : ""}`}
               onClick={() => handleChange({ hasWood: !formData.hasWood })}
             >
               <Checkbox
@@ -108,6 +116,9 @@ export default function MaterialsPage() {
               </Label>
             </div>
           </div>
+          {errors.hasWood && (
+            <p className="text-sm text-destructive">{errors.hasWood}</p>
+          )}
         </CardContent>
       </Card>
 
@@ -125,7 +136,11 @@ export default function MaterialsPage() {
               value={formData.pickupLocation}
               onChange={(e) => handleChange({ pickupLocation: e.target.value })}
               placeholder="Please provide specific address"
+              aria-invalid={!!errors.pickupLocation}
             />
+            {errors.pickupLocation && (
+              <p className="text-sm text-destructive">{errors.pickupLocation}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -137,7 +152,11 @@ export default function MaterialsPage() {
               value={formData.siteContactName}
               onChange={(e) => handleChange({ siteContactName: e.target.value })}
               placeholder="John Smith"
+              aria-invalid={!!errors.siteContactName}
             />
+            {errors.siteContactName && (
+              <p className="text-sm text-destructive">{errors.siteContactName}</p>
+            )}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -151,7 +170,11 @@ export default function MaterialsPage() {
                 value={formData.siteContactPhone}
                 onChange={(e) => handleChange({ siteContactPhone: e.target.value })}
                 placeholder="(555) 123-4567"
+                aria-invalid={!!errors.siteContactPhone}
               />
+              {errors.siteContactPhone && (
+                <p className="text-sm text-destructive">{errors.siteContactPhone}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="siteContactEmail">
@@ -163,7 +186,11 @@ export default function MaterialsPage() {
                 value={formData.siteContactEmail}
                 onChange={(e) => handleChange({ siteContactEmail: e.target.value })}
                 placeholder="john.smith@example.com"
+                aria-invalid={!!errors.siteContactEmail}
               />
+              {errors.siteContactEmail && (
+                <p className="text-sm text-destructive">{errors.siteContactEmail}</p>
+              )}
             </div>
           </div>
 
@@ -189,7 +216,7 @@ export default function MaterialsPage() {
           )}
           <Button
             onClick={handleSubmit}
-            disabled={!canSubmit || isSubmitting}
+            disabled={isSubmitting}
             className="w-full sm:w-auto"
           >
             {isSubmitting ? (

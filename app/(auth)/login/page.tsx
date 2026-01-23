@@ -19,6 +19,8 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { getUserProfile, getDashboardPath } from "@/lib/auth/helpers";
+import { useFormValidation } from "@/lib/hooks/use-form-validation";
+import { loginFormSchema, type LoginFormInput } from "@/lib/validation";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,6 +32,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const { errors, validate, clearFieldError } = useFormValidation<LoginFormInput>(loginFormSchema);
 
   // Handle invite/recovery tokens in URL hash (implicit flow)
   useEffect(() => {
@@ -82,12 +85,19 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    // Validate form
+    const result = validate({ email, password });
+    if (!result.success) {
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: result.data.email,
+        password: result.data.password,
       });
 
       if (signInError) {
@@ -151,11 +161,17 @@ export default function LoginPage() {
                   type="email"
                   placeholder="company@example.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    clearFieldError("email");
+                  }}
                   autoComplete="email"
                   disabled={isLoading}
+                  aria-invalid={!!errors.email}
                 />
+                {errors.email && (
+                  <p className="text-sm text-destructive">{errors.email}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
@@ -165,10 +181,13 @@ export default function LoginPage() {
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      clearFieldError("password");
+                    }}
                     autoComplete="current-password"
                     disabled={isLoading}
+                    aria-invalid={!!errors.password}
                   />
                   <Button
                     type="button"
@@ -187,6 +206,9 @@ export default function LoginPage() {
                     </span>
                   </Button>
                 </div>
+                {errors.password && (
+                  <p className="text-sm text-destructive">{errors.password}</p>
+                )}
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4 pt-2">

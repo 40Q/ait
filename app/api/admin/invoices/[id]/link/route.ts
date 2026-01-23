@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/auth/helpers";
-
-interface LinkInvoiceBody {
-  job_id: string | null;
-}
+import { validateRequest, linkInvoiceSchema } from "@/lib/validation";
 
 /**
  * POST /api/admin/invoices/[id]/link
@@ -33,8 +30,12 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const body: LinkInvoiceBody = await request.json();
-    const { job_id } = body;
+    // Validate request body
+    const validation = await validateRequest(request, linkInvoiceSchema);
+    if (!validation.success) {
+      return validation.response;
+    }
+    const { job_id } = validation.data;
 
     // Verify the invoice exists
     const { data: invoice, error: invoiceError } = await supabase
