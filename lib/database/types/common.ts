@@ -173,4 +173,13 @@ export const queryKeys = {
     stats: (role: "admin" | "client") => ["dashboard", "stats", role] as const,
     activity: () => ["dashboard", "activity"] as const,
   },
+  notifications: {
+    all: ["notifications"] as const,
+    lists: () => [...queryKeys.notifications.all, "list"] as const,
+    list: (filters?: FilterObject) =>
+      [...queryKeys.notifications.lists(), filters] as const,
+    unread: () => [...queryKeys.notifications.all, "unread"] as const,
+    unreadCount: () => [...queryKeys.notifications.all, "unread-count"] as const,
+    preferences: () => [...queryKeys.notifications.all, "preferences"] as const,
+  },
 } as const;

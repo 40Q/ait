@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { createClient } from "@/lib/supabase/client";
 import { useCurrentUser } from "@/lib/hooks";
+import { NotificationBell } from "@/components/notifications";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -58,6 +59,7 @@ export function Header({ onMenuClick }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
+        <NotificationBell />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-9 w-9 rounded-full">

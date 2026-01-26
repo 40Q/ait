@@ -6,6 +6,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "AIT Electronics Recycling",
   description: "Certified data destruction and electronics recycling services",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({

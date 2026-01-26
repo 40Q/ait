@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin } from "@/lib/auth/helpers";
 
 interface RouteParams {
@@ -52,7 +51,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Check auth status for each user
-    const adminClient = createAdminClient();
+    const adminClient = await createClient();
     const activeUsers = [];
 
     for (const profile of profiles) {

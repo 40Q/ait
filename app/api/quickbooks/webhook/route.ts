@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { verifyWebhookSignature, getValidAccessTokenForRealm } from "@/lib/quickbooks/auth";
 import { QuickBooksClient, getInvoiceStatus } from "@/lib/quickbooks/client";
 
@@ -37,8 +37,8 @@ export async function POST(request: NextRequest) {
 
     const data: WebhookPayload = JSON.parse(payload);
 
-    // Create an admin client for database operations (bypasses RLS)
-    const supabase = createAdminClient();
+    // Create client for database operations
+    const supabase = await createClient();
 
     // Process each notification
     for (const notification of data.eventNotifications) {

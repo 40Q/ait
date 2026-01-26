@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin } from "@/lib/auth/helpers";
 
 interface RouteParams {
@@ -49,7 +48,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Ban the user (prevents login but preserves all data)
-    const adminClient = createAdminClient();
+    const adminClient = await createClient();
     const { error: banError } = await adminClient.auth.admin.updateUserById(
       userId,
       { ban_duration: "876600h" } // ~100 years

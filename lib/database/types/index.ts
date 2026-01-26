@@ -11,3 +11,4 @@ export * from "./document";
 export * from "./company";
 export * from "./timeline";
 export * from "./invoice";
+export * from "./notification";

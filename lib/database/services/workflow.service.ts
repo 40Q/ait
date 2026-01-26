@@ -2,6 +2,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { RequestRepository } from "../repositories/requests";
 import { QuoteRepository } from "../repositories/quotes";
 import { JobRepository } from "../repositories/jobs";
+import { NotificationService } from "./notification.service";
 import type {
   QuoteResponse,
   RequestRow,
@@ -36,11 +37,13 @@ export class WorkflowService {
   private requestRepo: RequestRepository;
   private quoteRepo: QuoteRepository;
   private jobRepo: JobRepository;
+  private notificationService: NotificationService;
 
   constructor(private supabase: SupabaseClient) {
     this.requestRepo = new RequestRepository(supabase);
     this.quoteRepo = new QuoteRepository(supabase);
     this.jobRepo = new JobRepository(supabase);
+    this.notificationService = new NotificationService(supabase);
   }
 
   /**
@@ -66,6 +69,16 @@ export class WorkflowService {
     // Update request status - DB trigger creates status_change timeline event
     await this.requestRepo.update(quote.request_id, {
       status: "quote_ready",
+    });
+
+    // Send notification to client company
+    this.notificationService.onQuoteSent({
+      quoteId,
+      quoteNumber: quote.quote_number,
+      companyId: quote.company_id,
+      requestId: quote.request_id,
+    }).catch((error) => {
+      console.error("Failed to send quote notification:", error);
     });
   }
 
@@ -138,6 +151,40 @@ export class WorkflowService {
       jobId = data?.id ?? null;
     }
 
+    // Send notifications to admins based on response type
+    const companyName = quote.company?.name || "Unknown Company";
+    switch (response.status) {
+      case "accepted":
+        this.notificationService.onQuoteAccepted({
+          quoteId,
+          quoteNumber: quote.quote_number,
+          companyName,
+        }).catch((error) => {
+          console.error("Failed to send quote accepted notification:", error);
+        });
+        break;
+
+      case "declined":
+        this.notificationService.onQuoteDeclined({
+          quoteId,
+          quoteNumber: quote.quote_number,
+          companyName,
+        }).catch((error) => {
+          console.error("Failed to send quote declined notification:", error);
+        });
+        break;
+
+      case "revision_requested":
+        this.notificationService.onQuoteRevisionRequested({
+          quoteId,
+          quoteNumber: quote.quote_number,
+          companyName,
+        }).catch((error) => {
+          console.error("Failed to send quote revision notification:", error);
+        });
+        break;
+    }
+
     return { jobId };
   }
 
@@ -148,7 +195,51 @@ export class WorkflowService {
     jobId: string,
     newStatus: string
   ): Promise<JobRow> {
-    return this.jobRepo.updateStatus(jobId, newStatus);
+    const job = await this.jobRepo.updateStatus(jobId, newStatus);
+
+    // Get job details for notification
+    const jobWithRelations = await this.jobRepo.findByIdWithRelations(jobId);
+    if (jobWithRelations) {
+      const { job_number, company_id, pickup_date } = jobWithRelations;
+
+      // Send notifications based on new status
+      switch (newStatus) {
+        case "pickup_scheduled":
+          this.notificationService.onPickupScheduled({
+            jobId,
+            jobNumber: job_number,
+            companyId: company_id,
+            scheduledDate: pickup_date
+              ? new Date(pickup_date).toLocaleDateString()
+              : "TBD",
+          }).catch((error) => {
+            console.error("Failed to send pickup scheduled notification:", error);
+          });
+          break;
+
+        case "pickup_complete":
+          this.notificationService.onPickupComplete({
+            jobId,
+            jobNumber: job_number,
+            companyId: company_id,
+          }).catch((error) => {
+            console.error("Failed to send pickup complete notification:", error);
+          });
+          break;
+
+        case "complete":
+          this.notificationService.onJobComplete({
+            jobId,
+            jobNumber: job_number,
+            companyId: company_id,
+          }).catch((error) => {
+            console.error("Failed to send job complete notification:", error);
+          });
+          break;
+      }
+    }
+
+    return job;
   }
 
   /**

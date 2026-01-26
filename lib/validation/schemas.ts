@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  NOTIFICATION_TYPES,
+  NOTIFICATION_PRIORITIES,
+} from "@/lib/database/types";
 
 // ============================================
 // Common Schemas
@@ -127,6 +131,40 @@ export const logisticsFormSchema = z.object({
 );
 
 // ============================================
+// Notification Schemas
+// ============================================
+
+export const notificationPrioritySchema = z.enum(NOTIFICATION_PRIORITIES);
+export const notificationTypeSchema = z.enum(NOTIFICATION_TYPES);
+export const userRoleSchema = z.enum(["admin", "client"]);
+
+export const sendExternalNotificationSchema = z.object({
+  userId: uuidSchema.optional(),
+  role: userRoleSchema.optional(),
+  companyId: uuidSchema.optional(),
+  notificationId: uuidSchema.optional(),
+  title: z.string().min(1, "Title is required").max(200, "Title too long"),
+  message: z.string().min(1, "Message is required").max(1000, "Message too long"),
+  actionUrl: z.string().max(500).optional(),
+  entityType: z.string().max(50).optional(),
+  entityId: uuidSchema.optional(),
+  priority: notificationPrioritySchema,
+}).refine(
+  (data) => data.userId || data.role || data.companyId,
+  { message: "At least one target (userId, role, or companyId) is required" }
+);
+
+export const notificationPreferencesUpdateSchema = z.object({
+  email_enabled: z.boolean().optional(),
+  push_enabled: z.boolean().optional(),
+  type_preferences: z.record(notificationTypeSchema, z.boolean()).optional(),
+});
+
+export const onesignalRegisterSchema = z.object({
+  playerId: z.string().min(1, "Player ID is required").max(100, "Player ID too long"),
+});
+
+// ============================================
 // Type exports
 // ============================================
 
@@ -138,3 +176,6 @@ export type LocationFormInput = z.infer<typeof locationFormSchema>;
 export type JobFormInput = z.infer<typeof jobFormSchema>;
 export type MaterialsFormInput = z.infer<typeof materialsFormSchema>;
 export type LogisticsFormInput = z.infer<typeof logisticsFormSchema>;
+export type SendExternalNotificationInput = z.infer<typeof sendExternalNotificationSchema>;
+export type NotificationPreferencesUpdateInput = z.infer<typeof notificationPreferencesUpdateSchema>;
+export type OneSignalRegisterInput = z.infer<typeof onesignalRegisterSchema>;

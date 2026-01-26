@@ -68,7 +68,7 @@ export { useInviteUser } from "./use-invite-user";
 export { useDeactivateUser } from "./use-deactivate-user";
 
 // User hooks
-export { useCurrentUser } from "./use-current-user";
+export { useCurrentUser, type CurrentUserProfile } from "./use-current-user";
 
 // File upload hooks
 export { useFileUpload } from "./use-file-upload";
@@ -107,3 +107,17 @@ export { usePagination } from "./use-pagination";
 
 // Calendar hooks
 export { useCalendarNavigation, useCalendarJobs } from "./use-calendar";
+
+// Notification hooks
+export {
+  useNotifications,
+  useUnreadNotifications,
+  useUnreadNotificationCount,
+  useMarkNotificationRead,
+  useMarkAllNotificationsRead,
+  useDismissNotification,
+  useRealtimeNotifications,
+  useNotificationPreferences,
+  useUpdateNotificationPreferences,
+  useRegisterPushSubscription,
+} from "./use-notifications";

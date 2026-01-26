@@ -8,3 +8,4 @@ export { DocumentRepository } from "./documents";
 export { CompanyRepository } from "./companies";
 export { TimelineRepository } from "./timeline";
 export { InvoiceRepository } from "./invoices";
+export { NotificationRepository } from "./notifications";
