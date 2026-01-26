@@ -10,6 +10,7 @@ import {
   useMarkAllNotificationsRead,
   useDismissNotification,
 } from "@/lib/hooks/use-notifications";
+import { useCurrentUser } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 import type { NotificationListItem, NotificationType } from "@/lib/database/types";
 import { formatDistanceToNow } from "date-fns";
@@ -116,6 +117,7 @@ function NotificationItem({
 
 export function NotificationList() {
   const router = useRouter();
+  const { data: currentUser } = useCurrentUser();
   const { data, isLoading } = useUnreadNotifications(10);
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
@@ -123,6 +125,7 @@ export function NotificationList() {
 
   const notifications = data?.data ?? [];
   const hasNotifications = notifications.length > 0;
+  const notificationsPath = currentUser?.role === "admin" ? "/admin/notifications" : "/notifications";
 
   const handleNotificationClick = (notification: NotificationListItem) => {
     // Mark as read
@@ -188,7 +191,7 @@ export function NotificationList() {
           variant="ghost"
           size="sm"
           className="w-full text-xs"
-          onClick={() => router.push("/notifications")}
+          onClick={() => router.push(notificationsPath)}
         >
           View all notifications
         </Button>
