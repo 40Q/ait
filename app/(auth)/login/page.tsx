@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Turnstile } from "@marsidev/react-turnstile";
 import { Logo } from "@/components/brand/logo";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string>();
   const { errors, validate, clearFieldError } = useFormValidation<LoginFormInput>(loginFormSchema);
 
   // Handle invite/recovery tokens in URL hash (implicit flow)
@@ -98,6 +100,7 @@ export default function LoginPage() {
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: result.data.email,
         password: result.data.password,
+        options: { captchaToken },
       });
 
       if (signInError) {
@@ -210,6 +213,10 @@ export default function LoginPage() {
                   <p className="text-sm text-destructive">{errors.password}</p>
                 )}
               </div>
+              <Turnstile
+                siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                onSuccess={(token) => setCaptchaToken(token)}
+              />
             </CardContent>
             <CardFooter className="flex flex-col gap-4 pt-2">
               <Button type="submit" className="w-full" disabled={isLoading}>
