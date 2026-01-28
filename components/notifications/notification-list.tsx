@@ -166,7 +166,7 @@ export function NotificationList() {
       </div>
 
       {hasNotifications ? (
-        <ScrollArea className="max-h-80">
+        <ScrollArea className="h-80">
           <div className="divide-y">
             {notifications.map((notification) => (
               <NotificationItem
