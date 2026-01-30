@@ -204,12 +204,31 @@ export class JobRepository extends BaseRepository<
    * Get counts by status - single query with client-side grouping
    */
   async getStatusCounts(companyId?: string): Promise<Record<string, number>> {
-    const statuses = ["pickup_scheduled", "pickup_complete", "processing", "complete"] as const;
+    const statuses = ["needs_scheduling", "pickup_scheduled", "pickup_complete", "processing", "complete"] as const;
     return this.getCountsByField(
       "status",
       [...statuses],
       companyId ? { company_id: companyId } : undefined
     );
+  }
+
+  /**
+   * Get count of jobs that need scheduling (pickup_date is null)
+   */
+  async getJobsNeedingSchedulingCount(companyId?: string): Promise<number> {
+    let query = this.supabase
+      .from("jobs")
+      .select("id", { count: "exact", head: true })
+      .is("pickup_date", null)
+      .neq("status", "complete");
+
+    if (companyId) {
+      query = query.eq("company_id", companyId);
+    }
+
+    const { count, error } = await query;
+    if (error) throw error;
+    return count ?? 0;
   }
 
   /**

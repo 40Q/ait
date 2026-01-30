@@ -104,6 +104,20 @@ export function useJobStatusCounts(companyId?: string) {
 }
 
 /**
+ * Hook to fetch count of jobs needing scheduling (no pickup date)
+ */
+export function useJobsNeedingSchedulingCount(companyId?: string) {
+  const supabase = createClient();
+  const repo = new JobRepository(supabase);
+
+  return useQuery({
+    queryKey: [...queryKeys.jobs.all, "needs-scheduling", companyId],
+    queryFn: () => repo.getJobsNeedingSchedulingCount(companyId),
+    ...getQueryOptions("counts"),
+  });
+}
+
+/**
  * Hook to update a job
  */
 export function useUpdateJob() {

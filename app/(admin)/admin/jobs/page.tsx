@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +25,8 @@ import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { formatDateShort } from "@/lib/utils/date";
 import type { JobStatus } from "@/lib/database/types";
 
+const validStatuses = ["all", "needs_scheduling", "pickup_scheduled", "pickup_complete", "processing", "complete"];
+
 const invoiceFilterOptions = [
   { value: "all", label: "All Invoices" },
   { value: "invoiced", label: "Invoiced" },
@@ -33,10 +36,24 @@ const invoiceFilterOptions = [
 ];
 
 export default function AdminJobsPage() {
+  const searchParams = useSearchParams();
+
+  // Read initial status from URL, default to "all"
+  const urlStatus = searchParams.get("status");
+  const initialTab = urlStatus && validStatuses.includes(urlStatus) ? urlStatus : "all";
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("all");
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [invoiceFilter, setInvoiceFilter] = useState("all");
   const debouncedSearch = useDebouncedValue(searchQuery, 300);
+
+  // Sync tab with URL params
+  useEffect(() => {
+    const status = searchParams.get("status");
+    if (status && validStatuses.includes(status)) {
+      setActiveTab(status);
+    }
+  }, [searchParams]);
 
   // Pagination
   const { currentPage, pageSize, setPage, setPageSize } = usePagination({
@@ -120,6 +137,9 @@ export default function AdminJobsPage() {
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="all">All ({statusCounts?.all ?? 0})</TabsTrigger>
+          <TabsTrigger value="needs_scheduling">
+            Needs Scheduling ({statusCounts?.needs_scheduling ?? 0})
+          </TabsTrigger>
           <TabsTrigger value="pickup_scheduled">
             Scheduled ({statusCounts?.pickup_scheduled ?? 0})
           </TabsTrigger>
@@ -134,7 +154,7 @@ export default function AdminJobsPage() {
           </TabsTrigger>
         </TabsList>
 
-        {["all", "pickup_scheduled", "pickup_complete", "processing", "complete"].map(
+        {validStatuses.map(
           (status) => (
             <TabsContent key={status} value={status} className="mt-4">
               <FetchingIndicator isFetching={isFetching}>

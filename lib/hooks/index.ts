@@ -30,6 +30,7 @@ export {
   useJobByQuoteId,
   useJobByRequestId,
   useJobStatusCounts,
+  useJobsNeedingSchedulingCount,
   useCreateJob,
   useUpdateJob,
   useUpdateJobStatus,

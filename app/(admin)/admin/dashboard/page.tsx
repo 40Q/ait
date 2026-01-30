@@ -14,11 +14,13 @@ import {
   Clock,
   ArrowRight,
   CheckCircle2,
+  CalendarClock,
 } from "lucide-react";
 import {
   useRequestStatusCounts,
   useQuoteStatusCounts,
   useJobStatusCounts,
+  useJobsNeedingSchedulingCount,
   useCompanyList,
   useRequestList,
 } from "@/lib/hooks";
@@ -28,16 +30,18 @@ export default function AdminDashboardPage() {
   const { data: requestCounts, isLoading: loadingRequests } = useRequestStatusCounts();
   const { data: quoteCounts, isLoading: loadingQuotes } = useQuoteStatusCounts();
   const { data: jobCounts, isLoading: loadingJobs } = useJobStatusCounts();
+  const { data: jobsNeedingScheduling, isLoading: loadingJobsNeedingScheduling } = useJobsNeedingSchedulingCount();
   const { data: companiesData, isLoading: loadingCompanies } = useCompanyList();
   const { data: requestsData } = useRequestList(undefined, 1, 5);
 
   const companies = companiesData?.data ?? [];
   const recentRequests = requestsData?.data ?? [];
 
-  const isLoading = loadingRequests || loadingQuotes || loadingJobs || loadingCompanies;
+  const isLoading = loadingRequests || loadingQuotes || loadingJobs || loadingCompanies || loadingJobsNeedingScheduling;
 
   const pendingRequests = requestCounts?.pending ?? 0;
   const quotesAwaitingResponse = quoteCounts?.sent ?? 0;
+  const jobsNeedScheduling = jobsNeedingScheduling ?? 0;
   const totalCompanies = companiesData?.total ?? 0;
   const activeJobs =
     (jobCounts?.pickup_scheduled ?? 0) +
@@ -45,7 +49,7 @@ export default function AdminDashboardPage() {
     (jobCounts?.processing ?? 0);
   const completedJobs = jobCounts?.complete ?? 0;
 
-  const hasPendingActions = pendingRequests > 0 || quotesAwaitingResponse > 0;
+  const hasPendingActions = pendingRequests > 0 || quotesAwaitingResponse > 0 || jobsNeedScheduling > 0;
 
   if (isLoading) {
     return <LoadingSpinner size="lg" />;
@@ -77,6 +81,15 @@ export default function AdminDashboardPage() {
               href="/admin/quotes"
               icon={Clock}
               variant="blue"
+            />
+          )}
+          {jobsNeedScheduling > 0 && (
+            <PendingActionCard
+              title="Jobs Need Scheduling"
+              count={jobsNeedScheduling}
+              href="/admin/jobs?status=needs_scheduling"
+              icon={CalendarClock}
+              variant="red"
             />
           )}
         </div>
