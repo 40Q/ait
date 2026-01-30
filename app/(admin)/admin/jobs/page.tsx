@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback, useEffect } from "react";
+import { useMemo, useState, useCallback, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
@@ -35,7 +35,7 @@ const invoiceFilterOptions = [
   { value: "unpaid", label: "Unpaid" },
 ];
 
-export default function AdminJobsPage() {
+function AdminJobsContent() {
   const searchParams = useSearchParams();
 
   // Read initial status from URL, default to "all"
@@ -278,5 +278,13 @@ export default function AdminJobsPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function AdminJobsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>}>
+      <AdminJobsContent />
+    </Suspense>
   );
 }
