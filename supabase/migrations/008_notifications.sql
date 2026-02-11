@@ -169,12 +169,13 @@ CREATE TRIGGER update_notification_preferences_updated_at
 CREATE OR REPLACE FUNCTION create_default_notification_preferences()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO notification_preferences (user_id)
+  INSERT INTO public.notification_preferences (user_id)
   VALUES (NEW.id)
   ON CONFLICT (user_id) DO NOTHING;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = '';
 
 -- Trigger to create preferences when a new profile is created
 CREATE TRIGGER create_notification_preferences_on_profile
