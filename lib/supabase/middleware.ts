@@ -36,6 +36,15 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
+  // If auth code or token_hash arrives at a non-callback URL, forward to /auth/callback
+  const code = request.nextUrl.searchParams.get("code");
+  const tokenHash = request.nextUrl.searchParams.get("token_hash");
+  if ((code || tokenHash) && pathname !== "/auth/callback") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/callback";
+    return NextResponse.redirect(url);
+  }
+
   // API routes handle their own authentication - don't redirect
   const isApiRoute = pathname.startsWith("/api/");
   if (isApiRoute) {
@@ -56,6 +65,12 @@ export async function updateSession(request: NextRequest) {
 
   // For authenticated users, enforce role-based routing
   if (user) {
+    // Allow set-password page before any role-based redirects
+    // so new users (admin or client) can set their password after invite/recovery
+    if (isSetPasswordPage) {
+      return supabaseResponse;
+    }
+
     const profile = await getUserProfile(supabase, user.id);
     const isAdmin = profile?.role === "admin";
     const isAdminRoute = pathname.startsWith("/admin") && !pathname.startsWith("/admin/login");
@@ -74,11 +89,6 @@ export async function updateSession(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard";
       return NextResponse.redirect(url);
-    }
-
-    // Allow set-password page for authenticated users who need to set their password
-    if (isSetPasswordPage) {
-      return supabaseResponse;
     }
 
     if (isLoginPage) {
