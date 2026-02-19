@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { EmailTagInput } from "@/components/ui/email-tag-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -315,12 +316,10 @@ export function StepLocation({ data, onChange }: StepLocationProps) {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            <Label htmlFor="accountsPayableEmail">Accounts Payable Contact Email</Label>
-            <Input
-              id="accountsPayableEmail"
-              type="email"
+            <Label htmlFor="accountsPayableEmail">Accounts Payable Email(s)</Label>
+            <EmailTagInput
               value={data.accountsPayableEmail}
-              onChange={(e) => onChange({ accountsPayableEmail: e.target.value })}
+              onChange={(val) => onChange({ accountsPayableEmail: val })}
               placeholder="ap@company.com"
             />
           </div>

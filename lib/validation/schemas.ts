@@ -64,7 +64,13 @@ export const companyFormSchema = z.object({
   state: z.string().max(50),
   zip: z.string().max(10),
   quickbooksCustomerId: z.string(),
-  accountsPayableEmail: z.union([z.string().email("Invalid email"), z.literal("")]).default(""),
+  accountsPayableEmail: z.string().default("").refine(
+    (val) => {
+      if (!val) return true;
+      return val.split(",").map((e) => e.trim()).filter(Boolean).every((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+    },
+    { message: "One or more email addresses are invalid" }
+  ),
   accountsPayablePhone: phoneSchema.default(""),
 });
 

@@ -42,6 +42,7 @@ import {
   Briefcase,
 } from "lucide-react";
 import { useRequest, useDeclineRequest, useQuoteByRequestId, useRequestFullTimeline, useJobByRequestId } from "@/lib/hooks";
+import { parseApEmails } from "@/lib/utils/ap-emails";
 import { Timeline } from "@/components/ui/timeline";
 import { FileList } from "@/components/ui/file-list";
 import { STORAGE_BUCKETS } from "@/lib/storage/upload";
@@ -263,10 +264,14 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
                     {request.accounts_payable_email && (
                       <div className="space-y-3">
                         <p className="text-sm font-medium text-muted-foreground">Accounts Payable</p>
-                        <p className="flex items-center gap-2 text-sm">
-                          <Mail className="h-4 w-4 text-muted-foreground" />
-                          {request.accounts_payable_email}
-                        </p>
+                        <div className="space-y-2">
+                          {parseApEmails(request.accounts_payable_email).map((email, i) => (
+                            <p key={i} className="flex items-center gap-2 text-sm">
+                              <Mail className="h-4 w-4 text-muted-foreground" />
+                              {email}
+                            </p>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>

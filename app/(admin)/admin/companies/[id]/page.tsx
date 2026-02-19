@@ -45,6 +45,7 @@ import {
   useDeactivateUser,
 } from "@/lib/hooks";
 import { LocationsSection } from "@/components/locations";
+import { EmailTagInput } from "@/components/ui/email-tag-input";
 import { useFormValidation } from "@/lib/hooks/use-form-validation";
 import { companyFormSchema, type CompanyFormInput } from "@/lib/validation";
 import type { CompanyStatus } from "@/lib/database/types";
@@ -424,13 +425,11 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
                 <h4 className="text-sm font-medium mb-3">Accounts Payable</h4>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="accountsPayableEmail">AP Email</Label>
-                    <Input
-                      id="accountsPayableEmail"
-                      type="email"
+                    <Label htmlFor="accountsPayableEmail">AP Email(s)</Label>
+                    <EmailTagInput
                       value={formData.accountsPayableEmail}
-                      onChange={(e) =>
-                        handleChange({ accountsPayableEmail: e.target.value })
+                      onChange={(val) =>
+                        handleChange({ accountsPayableEmail: val })
                       }
                       placeholder="ap@company.com"
                       aria-invalid={!!errors.accountsPayableEmail}

@@ -17,6 +17,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils/date";
+import { parseApEmails } from "@/lib/utils/ap-emails";
 import type {
   RequestWithRelations,
   LogisticsFormData,
@@ -159,7 +160,9 @@ export function RequestDetails({ request }: RequestDetailsProps) {
           {request.accounts_payable_email && (
             <div>
               <p className="text-muted-foreground text-xs uppercase">Accounts Payable</p>
-              <p>{request.accounts_payable_email}</p>
+              {parseApEmails(request.accounts_payable_email).map((email, i) => (
+                <p key={i}>{email}</p>
+              ))}
             </div>
           )}
         </CardContent>

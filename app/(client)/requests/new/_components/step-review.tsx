@@ -15,6 +15,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils/date";
+import { parseApEmails } from "@/lib/utils/ap-emails";
 import {
   equipmentTypeOptions,
   dataDestructionOptions,
@@ -169,7 +170,9 @@ export function StepReview({
                 <p className="text-muted-foreground text-xs uppercase tracking-wide mb-1">
                   Accounts Payable
                 </p>
-                <p>{data.accountsPayableEmail}</p>
+                {parseApEmails(data.accountsPayableEmail).map((email, i) => (
+                  <p key={i}>{email}</p>
+                ))}
               </div>
             )}
           </CardContent>
