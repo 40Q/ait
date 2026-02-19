@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/auth/helpers";
 
 interface RouteParams {
@@ -61,8 +61,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Ban all users associated with this company
-    const adminClient = await createClient();
+    // Ban all users associated with this company (requires service role key)
+    const adminClient = createAdminClient();
     const deactivatedUsers: string[] = [];
     const failedUsers: string[] = [];
 

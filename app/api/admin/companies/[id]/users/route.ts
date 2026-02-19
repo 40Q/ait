@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/auth/helpers";
 
 interface RouteParams {
@@ -50,8 +50,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json([]);
     }
 
-    // Check auth status for each user
-    const adminClient = await createClient();
+    // Check auth status for each user (requires service role key)
+    const adminClient = createAdminClient();
     const activeUsers = [];
 
     for (const profile of profiles) {

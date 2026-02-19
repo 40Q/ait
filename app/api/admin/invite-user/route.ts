@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/auth/helpers";
 import { validateRequest, inviteUserSchema } from "@/lib/validation";
 
@@ -35,8 +35,8 @@ export async function POST(request: NextRequest) {
     }
     const body = validation.data;
 
-    // Use admin client to invite the user
-    const adminClient = await createClient();
+    // Use service role client for auth admin operations
+    const adminClient = createAdminClient();
 
     const { data, error } = await adminClient.auth.admin.inviteUserByEmail(
       body.email,

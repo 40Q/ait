@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/auth/helpers";
 
 interface RouteParams {
@@ -47,8 +47,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Ban the user (prevents login but preserves all data)
-    const adminClient = await createClient();
+    // Ban the user (prevents login but preserves all data, requires service role key)
+    const adminClient = createAdminClient();
     const { error: banError } = await adminClient.auth.admin.updateUserById(
       userId,
       { ban_duration: "876600h" } // ~100 years
