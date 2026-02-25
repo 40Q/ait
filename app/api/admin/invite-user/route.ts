@@ -162,8 +162,8 @@ async function handleReInvite(
   if (resetError) {
     console.error("Error sending recovery email:", resetError);
     return NextResponse.json(
-      { error: "User reactivated but failed to send invitation email. Please try again." },
-      { status: 500 }
+      { error: resetError.message },
+      { status: 429 }
     );
   }
 
