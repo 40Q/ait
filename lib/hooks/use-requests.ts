@@ -64,15 +64,25 @@ export function useRequestStatusCounts(companyId?: string) {
 
 /**
  * Hook to create a new request
+ * Calls server-side API route so admin notifications are sent reliably.
  */
 export function useCreateRequest() {
   const queryClient = useQueryClient();
-  const supabase = createClient();
-  const repo = new RequestRepository(supabase);
 
   return useMutation({
     // Timeline event is created automatically by database trigger
-    mutationFn: (data: RequestInsert) => repo.create(data),
+    mutationFn: async (data: RequestInsert) => {
+      const res = await fetch("/api/workflow/submit-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to submit request");
+      }
+      return res.json();
+    },
     onSuccess: () => {
       // Invalidate all request queries
       queryClient.invalidateQueries({ queryKey: queryKeys.requests.all });

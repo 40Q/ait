@@ -43,6 +43,7 @@ class OneSignalClient {
     priority?: "low" | "normal" | "high";
   }): Promise<OneSignalResponse | null> {
     if (!this.isConfigured()) {
+      console.warn("[OneSignal] Push skipped — not configured (missing appId or restApiKey)");
       return null;
     }
 
@@ -76,11 +77,13 @@ class OneSignalClient {
       const responseText = await response.text();
 
       if (!response.ok) {
+        console.error("[OneSignal] Push failed:", response.status, responseText);
         return null;
       }
 
       return JSON.parse(responseText);
-    } catch {
+    } catch (error) {
+      console.error("[OneSignal] Push request error:", error);
       return null;
     }
   }
@@ -94,6 +97,7 @@ class OneSignalClient {
     fromAddress?: string;
   }): Promise<OneSignalResponse | null> {
     if (!this.isConfigured()) {
+      console.warn("[OneSignal] Email skipped — not configured (missing appId or restApiKey)");
       return null;
     }
 
@@ -124,11 +128,13 @@ class OneSignalClient {
       const responseText = await response.text();
 
       if (!response.ok) {
+        console.error("[OneSignal] Email failed:", response.status, responseText);
         return null;
       }
 
       return JSON.parse(responseText);
-    } catch {
+    } catch (error) {
+      console.error("[OneSignal] Email request error:", error);
       return null;
     }
   }
@@ -142,6 +148,7 @@ class OneSignalClient {
     priority?: "low" | "normal" | "high";
   }): Promise<OneSignalResponse | null> {
     if (!this.isConfigured()) {
+      console.warn("[OneSignal] Push (filter) skipped — not configured");
       return null;
     }
 
@@ -168,11 +175,13 @@ class OneSignalClient {
       const responseText = await response.text();
 
       if (!response.ok) {
+        console.error("[OneSignal] Push (filter) failed:", response.status, responseText);
         return null;
       }
 
       return JSON.parse(responseText);
-    } catch {
+    } catch (error) {
+      console.error("[OneSignal] Push (filter) request error:", error);
       return null;
     }
   }
@@ -185,6 +194,7 @@ class OneSignalClient {
     fromAddress?: string;
   }): Promise<OneSignalResponse | null> {
     if (!this.isConfigured()) {
+      console.warn("[OneSignal] Email (filter) skipped — not configured");
       return null;
     }
 
@@ -208,12 +218,114 @@ class OneSignalClient {
       const responseText = await response.text();
 
       if (!response.ok) {
+        console.error("[OneSignal] Email (filter) failed:", response.status, responseText);
         return null;
       }
 
       return JSON.parse(responseText);
-    } catch {
+    } catch (error) {
+      console.error("[OneSignal] Email (filter) request error:", error);
       return null;
+    }
+  }
+  /**
+   * Register a user with OneSignal server-side.
+   * Creates the user with an email subscription and tags so they can
+   * receive email notifications before ever visiting the app.
+   * Uses the OneSignal User Model API (REST API v2).
+   */
+  async registerUserEmail(params: {
+    externalId: string;
+    email: string;
+    role: string;
+    companyId?: string;
+  }): Promise<boolean> {
+    if (!this.isConfigured()) {
+      console.warn("[OneSignal] registerUserEmail skipped — not configured");
+      return false;
+    }
+
+    const tags: Record<string, string> = {
+      user_role: params.role,
+    };
+    if (params.companyId) {
+      tags.company_id = params.companyId;
+    }
+
+    const payload = {
+      identity: { external_id: params.externalId },
+      subscriptions: [
+        {
+          type: "Email",
+          token: params.email,
+          enabled: true,
+        },
+      ],
+      tags,
+    };
+
+    try {
+      const response = await fetch(
+        `https://api.onesignal.com/apps/${this.appId}/users`,
+        {
+          method: "POST",
+          headers: this.headers,
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const responseText = await response.text();
+
+      if (!response.ok) {
+        // 409 means user already exists — that's fine
+        if (response.status === 409) {
+          console.log(
+            `[OneSignal] User ${params.externalId} already registered, updating tags`
+          );
+          await this.updateUserTags(params.externalId, tags);
+          return true;
+        }
+        console.error(
+          "[OneSignal] registerUserEmail failed:",
+          response.status,
+          responseText
+        );
+        return false;
+      }
+
+      console.log(
+        `[OneSignal] Registered user ${params.externalId} with email ${params.email}`
+      );
+      return true;
+    } catch (error) {
+      console.error("[OneSignal] registerUserEmail error:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Update tags on an existing OneSignal user.
+   */
+  private async updateUserTags(
+    externalId: string,
+    tags: Record<string, string>
+  ): Promise<void> {
+    try {
+      const response = await fetch(
+        `https://api.onesignal.com/apps/${this.appId}/users/by/external_id/${externalId}`,
+        {
+          method: "PATCH",
+          headers: this.headers,
+          body: JSON.stringify({ tags }),
+        }
+      );
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error("[OneSignal] updateUserTags failed:", response.status, text);
+      }
+    } catch (error) {
+      console.error("[OneSignal] updateUserTags error:", error);
     }
   }
 }

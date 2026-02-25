@@ -3,7 +3,6 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { QuoteRepository } from "@/lib/database/repositories";
-import { WorkflowService } from "@/lib/database/services";
 import {
   queryKeys,
   type QuoteFilters,
@@ -127,16 +126,25 @@ export function useUpdateQuote() {
 
 /**
  * Hook to send a quote to client (admin action)
+ * Calls server-side API route so notifications are sent reliably.
  */
 export function useSendQuote() {
   const queryClient = useQueryClient();
-  const supabase = createClient();
-  const workflow = new WorkflowService(supabase);
 
   return useMutation({
-    mutationFn: (quoteId: string) => workflow.sendQuote(quoteId),
+    mutationFn: async (quoteId: string) => {
+      const res = await fetch("/api/workflow/send-quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quoteId }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to send quote");
+      }
+      return res.json();
+    },
     onSuccess: () => {
-      // Invalidate quotes, requests, and all timelines
       queryClient.invalidateQueries({ queryKey: queryKeys.quotes.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.requests.all });
       queryClient.invalidateQueries({ queryKey: ["timeline"] });
@@ -146,28 +154,35 @@ export function useSendQuote() {
 
 /**
  * Hook to respond to a quote (client action)
+ * Calls server-side API route so notifications are sent reliably.
  */
 export function useRespondToQuote() {
   const queryClient = useQueryClient();
-  const supabase = createClient();
-  const workflow = new WorkflowService(supabase);
 
   return useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       quoteId,
       response,
-      userId,
     }: {
       quoteId: string;
       response: QuoteResponse;
       userId: string;
-    }) => workflow.respondToQuote(quoteId, response, userId),
+    }) => {
+      const res = await fetch("/api/workflow/respond-to-quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quoteId, response }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to respond to quote");
+      }
+      return res.json() as Promise<{ success: boolean; jobId: string | null }>;
+    },
     onSuccess: (result) => {
-      // Invalidate quotes, requests, and all timelines
       queryClient.invalidateQueries({ queryKey: queryKeys.quotes.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.requests.all });
       queryClient.invalidateQueries({ queryKey: ["timeline"] });
-      // If a job was created, invalidate jobs
       if (result.jobId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
       }

@@ -1,6 +1,11 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { NotificationRepository } from "../repositories/notifications";
-import { getNotificationContent } from "../../onesignal";
+import {
+  getNotificationContent,
+  getEmailHtmlContent,
+  onesignalClient,
+} from "../../onesignal";
+import type { OneSignalFilter } from "../../onesignal";
 import type {
   NotificationType,
   NotificationPriority,
@@ -26,7 +31,10 @@ interface UserInfo {
 }
 
 /**
- * NotificationService handles creating and sending notifications
+ * NotificationService handles creating and sending notifications.
+ * SERVER-SIDE ONLY — this service calls OneSignal directly and requires
+ * server environment variables. Use only in API routes, never in client components.
+ *
  * - Creates notifications in the database
  * - Sends push notifications via OneSignal
  * - Sends email notifications via OneSignal
@@ -76,7 +84,9 @@ export class NotificationService {
       priority,
       entityType: params.entityType,
       entityId: params.entityId,
-    }).catch(() => {});
+    }).catch((error) => {
+      console.error("[NotificationService] send() external delivery failed:", error);
+    });
 
     return notification;
   }
@@ -118,7 +128,9 @@ export class NotificationService {
       priority,
       entityType: params.entityType,
       entityId: params.entityId,
-    }).catch(() => {});
+    }).catch((error) => {
+      console.error("[NotificationService] broadcast() external delivery failed:", error);
+    });
   }
 
   /**
@@ -159,7 +171,9 @@ export class NotificationService {
       priority,
       entityType: params.entityType,
       entityId: params.entityId,
-    }).catch(() => {});
+    }).catch((error) => {
+      console.error("[NotificationService] notifyCompany() external delivery failed:", error);
+    });
   }
 
   // ============================================
@@ -400,24 +414,84 @@ export class NotificationService {
     entityId?: string | null;
   }): Promise<void> {
     try {
-      await fetch(`${this.appUrl}/api/notifications/send-external`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: params.userId,
-          notificationId: params.notificationId,
-          role: params.role,
-          companyId: params.companyId,
+      const url = params.content.actionUrl
+        ? `${this.appUrl}${params.content.actionUrl}`
+        : undefined;
+      const data = {
+        notification_id: params.notificationId,
+        entity_type: params.entityType,
+        entity_id: params.entityId,
+      };
+      const emailBody = getEmailHtmlContent(params.content, this.appUrl);
+
+      let pushResult = null;
+      let emailResult = null;
+
+      if (params.role) {
+        const filters: OneSignalFilter[] = [
+          { field: "tag", key: "user_role", relation: "=", value: params.role },
+        ];
+        pushResult = await onesignalClient.sendPushByFilter({
+          filters,
           title: params.content.title,
           message: params.content.message,
-          actionUrl: params.content.actionUrl,
-          entityType: params.entityType,
-          entityId: params.entityId,
+          url,
+          data,
           priority: params.priority,
-        }),
-      });
-    } catch {
-      // Silently fail - notifications are not critical
+        });
+        emailResult = await onesignalClient.sendEmailByFilter({
+          filters,
+          subject: params.content.title,
+          body: emailBody,
+        });
+      } else if (params.companyId) {
+        const filters: OneSignalFilter[] = [
+          { field: "tag", key: "company_id", relation: "=", value: params.companyId },
+        ];
+        pushResult = await onesignalClient.sendPushByFilter({
+          filters,
+          title: params.content.title,
+          message: params.content.message,
+          url,
+          data,
+          priority: params.priority,
+        });
+        emailResult = await onesignalClient.sendEmailByFilter({
+          filters,
+          subject: params.content.title,
+          body: emailBody,
+        });
+      } else if (params.userId) {
+        pushResult = await onesignalClient.sendPushNotification({
+          externalUserIds: [params.userId],
+          title: params.content.title,
+          message: params.content.message,
+          url,
+          data,
+          priority: params.priority,
+        });
+        emailResult = await onesignalClient.sendEmailNotification({
+          externalUserIds: [params.userId],
+          subject: params.content.title,
+          body: emailBody,
+        });
+      }
+
+      // Track delivery status if we have a notification ID
+      if (params.notificationId) {
+        if (pushResult) {
+          await this.notificationRepo.markPushSent(params.notificationId);
+        }
+        if (emailResult) {
+          await this.notificationRepo.markEmailSent(params.notificationId);
+        }
+      }
+
+      console.log(
+        `[NotificationService] External notification sent — push: ${!!pushResult}, email: ${!!emailResult}, target: ${params.role || params.companyId || params.userId}`
+      );
+    } catch (error) {
+      console.error("[NotificationService] Failed to send external notification:", error);
     }
   }
 }

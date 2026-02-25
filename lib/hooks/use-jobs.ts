@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { JobRepository } from "@/lib/database/repositories";
-import { WorkflowService } from "@/lib/database/services";
 import {
   queryKeys,
   type JobFilters,
@@ -153,15 +152,24 @@ export function useCreateJob() {
 
 /**
  * Hook to update job status (with validation and timeline tracking)
+ * Calls server-side API route so notifications are sent reliably.
  */
 export function useUpdateJobStatus() {
   const queryClient = useQueryClient();
-  const supabase = createClient();
-  const workflow = new WorkflowService(supabase);
 
   return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: JobStatus }) =>
-      workflow.updateJobStatus(id, status),
+    mutationFn: async ({ id, status }: { id: string; status: JobStatus }) => {
+      const res = await fetch("/api/workflow/update-job-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId: id, status }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to update job status");
+      }
+      return res.json();
+    },
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.jobs.lists() });
       queryClient.invalidateQueries({ queryKey: queryKeys.jobs.detail(id) });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/auth/helpers";
 import { validateRequest, inviteUserSchema } from "@/lib/validation";
+import { onesignalClient } from "@/lib/onesignal";
 
 /**
  * POST /api/admin/invite-user
@@ -56,6 +57,20 @@ export async function POST(request: NextRequest) {
         { error: error.message },
         { status: 400 }
       );
+    }
+
+    // Auto-register user with OneSignal for email notifications
+    if (data.user?.id) {
+      onesignalClient
+        .registerUserEmail({
+          externalId: data.user.id,
+          email: body.email,
+          role: body.role || "client",
+          companyId: body.companyId,
+        })
+        .catch((err) => {
+          console.error("[invite-user] OneSignal registration failed:", err);
+        });
     }
 
     return NextResponse.json({

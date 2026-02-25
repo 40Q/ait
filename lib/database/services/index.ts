@@ -1,6 +1,6 @@
-// Export all services
-// Note: NotificationService is NOT exported here because it imports server-only
-// dependencies (onesignalClient). Import it directly where needed in API routes:
-// import { NotificationService } from "@/lib/database/services/notification.service";
+// Both WorkflowService and NotificationService are SERVER-ONLY.
+// They call OneSignal directly and require server environment variables.
+// Only import them in API routes, never in client components/hooks.
 
 export { WorkflowService } from "./workflow.service";
+export { NotificationService } from "./notification.service";
