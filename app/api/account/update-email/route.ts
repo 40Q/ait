@@ -35,10 +35,15 @@ export async function POST(request: Request) {
       );
     }
 
-    // Supabase will send a confirmation email to the new address
-    const { error: updateError } = await supabase.auth.updateUser({
-      email: newEmail,
-    });
+    // Build the redirect URL for email confirmation links
+    const requestUrl = new URL(request.url);
+    const origin = requestUrl.origin;
+
+    // Supabase will send confirmation emails to both addresses
+    const { error: updateError } = await supabase.auth.updateUser(
+      { email: newEmail },
+      { emailRedirectTo: `${origin}/settings` }
+    );
 
     if (updateError) {
       return NextResponse.json(

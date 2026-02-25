@@ -5,7 +5,9 @@ import { NextResponse } from "next/server";
  * After an email change is fully confirmed, sync the new email
  * to the profiles table and update full_name if it was the old email.
  */
-async function syncEmailChangeToProfile(supabase: Awaited<ReturnType<typeof createClient>>) {
+async function syncEmailChangeToProfile(
+  supabase: Awaited<ReturnType<typeof createClient>>
+) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -33,7 +35,6 @@ async function syncEmailChangeToProfile(supabase: Awaited<ReturnType<typeof crea
   if (profile.full_name === oldEmail) {
     updates.full_name = newEmail;
 
-    // Also update the auth user metadata display name
     await supabase.auth.updateUser({
       data: { full_name: newEmail },
     });
@@ -42,11 +43,51 @@ async function syncEmailChangeToProfile(supabase: Awaited<ReturnType<typeof crea
   await supabase.from("profiles").update(updates).eq("id", user.id);
 }
 
+function getBaseUrl(request: Request, origin: string): string {
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const isLocalEnv = process.env.NODE_ENV === "development";
+
+  if (isLocalEnv) return origin;
+  if (forwardedHost) return `https://${forwardedHost}`;
+  return origin;
+}
+
+function settingsRedirect(baseUrl: string, message: string): NextResponse {
+  return NextResponse.redirect(
+    `${baseUrl}/settings?email_confirmed=${encodeURIComponent(message)}`
+  );
+}
+
+async function handleEmailChange(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  baseUrl: string
+): Promise<NextResponse> {
+  await syncEmailChangeToProfile(supabase);
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const emailChangeComplete = user?.email_confirmed_at && !user?.new_email;
+
+  if (emailChangeComplete) {
+    return settingsRedirect(
+      baseUrl,
+      "Your email address has been updated successfully."
+    );
+  }
+
+  return settingsRedirect(
+    baseUrl,
+    "Email confirmed. Please check your other email inbox to complete the change."
+  );
+}
+
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const type = searchParams.get("type");
   const next = searchParams.get("next") ?? "/";
+  const baseUrl = getBaseUrl(request, origin);
 
   // Handle token-based auth (invite, recovery, etc.)
   const tokenHash = searchParams.get("token_hash");
@@ -58,30 +99,25 @@ export async function GET(request: Request) {
     });
 
     if (!error) {
-      // For invite or recovery, redirect to set password
       if (type === "invite" || type === "recovery") {
         return NextResponse.redirect(`${origin}/auth/set-password`);
       }
 
-      // For email change confirmations, sync profile and redirect to settings with a message
       if (type === "email_change") {
-        await syncEmailChangeToProfile(supabase);
-
-        const { data: { user } } = await supabase.auth.getUser();
-        const emailChanged = user?.email_confirmed_at && !user?.new_email;
-
-        if (emailChanged) {
-          // Both emails confirmed — change is complete
-          const message = encodeURIComponent("Your email address has been updated successfully.");
-          return NextResponse.redirect(`${origin}/settings?email_confirmed=${message}`);
-        } else {
-          // First email confirmed — still waiting for the other one
-          const message = encodeURIComponent("Email confirmed. Please check your other email inbox to complete the change.");
-          return NextResponse.redirect(`${origin}/settings?email_confirmed=${message}`);
-        }
+        return handleEmailChange(supabase, baseUrl);
       }
 
       return NextResponse.redirect(`${origin}${next}`);
+    }
+
+    // If email_change verification fails, the change may still have been
+    // applied by Supabase's server. Sync the profile and redirect gracefully.
+    if (type === "email_change") {
+      await syncEmailChangeToProfile(supabase);
+      return settingsRedirect(
+        baseUrl,
+        "Email confirmation processed. Please check your account email below."
+      );
     }
 
     return NextResponse.redirect(`${origin}/auth/auth-code-error`);
@@ -93,49 +129,26 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      const forwardedHost = request.headers.get("x-forwarded-host");
-      const isLocalEnv = process.env.NODE_ENV === "development";
-
-      // Check if this is an invite flow (type param might be in the original redirect)
       if (type === "invite" || type === "recovery") {
-        return NextResponse.redirect(
-          isLocalEnv
-            ? `${origin}/auth/set-password`
-            : forwardedHost
-              ? `https://${forwardedHost}/auth/set-password`
-              : `${origin}/auth/set-password`
-        );
+        return NextResponse.redirect(`${baseUrl}/auth/set-password`);
       }
 
-      // For email change via PKCE flow
       if (type === "email_change") {
-        await syncEmailChangeToProfile(supabase);
-
-        const { data: { user } } = await supabase.auth.getUser();
-        const emailChanged = user?.email_confirmed_at && !user?.new_email;
-
-        const baseUrl = isLocalEnv
-          ? origin
-          : forwardedHost
-            ? `https://${forwardedHost}`
-            : origin;
-
-        if (emailChanged) {
-          const message = encodeURIComponent("Your email address has been updated successfully.");
-          return NextResponse.redirect(`${baseUrl}/settings?email_confirmed=${message}`);
-        } else {
-          const message = encodeURIComponent("Email confirmed. Please check your other email inbox to complete the change.");
-          return NextResponse.redirect(`${baseUrl}/settings?email_confirmed=${message}`);
-        }
+        return handleEmailChange(supabase, baseUrl);
       }
 
-      if (isLocalEnv) {
-        return NextResponse.redirect(`${origin}${next}`);
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`);
-      } else {
-        return NextResponse.redirect(`${origin}${next}`);
-      }
+      return NextResponse.redirect(`${baseUrl}${next}`);
+    }
+
+    // PKCE exchange can fail for email_change because there's no code verifier
+    // cookie (the confirmation link comes from an email, not a browser flow).
+    // The change was already applied by Supabase's server — sync and redirect.
+    if (type === "email_change") {
+      await syncEmailChangeToProfile(supabase);
+      return settingsRedirect(
+        baseUrl,
+        "Email confirmation processed. Please check your account email below."
+      );
     }
   }
 
