@@ -82,9 +82,13 @@ export function ChangePasswordCard() {
     setIsVerifying(true);
 
     try {
-      // Verify current password client-side (requires captcha token)
+      // Use the auth email (not profile email) in case they differ during an email change
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: currentUser?.email ?? "",
+        email: user?.email ?? "",
         password: currentPassword,
         options: { captchaToken },
       });
@@ -94,7 +98,11 @@ export function ChangePasswordCard() {
       setCaptchaToken(undefined);
 
       if (signInError) {
-        setVerifyError("Current password is incorrect");
+        setVerifyError(
+          signInError.message === "Invalid login credentials"
+            ? "Current password is incorrect"
+            : signInError.message
+        );
         setIsVerifying(false);
         return;
       }
