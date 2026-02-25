@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Turnstile } from "@marsidev/react-turnstile";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { Logo } from "@/components/brand/logo";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ import { loginFormSchema, type LoginFormInput } from "@/lib/validation";
 export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
+  const turnstileRef = useRef<TurnstileInstance>(null);
 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -102,6 +103,10 @@ export default function LoginPage() {
         password: result.data.password,
         options: { captchaToken },
       });
+
+      // Reset captcha so a fresh token is available for the next attempt
+      turnstileRef.current?.reset();
+      setCaptchaToken(undefined);
 
       if (signInError) {
         setError(signInError.message);
@@ -214,6 +219,7 @@ export default function LoginPage() {
                 )}
               </div>
               <Turnstile
+                ref={turnstileRef}
                 siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
                 onSuccess={(token) => setCaptchaToken(token)}
               />

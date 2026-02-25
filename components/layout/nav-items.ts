@@ -7,6 +7,7 @@ import {
   FileText,
   Receipt,
   MapPin,
+  Settings,
   LucideIcon,
 } from "lucide-react";
 
@@ -57,5 +58,10 @@ export const clientNavItems: NavItem[] = [
     title: "Invoices",
     href: "/invoices",
     icon: Receipt,
+  },
+  {
+    title: "Settings",
+    href: "/settings",
+    icon: Settings,
   },
 ];
