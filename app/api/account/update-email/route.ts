@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     const requestUrl = new URL(request.url);
     const origin = requestUrl.origin;
 
-    // Supabase will send confirmation emails to both addresses
+    // Supabase will send a confirmation email to the new address
     const { error: updateError } = await supabase.auth.updateUser(
       { email: newEmail },
       { emailRedirectTo: `${origin}/settings` }
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message:
-        "Confirmation emails have been sent to both your current and new email addresses. Please confirm both to complete the change.",
+        "A confirmation email has been sent to your new email address. Please check your inbox to complete the change.",
     });
   } catch (error) {
     console.error("Error updating email:", error);

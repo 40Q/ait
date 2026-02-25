@@ -86,8 +86,8 @@ export function ChangeEmailCard() {
           </div>
 
           <p className="text-xs text-muted-foreground">
-            A confirmation email will be sent to both your current and new
-            address. The change won&apos;t take effect until you confirm both.
+            A confirmation email will be sent to the new address. The change
+            won&apos;t take effect until you confirm it.
           </p>
 
           <Button
