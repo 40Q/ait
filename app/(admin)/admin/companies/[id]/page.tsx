@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, use, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -29,7 +30,6 @@ import {
   ArrowLeft,
   Loader2,
   CheckCircle2,
-  ExternalLink,
   UserPlus,
   Mail,
   AlertTriangle,
@@ -60,12 +60,13 @@ interface CompanyDetailPageProps {
 
 export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
   const { id } = use(params);
+  const router = useRouter();
 
   const { data: company, isLoading, error, refetch } = useCompany(id);
   const { data: companyUsers = [], refetch: refetchUsers } = useCompanyUsers(id);
   const updateCompany = useUpdateCompany();
   const inviteUser = useInviteUser();
-  const deactivateUser = useDeactivateUser();
+  const deleteUser = useDeactivateUser();
   const { errors, validate, clearFieldError } = useFormValidation<CompanyFormInput>(companyFormSchema);
 
   const [formData, setFormData] = useState<CompanyFormData>({
@@ -84,13 +85,10 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteFullName, setInviteFullName] = useState("");
   const [inviteSuccess, setInviteSuccess] = useState(false);
-  const [wasReactivated, setWasReactivated] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [isDeactivating, setIsDeactivating] = useState(false);
-  const [deactivateError, setDeactivateError] = useState<string | null>(null);
-  const [deactivateSuccess, setDeactivateSuccess] = useState(false);
-  const [showReactivateConfirm, setShowReactivateConfirm] = useState(false);
-  const [userToDeactivate, setUserToDeactivate] = useState<{ id: string; email: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [userToDelete, setUserToDelete] = useState<{ id: string; email: string } | null>(null);
 
   // Populate form when company data loads
   useEffect(() => {
@@ -151,17 +149,6 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
   const handleInviteUser = () => {
     if (!inviteEmail) return;
 
-    // If company is inactive, show confirmation dialog
-    if (!isActive) {
-      setShowReactivateConfirm(true);
-      return;
-    }
-
-    // Company is active, proceed directly
-    sendInvitation();
-  };
-
-  const sendInvitation = () => {
     setInviteSuccess(false);
     inviteUser.mutate(
       {
@@ -181,30 +168,9 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
     );
   };
 
-  const handleConfirmReactivation = () => {
-    setShowReactivateConfirm(false);
-    setWasReactivated(false);
-
-    // First reactivate the company, then invite the user
-    updateCompany.mutate(
-      {
-        id,
-        data: { status: "active" },
-      },
-      {
-        onSuccess: () => {
-          setWasReactivated(true);
-          refetch();
-          sendInvitation();
-        },
-      }
-    );
-  };
-
-  const handleDeactivate = async () => {
-    setIsDeactivating(true);
-    setDeactivateError(null);
-    setDeactivateSuccess(false);
+  const handleDeleteCompany = async () => {
+    setIsDeleting(true);
+    setDeleteError(null);
 
     try {
       const response = await fetch(`/api/admin/companies/${id}/deactivate`, {
@@ -214,32 +180,29 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
       const result = await response.json();
 
       if (!response.ok) {
-        setDeactivateError(result.error || "Failed to deactivate company");
-        setIsDeactivating(false);
+        setDeleteError(result.error || "Failed to delete company");
+        setIsDeleting(false);
         return;
       }
 
-      setDeactivateSuccess(true);
-      setIsDeactivating(false);
-      refetch();
+      // Company deleted — redirect to companies list
+      router.push("/admin/companies");
     } catch {
-      setDeactivateError("An unexpected error occurred");
-      setIsDeactivating(false);
+      setDeleteError("An unexpected error occurred");
+      setIsDeleting(false);
     }
   };
 
-  const handleDeactivateUser = () => {
-    if (!userToDeactivate) return;
+  const handleDeleteUser = () => {
+    if (!userToDelete) return;
 
-    deactivateUser.mutate(userToDeactivate.id, {
+    deleteUser.mutate(userToDelete.id, {
       onSuccess: () => {
-        setUserToDeactivate(null);
+        setUserToDelete(null);
         refetchUsers();
       },
     });
   };
-
-  const isActive = company?.status === "active";
 
   if (isLoading) {
     return (
@@ -549,7 +512,7 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                        onClick={() => setUserToDeactivate({ id: user.id, email: user.email })}
+                        onClick={() => setUserToDelete({ id: user.id, email: user.email })}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -609,9 +572,7 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
               {inviteSuccess && (
                 <p className="text-sm text-green-600 flex items-center gap-1">
                   <CheckCircle2 className="h-4 w-4" />
-                  {wasReactivated
-                    ? "Invitation sent and company reactivated"
-                    : "Invitation sent successfully"}
+                  Invitation sent successfully
                 </p>
               )}
               {inviteUser.error && (
@@ -622,121 +583,96 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
             </CardContent>
           </Card>
 
-          {/* Danger Zone - Only show for active companies */}
-          {isActive && (
-            <Card className="border-destructive/50">
-              <CardHeader>
-                <CardTitle className="text-base text-destructive flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  Danger Zone
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Deactivating this company will permanently remove all portal users
-                  associated with it. The company data (jobs, invoices, documents)
-                  will be preserved, but users will no longer be able to access the portal.
-                </p>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="destructive"
-                      className="w-full"
-                      disabled={isDeactivating}
+          {/* Danger Zone */}
+          <Card className="border-destructive/50">
+            <CardHeader>
+              <CardTitle className="text-base text-destructive flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                Danger Zone
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Permanently delete this company and all associated data
+                including jobs, invoices, documents, and portal users.
+                This action cannot be undone.
+              </p>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    className="w-full"
+                    disabled={isDeleting}
+                  >
+                    {isDeleting && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    Delete Company
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete {company.name}?</AlertDialogTitle>
+                    <AlertDialogDescription className="space-y-2">
+                      <span className="block">
+                        This will permanently delete:
+                      </span>
+                      <ul className="list-disc list-inside space-y-1">
+                        <li>All jobs, requests, and quotes</li>
+                        <li>All invoices and documents</li>
+                        <li>All portal users for this company</li>
+                      </ul>
+                      <span className="block mt-2 font-medium">
+                        This action cannot be undone.
+                      </span>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteCompany}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     >
-                      {isDeactivating && (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      )}
-                      Deactivate Company
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Deactivate {company.name}?</AlertDialogTitle>
-                      <AlertDialogDescription className="space-y-2">
-                        <span className="block">
-                          This action will:
-                        </span>
-                        <ul className="list-disc list-inside space-y-1">
-                          <li>Set the company status to inactive</li>
-                          <li>Permanently delete all portal users for this company</li>
-                        </ul>
-                        <span className="block mt-2">
-                          Company data (jobs, invoices, documents) will be preserved.
-                          This action cannot be undone.
-                        </span>
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleDeactivate}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        Deactivate
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-                {deactivateError && (
-                  <p className="text-sm text-destructive">{deactivateError}</p>
-                )}
-              </CardContent>
-            </Card>
-          )}
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              {deleteError && (
+                <p className="text-sm text-destructive">{deleteError}</p>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
 
-      {/* Reactivate Company Confirmation Dialog */}
-      <AlertDialog open={showReactivateConfirm} onOpenChange={setShowReactivateConfirm}>
+      {/* Delete User Confirmation Dialog */}
+      <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reactivate Company?</AlertDialogTitle>
+            <AlertDialogTitle>Remove User?</AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
               <span className="block">
-                This company is currently inactive. Inviting a user will automatically
-                reactivate it, allowing the user to access the portal.
+                Are you sure you want to remove <strong>{userToDelete?.email}</strong>?
               </span>
               <span className="block">
-                Do you want to proceed?
+                They will be permanently removed from the portal. You can
+                re-invite them later if needed.
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmReactivation}>
-              Reactivate & Invite
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Deactivate User Confirmation Dialog */}
-      <AlertDialog open={!!userToDeactivate} onOpenChange={(open) => !open && setUserToDeactivate(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Deactivate User?</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <span className="block">
-                Are you sure you want to deactivate <strong>{userToDeactivate?.email}</strong>?
-              </span>
-              <span className="block">
-                They will no longer be able to access the portal. All data will be preserved.
-              </span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {deactivateUser.error && (
-            <p className="text-sm text-destructive">{deactivateUser.error.message}</p>
+          {deleteUser.error && (
+            <p className="text-sm text-destructive">{deleteUser.error.message}</p>
           )}
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deactivateUser.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteUser.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDeactivateUser}
-              disabled={deactivateUser.isPending}
+              onClick={handleDeleteUser}
+              disabled={deleteUser.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deactivateUser.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Deactivate
+              {deleteUser.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Remove
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

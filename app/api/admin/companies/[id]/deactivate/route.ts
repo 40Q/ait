@@ -9,9 +9,9 @@ interface RouteParams {
 /**
  * POST /api/admin/companies/[id]/deactivate
  *
- * Deactivates a company and bans all associated users.
- * - Sets company status to 'inactive'
- * - Bans all auth users linked to the company (prevents login)
+ * Permanently deletes a company and all associated data.
+ * - Deletes the company record (cascades to requests, quotes, jobs, documents, invoices, locations)
+ * - Deletes all auth users linked to the company (cascades to profiles, notifications)
  *
  * Requires: Admin authentication
  */
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Get all users associated with this company
+    // Get all users associated with this company BEFORE deleting
     const { data: profiles, error: profilesError } = await supabase
       .from("profiles")
       .select("id, email")
@@ -47,47 +47,50 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Update company status to inactive
-    const { error: updateError } = await supabase
+    const adminClient = createAdminClient();
+
+    // Delete the company — cascades to all business data
+    // (requests, quotes, jobs, documents, invoices, locations)
+    const { error: deleteError } = await adminClient
       .from("companies")
-      .update({ status: "inactive" })
+      .delete()
       .eq("id", companyId);
 
-    if (updateError) {
-      console.error("Error updating company:", updateError);
+    if (deleteError) {
+      console.error("Error deleting company:", deleteError);
       return NextResponse.json(
-        { error: "Failed to deactivate company" },
+        { error: "Failed to delete company" },
         { status: 500 }
       );
     }
 
-    // Ban all users associated with this company (requires service role key)
-    const adminClient = createAdminClient();
-    const deactivatedUsers: string[] = [];
+    // Delete all auth users — cascades to profiles, notifications, preferences
+    const deletedUsers: string[] = [];
     const failedUsers: string[] = [];
 
     for (const profile of profiles || []) {
-      const { error: banError } = await adminClient.auth.admin.updateUserById(
-        profile.id,
-        { ban_duration: "876600h" } // ~100 years
-      );
+      const { error: deleteUserError } =
+        await adminClient.auth.admin.deleteUser(profile.id);
 
-      if (banError) {
-        console.error(`Error deactivating user ${profile.email}:`, banError);
+      if (deleteUserError) {
+        console.error(
+          `Error deleting user ${profile.email}:`,
+          deleteUserError
+        );
         failedUsers.push(profile.email);
       } else {
-        deactivatedUsers.push(profile.email);
+        deletedUsers.push(profile.email);
       }
     }
 
     return NextResponse.json({
       success: true,
-      message: "Company deactivated successfully",
-      deactivatedUsers: deactivatedUsers.length,
+      message: "Company deleted successfully",
+      deletedUsers: deletedUsers.length,
       failedUsers: failedUsers.length > 0 ? failedUsers : undefined,
     });
   } catch (error) {
-    console.error("Error in deactivate company:", error);
+    console.error("Error in delete company:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

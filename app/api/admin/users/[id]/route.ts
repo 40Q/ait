@@ -7,10 +7,11 @@ interface RouteParams {
 }
 
 /**
- * POST /api/admin/users/[id]/deactivate
+ * POST /api/admin/users/[id]
  *
- * Deactivates a user by banning them in Supabase Auth.
+ * Removes a user by banning them in Supabase Auth.
  * The user will no longer be able to log in, but all data is preserved.
+ * They can be re-invited later, which will unban and send a new invite link.
  *
  * Requires: Admin authentication
  */
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Ban the user (prevents login but preserves all data, requires service role key)
+    // Ban the user (prevents login, preserves data, can be re-invited later)
     const adminClient = createAdminClient();
     const { error: banError } = await adminClient.auth.admin.updateUserById(
       userId,
@@ -55,20 +56,20 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     );
 
     if (banError) {
-      console.error(`Error deactivating user ${profile.email}:`, banError);
+      console.error(`Error removing user ${profile.email}:`, banError);
       return NextResponse.json(
-        { error: "Failed to deactivate user" },
+        { error: "Failed to remove user" },
         { status: 500 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      message: "User deactivated successfully",
+      message: "User removed successfully",
       email: profile.email,
     });
   } catch (error) {
-    console.error("Error in deactivate user:", error);
+    console.error("Error in remove user:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
