@@ -70,8 +70,6 @@ export { useDeactivateUser } from "./use-deactivate-user";
 
 // Account hooks
 export { useChangePassword } from "./use-change-password";
-export { useUpdateEmail } from "./use-update-email";
-export { useSyncEmail } from "./use-sync-email";
 
 // User hooks
 export { useCurrentUser, type CurrentUserProfile } from "./use-current-user";
