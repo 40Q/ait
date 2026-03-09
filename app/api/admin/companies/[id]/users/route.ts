@@ -65,6 +65,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           id: profile.id,
           email: profile.email,
           full_name: profile.full_name,
+          invite_pending: !authUser.user.confirmed_at,
         });
       }
     }

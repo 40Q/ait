@@ -35,7 +35,10 @@ import {
   AlertTriangle,
   Users,
   Trash2,
+  Copy,
+  Check,
 } from "lucide-react";
+import { CopyInviteLinkButton } from "@/components/ui/copy-invite-link-button";
 import { QuickBooksCustomerSelect } from "@/components/ui/quickbooks-customer-select";
 import {
   useCompany,
@@ -57,6 +60,7 @@ interface CompanyFormData extends CompanyFormInput {
 interface CompanyDetailPageProps {
   params: Promise<{ id: string }>;
 }
+
 
 export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
   const { id } = use(params);
@@ -85,6 +89,8 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteFullName, setInviteFullName] = useState("");
   const [inviteSuccess, setInviteSuccess] = useState(false);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -150,6 +156,7 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
     if (!inviteEmail) return;
 
     setInviteSuccess(false);
+    setInviteLink(null);
     inviteUser.mutate(
       {
         email: inviteEmail,
@@ -158,14 +165,23 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
         role: "client",
       },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
           setInviteEmail("");
           setInviteFullName("");
           setInviteSuccess(true);
+          setInviteLink(data.inviteLink ?? null);
           refetchUsers();
         },
       }
     );
+  };
+
+  const handleCopyLink = () => {
+    if (!inviteLink) return;
+    navigator.clipboard.writeText(inviteLink).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
   };
 
   const handleDeleteCompany = async () => {
@@ -508,6 +524,9 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
                       <span className="text-muted-foreground truncate flex-1 mr-2">
                         {user.email}
                       </span>
+                      {user.invite_pending && (
+                        <CopyInviteLinkButton userId={user.id} />
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -570,10 +589,27 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
                 Send Invitation
               </Button>
               {inviteSuccess && (
-                <p className="text-sm text-green-600 flex items-center gap-1">
-                  <CheckCircle2 className="h-4 w-4" />
-                  Invitation sent successfully
-                </p>
+                <div className="space-y-2">
+                  <p className="text-sm text-green-600 flex items-center gap-1">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Invitation sent successfully
+                  </p>
+                  {inviteLink && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={handleCopyLink}
+                    >
+                      {linkCopied ? (
+                        <Check className="mr-2 h-4 w-4 text-green-600" />
+                      ) : (
+                        <Copy className="mr-2 h-4 w-4" />
+                      )}
+                      {linkCopied ? "Copied!" : "Copy Invitation Link"}
+                    </Button>
+                  )}
+                </div>
               )}
               {inviteUser.error && (
                 <p className="text-sm text-destructive">

@@ -12,6 +12,7 @@ interface InviteUserParams {
 interface InviteUserResponse {
   success: boolean;
   userId?: string;
+  inviteLink?: string;
   message?: string;
   error?: string;
 }

@@ -110,7 +110,7 @@ export function useCompanyUsers(companyId: string) {
       if (!response.ok) {
         throw new Error("Failed to fetch company users");
       }
-      return response.json() as Promise<{ id: string; email: string; full_name: string | null }[]>;
+      return response.json() as Promise<{ id: string; email: string; full_name: string | null; invite_pending: boolean }[]>;
     },
     enabled: !!companyId,
   });
