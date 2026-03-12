@@ -39,6 +39,7 @@ import {
   Check,
 } from "lucide-react";
 import { CopyInviteLinkButton } from "@/components/ui/copy-invite-link-button";
+import { SendRecoveryEmailButton } from "@/components/ui/send-recovery-email-button";
 import { QuickBooksCustomerSelect } from "@/components/ui/quickbooks-customer-select";
 import {
   useCompany,
@@ -524,8 +525,10 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
                       <span className="text-muted-foreground truncate flex-1 mr-2">
                         {user.email}
                       </span>
-                      {user.invite_pending && (
+                      {user.invite_pending ? (
                         <CopyInviteLinkButton userId={user.id} />
+                      ) : (
+                        <SendRecoveryEmailButton userId={user.id} />
                       )}
                       <Button
                         variant="ghost"
