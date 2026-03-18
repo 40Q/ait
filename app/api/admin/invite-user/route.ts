@@ -81,19 +81,9 @@ export async function POST(request: NextRequest) {
       registerOneSignal(data.user.id, body.email, body.role || "client", body.companyId);
     }
 
-    // Generate a fresh invite link to return (replaces the emailed token)
-    const { data: linkData } = await adminClient.auth.admin.generateLink({
-      type: "invite",
-      email: body.email,
-      options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?type=invite`,
-      },
-    });
-
     return NextResponse.json({
       success: true,
       userId: data.user?.id,
-      inviteLink: linkData?.properties?.action_link,
       message: "Invitation email sent successfully",
     });
   } catch (error) {
