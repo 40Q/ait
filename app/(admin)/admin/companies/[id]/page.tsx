@@ -39,6 +39,7 @@ import {
   Check,
 } from "lucide-react";
 import { CopyInviteLinkButton } from "@/components/ui/copy-invite-link-button";
+import { ResendInviteButton } from "@/components/ui/resend-invite-button";
 import { SendRecoveryEmailButton } from "@/components/ui/send-recovery-email-button";
 import { QuickBooksCustomerSelect } from "@/components/ui/quickbooks-customer-select";
 import {
@@ -526,7 +527,10 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
                         {user.email}
                       </span>
                       {user.invite_pending ? (
-                        <CopyInviteLinkButton userId={user.id} />
+                        <>
+                          <ResendInviteButton email={user.email} fullName={user.full_name} companyId={id} />
+                          <CopyInviteLinkButton userId={user.id} />
+                        </>
                       ) : (
                         <SendRecoveryEmailButton userId={user.id} />
                       )}
