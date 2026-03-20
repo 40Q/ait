@@ -158,7 +158,7 @@ export default function LoginPage() {
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               Your invitation link has expired or is no longer valid. Please
-              contact your administrator to request a new invitation.
+              contact us to request a new invitation.
             </AlertDescription>
           </Alert>
         )}
