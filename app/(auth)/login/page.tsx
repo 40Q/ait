@@ -34,6 +34,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [expiredLinkNotice, setExpiredLinkNotice] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string>();
   const { errors, validate, clearFieldError } = useFormValidation<LoginFormInput>(loginFormSchema);
 
@@ -48,9 +49,18 @@ export default function LoginPage() {
 
       // Parse hash parameters
       const params = new URLSearchParams(hash.substring(1));
+      const hashError = params.get("error");
       const accessToken = params.get("access_token");
       const refreshToken = params.get("refresh_token");
       const type = params.get("type");
+
+      if (hashError) {
+        // Clear the hash from URL and show a notice
+        window.history.replaceState(null, "", window.location.pathname);
+        setExpiredLinkNotice(true);
+        setIsCheckingHash(false);
+        return;
+      }
 
       if (accessToken && refreshToken) {
         // Set the session from the tokens
@@ -142,6 +152,16 @@ export default function LoginPage() {
         <div className="mb-8 flex justify-center">
           <Logo size="lg" />
         </div>
+
+        {expiredLinkNotice && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Your invitation link has expired or is no longer valid. Please
+              contact your administrator to request a new invitation.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <Card>
           <CardHeader className="text-center">
