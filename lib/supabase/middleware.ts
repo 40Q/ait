@@ -52,7 +52,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   // Public routes that don't require authentication
-  const publicRoutes = ["/login", "/auth/callback", "/auth/set-password"];
+  const publicRoutes = ["/login", "/auth/callback", "/auth/set-password", "/auth/auth-code-error"];
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
   const isSetPasswordPage = pathname === "/auth/set-password";
 
