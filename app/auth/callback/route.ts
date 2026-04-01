@@ -64,8 +64,22 @@ export async function GET(request: Request) {
         return NextResponse.redirect(`${origin}${next}`);
       }
     }
+
+    // PKCE exchange failed — treat like an expired invite if we have the context
+    if (type === "invite") {
+      const email = searchParams.get("email");
+      const dest = new URL(`${origin}/auth/auth-code-error`);
+      if (email) dest.searchParams.set("email", email);
+      return NextResponse.redirect(dest);
+    }
   }
 
   // Return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/auth/auth-code-error`);
+  // Preserve email for expired invite links so the error page can offer a resend
+  const errorDest = new URL(`${origin}/auth/auth-code-error`);
+  const fallbackEmail = searchParams.get("email");
+  if (type === "invite" && fallbackEmail) {
+    errorDest.searchParams.set("email", fallbackEmail);
+  }
+  return NextResponse.redirect(errorDest);
 }
