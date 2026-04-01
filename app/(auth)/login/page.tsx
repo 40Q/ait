@@ -22,6 +22,7 @@ import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { getUserProfile, getDashboardPath } from "@/lib/auth/helpers";
 import { useFormValidation } from "@/lib/hooks/use-form-validation";
 import { loginFormSchema, type LoginFormInput } from "@/lib/validation";
+import { useRequestNewLink } from "@/lib/hooks";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -35,6 +36,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [expiredLinkNotice, setExpiredLinkNotice] = useState(false);
+  const requestNewLink = useRequestNewLink();
   const [captchaToken, setCaptchaToken] = useState<string>();
   const { errors, validate, clearFieldError } = useFormValidation<LoginFormInput>(loginFormSchema);
 
@@ -156,9 +158,32 @@ export default function LoginPage() {
         {expiredLinkNotice && (
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Your invitation link has expired or is no longer valid. Please
-              contact us to request a new invitation.
+            <AlertDescription className="space-y-3">
+              <p>Your invitation link has expired or is no longer valid.</p>
+              {requestNewLink.isSuccess ? (
+                <p className="font-medium">Check your inbox — a new link has been sent if an account exists for this email.</p>
+              ) : (
+                <form
+                  className="flex gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    requestNewLink.mutate(email);
+                  }}
+                >
+                  <input
+                    type="email"
+                    required
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="h-8 flex-1 rounded-md border border-destructive/50 bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-destructive"
+                  />
+                  <Button type="submit" size="sm" variant="destructive" disabled={!email || requestNewLink.isPending}>
+                    {requestNewLink.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                    Request new link
+                  </Button>
+                </form>
+              )}
             </AlertDescription>
           </Alert>
         )}
