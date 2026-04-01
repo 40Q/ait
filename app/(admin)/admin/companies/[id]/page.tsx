@@ -27,6 +27,21 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   ArrowLeft,
   Loader2,
   CheckCircle2,
@@ -34,14 +49,15 @@ import {
   Mail,
   AlertTriangle,
   Users,
-  Trash2,
   Copy,
   Check,
+  Eye,
+  EyeOff,
+  RefreshCw,
+  MoreHorizontal,
 } from "lucide-react";
-import { CopyInviteLinkButton } from "@/components/ui/copy-invite-link-button";
-import { ResendInviteButton } from "@/components/ui/resend-invite-button";
-import { SendRecoveryEmailButton } from "@/components/ui/send-recovery-email-button";
 import { QuickBooksCustomerSelect } from "@/components/ui/quickbooks-customer-select";
+import { generatePassword } from "@/lib/utils/generate-password";
 import {
   useCompany,
   useCompanyUsers,
@@ -90,6 +106,10 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
   });
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteFullName, setInviteFullName] = useState("");
+  const [invitePassword, setInvitePassword] = useState("");
+  const [showInvitePassword, setShowInvitePassword] = useState(false);
+  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
+  const [passwordCopied, setPasswordCopied] = useState(false);
   const [inviteSuccess, setInviteSuccess] = useState(false);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -97,6 +117,12 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [userToDelete, setUserToDelete] = useState<{ id: string; email: string } | null>(null);
+  const [userToSetPassword, setUserToSetPassword] = useState<{ id: string; email: string } | null>(null);
+  const [setPasswordValue, setSetPasswordValue] = useState("");
+  const [showSetPasswordValue, setShowSetPasswordValue] = useState(false);
+  const [setPasswordLoading, setSetPasswordLoading] = useState(false);
+  const [setPasswordError, setSetPasswordError] = useState<string | null>(null);
+  const [setPasswordSuccess, setSetPasswordSuccess] = useState(false);
 
   // Populate form when company data loads
   useEffect(() => {
@@ -154,24 +180,35 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
     );
   };
 
+  const handleGenerateInvitePassword = () => {
+    setInvitePassword(generatePassword());
+    setShowInvitePassword(true);
+  };
+
   const handleInviteUser = () => {
     if (!inviteEmail) return;
 
     setInviteSuccess(false);
     setInviteLink(null);
+    setGeneratedPassword(null);
     inviteUser.mutate(
       {
         email: inviteEmail,
         fullName: inviteFullName || inviteEmail,
         companyId: id,
         role: "client",
+        password: invitePassword || undefined,
       },
       {
         onSuccess: (data) => {
+          const pwd = invitePassword || null;
           setInviteEmail("");
           setInviteFullName("");
+          setInvitePassword("");
+          setShowInvitePassword(false);
           setInviteSuccess(true);
           setInviteLink(data.inviteLink ?? null);
+          setGeneratedPassword(pwd);
           refetchUsers();
         },
       }
@@ -184,6 +221,79 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
       setLinkCopied(true);
       setTimeout(() => setLinkCopied(false), 2000);
     });
+  };
+
+  const handleCopyPassword = () => {
+    if (!generatedPassword) return;
+    navigator.clipboard.writeText(generatedPassword).then(() => {
+      setPasswordCopied(true);
+      setTimeout(() => setPasswordCopied(false), 2000);
+    });
+  };
+
+  const handleResendInvite = (email: string, fullName: string | null) => {
+    fetch("/api/admin/invite-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, fullName: fullName || email, companyId: id, role: "client" }),
+    }).then(() => refetchUsers());
+  };
+
+  const handleCopyInviteLink = async (userId: string) => {
+    const response = await fetch(`/api/admin/users/${userId}/invite-link`, { method: "POST" });
+    const data = await response.json();
+    if (data.inviteLink) {
+      navigator.clipboard.writeText(data.inviteLink);
+    }
+  };
+
+  const handleSendRecoveryEmail = (userId: string) => {
+    fetch(`/api/admin/users/${userId}/send-recovery-email`, { method: "POST" });
+  };
+
+  const openSetPassword = (user: { id: string; email: string }) => {
+    setUserToSetPassword(user);
+    setSetPasswordValue("");
+    setShowSetPasswordValue(false);
+    setSetPasswordError(null);
+    setSetPasswordSuccess(false);
+  };
+
+  const closeSetPassword = () => {
+    setUserToSetPassword(null);
+    setSetPasswordValue("");
+    setShowSetPasswordValue(false);
+    setSetPasswordError(null);
+    setSetPasswordSuccess(false);
+  };
+
+  const handleSetPassword = async () => {
+    if (!userToSetPassword) return;
+    if (!setPasswordValue || setPasswordValue.length < 8) {
+      setSetPasswordError("Password must be at least 8 characters");
+      return;
+    }
+    setSetPasswordLoading(true);
+    setSetPasswordError(null);
+    try {
+      const response = await fetch(`/api/admin/users/${userToSetPassword.id}/set-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: setPasswordValue }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+      setSetPasswordSuccess(true);
+    } catch (err) {
+      setSetPasswordError(err instanceof Error ? err.message : "Failed to set password");
+    } finally {
+      setSetPasswordLoading(false);
+    }
+  };
+
+  const handleGenerateSetPassword = () => {
+    setSetPasswordValue(generatePassword());
+    setShowSetPasswordValue(true);
   };
 
   const handleDeleteCompany = async () => {
@@ -523,25 +633,47 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
                       key={user.id}
                       className="flex items-center justify-between text-sm"
                     >
-                      <span className="text-muted-foreground truncate flex-1 mr-2">
-                        {user.email}
-                      </span>
-                      {user.invite_pending ? (
-                        <>
-                          <ResendInviteButton email={user.email} fullName={user.full_name} companyId={id} />
-                          <CopyInviteLinkButton userId={user.id} />
-                        </>
-                      ) : (
-                        <SendRecoveryEmailButton userId={user.id} />
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                        onClick={() => setUserToDelete({ id: user.id, email: user.email })}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex-1 min-w-0 mr-2">
+                        <span className="text-muted-foreground truncate block">{user.email}</span>
+                        {user.invite_pending && (
+                          <span className="text-xs text-amber-600">Invite pending</span>
+                        )}
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {user.invite_pending ? (
+                            <>
+                              <DropdownMenuItem onClick={() => handleResendInvite(user.email, user.full_name)}>
+                                Resend Invite
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleCopyInviteLink(user.id)}>
+                                Copy Invite Link
+                              </DropdownMenuItem>
+                            </>
+                          ) : (
+                            <>
+                              <DropdownMenuItem onClick={() => handleSendRecoveryEmail(user.id)}>
+                                Send Recovery Email
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openSetPassword({ id: user.id, email: user.email })}>
+                                Set Password
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => setUserToDelete({ id: user.id, email: user.email })}
+                          >
+                            Remove
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </li>
                   ))}
                 </ul>
@@ -554,10 +686,10 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <UserPlus className="h-4 w-4" />
-                Invite Portal User
+                Add Portal User
               </CardTitle>
               <CardDescription>
-                Send an invitation to access the client portal
+                Send an invitation or create an account with a password directly
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -583,6 +715,53 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
                   placeholder="John Smith"
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="invitePassword">
+                  Password{" "}
+                  <span className="text-muted-foreground font-normal">(optional)</span>
+                </Label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      id="invitePassword"
+                      type={showInvitePassword ? "text" : "password"}
+                      value={invitePassword}
+                      onChange={(e) => setInvitePassword(e.target.value)}
+                      placeholder="Leave blank to send email invite"
+                      className="pr-9"
+                    />
+                    {invitePassword && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full px-2.5 hover:bg-transparent"
+                        onClick={() => setShowInvitePassword(!showInvitePassword)}
+                      >
+                        {showInvitePassword ? (
+                          <EyeOff className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={handleGenerateInvitePassword}
+                    title="Generate password"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {invitePassword
+                    ? "Account will be created with this password — no email sent."
+                    : "No password? An invite email will be sent instead."}
+                </p>
+              </div>
               <Button
                 onClick={handleInviteUser}
                 disabled={!inviteEmail || inviteUser.isPending}
@@ -590,17 +769,38 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
               >
                 {inviteUser.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : invitePassword ? (
+                  <UserPlus className="mr-2 h-4 w-4" />
                 ) : (
                   <Mail className="mr-2 h-4 w-4" />
                 )}
-                Send Invitation
+                {invitePassword ? "Create Account" : "Send Invitation"}
               </Button>
               {inviteSuccess && (
                 <div className="space-y-2">
                   <p className="text-sm text-green-600 flex items-center gap-1">
                     <CheckCircle2 className="h-4 w-4" />
-                    Invitation sent successfully
+                    {generatedPassword ? "Account created successfully" : "Invitation sent successfully"}
                   </p>
+                  {generatedPassword && (
+                    <div className="rounded-md border bg-muted p-3 space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">Password to share with customer:</p>
+                      <p className="font-mono text-sm break-all">{generatedPassword}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={handleCopyPassword}
+                      >
+                        {passwordCopied ? (
+                          <Check className="mr-2 h-4 w-4 text-green-600" />
+                        ) : (
+                          <Copy className="mr-2 h-4 w-4" />
+                        )}
+                        {passwordCopied ? "Copied!" : "Copy Password"}
+                      </Button>
+                    </div>
+                  )}
                   {inviteLink && (
                     <Button
                       variant="outline"
@@ -688,6 +888,71 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
           </Card>
         </div>
       </div>
+
+      {/* Set Password Dialog */}
+      <Dialog open={!!userToSetPassword} onOpenChange={(open) => !open && closeSetPassword()}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Set New Password</DialogTitle>
+            <DialogDescription>
+              {userToSetPassword?.email} — set a password and share it with the user directly.
+            </DialogDescription>
+          </DialogHeader>
+          {setPasswordSuccess ? (
+            <div className="py-4 text-center space-y-1">
+              <p className="font-medium text-green-600">Password updated</p>
+              <p className="text-sm text-muted-foreground">The user can now log in with the new password.</p>
+            </div>
+          ) : (
+            <div className="space-y-3 py-2">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showSetPasswordValue ? "text" : "password"}
+                    value={setPasswordValue}
+                    onChange={(e) => { setSetPasswordValue(e.target.value); setSetPasswordError(null); }}
+                    placeholder="Enter or generate a password"
+                    className="pr-9"
+                    disabled={setPasswordLoading}
+                  />
+                  {setPasswordValue && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full px-2.5 hover:bg-transparent"
+                      onClick={() => setShowSetPasswordValue(!showSetPasswordValue)}
+                    >
+                      {showSetPasswordValue ? (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  )}
+                </div>
+                <Button type="button" variant="outline" size="icon" onClick={handleGenerateSetPassword} title="Generate password" disabled={setPasswordLoading}>
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
+              {setPasswordError && <p className="text-sm text-destructive">{setPasswordError}</p>}
+            </div>
+          )}
+          <DialogFooter>
+            {setPasswordSuccess ? (
+              <Button onClick={closeSetPassword}>Close</Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={closeSetPassword} disabled={setPasswordLoading}>Cancel</Button>
+                <Button onClick={handleSetPassword} disabled={!setPasswordValue || setPasswordLoading}>
+                  {setPasswordLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Set Password
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete User Confirmation Dialog */}
       <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>

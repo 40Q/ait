@@ -23,6 +23,7 @@ import {
   useSyncInvoices,
   useDisconnectQuickBooks,
 } from "@/lib/hooks";
+import { ChangePasswordCard } from "@/app/(client)/settings/_components/change-password-card";
 import { formatDateTimeShort } from "@/lib/utils/date";
 import { toast } from "sonner";
 
@@ -97,6 +98,8 @@ export default function SettingsPage() {
       />
 
       <div className="max-w-3xl space-y-6">
+        <ChangePasswordCard />
+
         {/* QuickBooks Connection */}
         <Card>
           <CardHeader>

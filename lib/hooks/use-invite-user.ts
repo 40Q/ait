@@ -7,6 +7,7 @@ interface InviteUserParams {
   fullName: string;
   companyId: string;
   role?: "client" | "admin";
+  password?: string;
 }
 
 interface InviteUserResponse {

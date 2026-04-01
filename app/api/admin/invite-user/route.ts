@@ -44,15 +44,52 @@ export async function POST(request: NextRequest) {
     // Use service role client for auth admin operations
     const adminClient = createAdminClient();
 
-    // Try to invite the user (works for new users)
+    const userMetadata = {
+      full_name: body.fullName || body.email,
+      role: "client",
+      company_id: body.companyId,
+    };
+
+    // If a password is provided, create the account directly (no invite email)
+    if (body.password) {
+      const { data, error } = await adminClient.auth.admin.createUser({
+        email: body.email,
+        password: body.password,
+        email_confirm: true,
+        user_metadata: userMetadata,
+      });
+
+      if (error) {
+        // User already exists — update their password and metadata
+        const isUserExists =
+          error.message?.toLowerCase().includes("already") ||
+          error.message?.toLowerCase().includes("registered") ||
+          error.status === 422;
+
+        if (!isUserExists) {
+          console.error("Error creating user:", error);
+          return NextResponse.json({ error: error.message }, { status: 400 });
+        }
+
+        return await handleReInviteWithPassword(adminClient, body);
+      }
+
+      if (data.user?.id) {
+        registerOneSignal(data.user.id, body.email, body.role || "client", body.companyId);
+      }
+
+      return NextResponse.json({
+        success: true,
+        userId: data.user?.id,
+        message: "Account created successfully",
+      });
+    }
+
+    // No password provided — send invite email
     const { data, error } = await adminClient.auth.admin.inviteUserByEmail(
       body.email,
       {
-        data: {
-          full_name: body.fullName || body.email,
-          role: "client",
-          company_id: body.companyId,
-        },
+        data: userMetadata,
         redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?type=invite`,
       }
     );
@@ -93,6 +130,63 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * Handles setting a new password for an existing user (banned or active).
+ * Unbans if necessary, updates profile/metadata, and sets the password directly.
+ */
+async function handleReInviteWithPassword(
+  adminClient: ReturnType<typeof createAdminClient>,
+  body: { email: string; fullName?: string; companyId: string; role?: string; password?: string }
+) {
+  const { data: existingProfile } = await adminClient
+    .from("profiles")
+    .select("id")
+    .eq("email", body.email)
+    .maybeSingle();
+
+  if (!existingProfile) {
+    return NextResponse.json(
+      { error: "User account is in an inconsistent state. Please contact support." },
+      { status: 400 }
+    );
+  }
+
+  const { error: updateError } = await adminClient.auth.admin.updateUserById(
+    existingProfile.id,
+    {
+      ban_duration: "none",
+      password: body.password,
+      email_confirm: true,
+      user_metadata: {
+        full_name: body.fullName || body.email,
+        role: "client",
+        company_id: body.companyId,
+      },
+    }
+  );
+
+  if (updateError) {
+    console.error("Error updating user:", updateError);
+    return NextResponse.json({ error: "Failed to update user account" }, { status: 500 });
+  }
+
+  await adminClient
+    .from("profiles")
+    .update({
+      company_id: body.companyId,
+      full_name: body.fullName || body.email,
+    })
+    .eq("id", existingProfile.id);
+
+  registerOneSignal(existingProfile.id, body.email, body.role || "client", body.companyId);
+
+  return NextResponse.json({
+    success: true,
+    userId: existingProfile.id,
+    message: "Account updated successfully",
+  });
 }
 
 /**

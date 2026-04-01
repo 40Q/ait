@@ -40,6 +40,7 @@ export const inviteUserSchema = z.object({
   fullName: nameSchema.optional().default(""),
   companyId: uuidSchema,
   role: z.enum(["client", "admin"]).optional().default("client"),
+  password: z.string().min(8, "Password must be at least 8 characters").optional(),
 });
 
 export const linkInvoiceSchema = z.object({
