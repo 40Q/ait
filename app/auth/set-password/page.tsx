@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Logo } from "@/components/brand/logo";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,21 +93,11 @@ export default function SetPasswordPage() {
   };
 
   if (isCheckingSession) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-muted/30">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />;
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-      <div className="w-full max-w-md">
-        <div className="mb-8 flex justify-center">
-          <Logo size="lg" />
-        </div>
-
-        <Card>
+    <Card>
           <CardHeader className="text-center">
             <CardTitle>Set Your Password</CardTitle>
             <CardDescription>
@@ -248,7 +237,5 @@ export default function SetPasswordPage() {
             </CardFooter>
           </form>
         </Card>
-      </div>
-    </div>
   );
 }

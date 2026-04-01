@@ -70,6 +70,7 @@ import { EmailTagInput } from "@/components/ui/email-tag-input";
 import { useFormValidation } from "@/lib/hooks/use-form-validation";
 import { companyFormSchema, type CompanyFormInput } from "@/lib/validation";
 import type { CompanyStatus } from "@/lib/database/types";
+import { toast } from "sonner";
 
 interface CompanyFormData extends CompanyFormInput {
   status: CompanyStatus;
@@ -231,24 +232,47 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
     });
   };
 
-  const handleResendInvite = (email: string, fullName: string | null) => {
-    fetch("/api/admin/invite-user", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, fullName: fullName || email, companyId: id, role: "client" }),
-    }).then(() => refetchUsers());
-  };
-
-  const handleCopyInviteLink = async (userId: string) => {
-    const response = await fetch(`/api/admin/users/${userId}/invite-link`, { method: "POST" });
-    const data = await response.json();
-    if (data.inviteLink) {
-      navigator.clipboard.writeText(data.inviteLink);
+  const handleResendInvite = async (email: string, fullName: string | null) => {
+    try {
+      const response = await fetch("/api/admin/invite-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, fullName: fullName || email, companyId: id, role: "client" }),
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to resend invite");
+      }
+      toast.success("Invitation resent");
+      refetchUsers();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to resend invite");
     }
   };
 
-  const handleSendRecoveryEmail = (userId: string) => {
-    fetch(`/api/admin/users/${userId}/send-recovery-email`, { method: "POST" });
+  const handleCopyInviteLink = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/invite-link`, { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to generate link");
+      await navigator.clipboard.writeText(data.inviteLink);
+      toast.success("Invite link copied");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to copy link");
+    }
+  };
+
+  const handleSendRecoveryEmail = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/send-recovery-email`, { method: "POST" });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to send email");
+      }
+      toast.success("Recovery email sent");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to send recovery email");
+    }
   };
 
   const openSetPassword = (user: { id: string; email: string }) => {

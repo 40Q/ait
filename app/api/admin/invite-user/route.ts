@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
       body.email,
       {
         data: userMetadata,
-        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?type=invite`,
+        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?type=invite&email=${encodeURIComponent(body.email)}`,
       }
     );
 
@@ -245,7 +245,9 @@ async function handleReInvite(
     console.error("Error updating profile:", profileError);
   }
 
-  // Send a recovery email so the user can set/reset their password
+  // Send a recovery email so the user can set/reset their password.
+  // Note: do NOT call generateLink after this — it would overwrite the token
+  // just emailed to the user, making their link invalid.
   const { error: resetError } = await adminClient.auth.resetPasswordForEmail(
     body.email,
     {
@@ -261,22 +263,12 @@ async function handleReInvite(
     );
   }
 
-  // Generate a fresh recovery link to return (replaces the emailed token)
-  const { data: linkData } = await adminClient.auth.admin.generateLink({
-    type: "recovery",
-    email: body.email,
-    options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?type=recovery`,
-    },
-  });
-
   // Register with OneSignal
   registerOneSignal(existingProfile.id, body.email, body.role || "client", body.companyId);
 
   return NextResponse.json({
     success: true,
     userId: existingProfile.id,
-    inviteLink: linkData?.properties?.action_link,
     message: "Invitation email re-sent successfully",
   });
 }

@@ -41,13 +41,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     const linkType = authUser.user.confirmed_at ? "recovery" : "invite";
-    const redirectType = linkType === "invite" ? "invite" : "recovery";
 
     const { data, error } = await adminClient.auth.admin.generateLink({
       type: linkType,
       email: authUser.user.email,
       options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?type=${redirectType}`,
+        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?type=${linkType}&email=${encodeURIComponent(authUser.user.email)}`,
       },
     });
 

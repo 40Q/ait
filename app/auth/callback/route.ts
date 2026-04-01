@@ -24,6 +24,15 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${origin}${next}`);
     }
 
+    // For expired invite links, pass the email so the error page can offer a resend.
+    // The server validates the email before showing the option.
+    if (type === "invite") {
+      const email = searchParams.get("email");
+      const dest = new URL(`${origin}/auth/auth-code-error`);
+      if (email) dest.searchParams.set("email", email);
+      return NextResponse.redirect(dest);
+    }
+
     return NextResponse.redirect(`${origin}/auth/auth-code-error`);
   }
 

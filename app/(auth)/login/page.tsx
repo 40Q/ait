@@ -4,7 +4,6 @@ import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
-import { Logo } from "@/components/brand/logo";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +21,6 @@ import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { getUserProfile, getDashboardPath } from "@/lib/auth/helpers";
 import { useFormValidation } from "@/lib/hooks/use-form-validation";
 import { loginFormSchema, type LoginFormInput } from "@/lib/validation";
-import { useRequestNewLink } from "@/lib/hooks";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -35,8 +33,6 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [expiredLinkNotice, setExpiredLinkNotice] = useState(false);
-  const requestNewLink = useRequestNewLink();
   const [captchaToken, setCaptchaToken] = useState<string>();
   const { errors, validate, clearFieldError } = useFormValidation<LoginFormInput>(loginFormSchema);
 
@@ -57,10 +53,7 @@ export default function LoginPage() {
       const type = params.get("type");
 
       if (hashError) {
-        // Clear the hash from URL and show a notice
-        window.history.replaceState(null, "", window.location.pathname);
-        setExpiredLinkNotice(true);
-        setIsCheckingHash(false);
+        router.replace("/auth/auth-code-error");
         return;
       }
 
@@ -141,54 +134,12 @@ export default function LoginPage() {
 
   // Show loading while checking for hash tokens
   if (isCheckingHash) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-muted/30">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />;
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-      <div className="w-full max-w-md">
-        <div className="mb-8 flex justify-center">
-          <Logo size="lg" />
-        </div>
-
-        {expiredLinkNotice && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="space-y-3">
-              <p>Your invitation link has expired or is no longer valid.</p>
-              {requestNewLink.isSuccess ? (
-                <p className="font-medium">Check your inbox — a new link has been sent if an account exists for this email.</p>
-              ) : (
-                <form
-                  className="flex gap-2"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    requestNewLink.mutate(email);
-                  }}
-                >
-                  <input
-                    type="email"
-                    required
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="h-8 flex-1 rounded-md border border-destructive/50 bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-destructive"
-                  />
-                  <Button type="submit" size="sm" variant="destructive" disabled={!email || requestNewLink.isPending}>
-                    {requestNewLink.isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
-                    Request new link
-                  </Button>
-                </form>
-              )}
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <Card>
+    <>
+      <Card>
           <CardHeader className="text-center">
             <CardTitle>Sign In</CardTitle>
             <CardDescription>
@@ -278,13 +229,12 @@ export default function LoginPage() {
           </form>
         </Card>
 
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          Need help?{" "}
-          <Link href="/support" className="text-primary hover:underline">
-            Contact Support
-          </Link>
-        </p>
-      </div>
-    </div>
+      <p className="mt-6 text-center text-sm text-muted-foreground">
+        Need help?{" "}
+        <Link href="/support" className="text-primary hover:underline">
+          Contact Support
+        </Link>
+      </p>
+    </>
   );
 }

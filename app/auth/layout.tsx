@@ -1,4 +1,3 @@
-// Force dynamic rendering for auth pages (Supabase client needs env vars at runtime)
 export const dynamic = "force-dynamic";
 
 import { Logo } from "@/components/brand/logo";
