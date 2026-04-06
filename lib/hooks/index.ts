@@ -113,6 +113,18 @@ export { usePagination } from "./use-pagination";
 // Calendar hooks
 export { useCalendarNavigation, useCalendarJobs } from "./use-calendar";
 
+// Manager hooks
+export {
+  useManagerCompanies,
+  useCreateSubCompany,
+  useSubCompanyUsers,
+  useManagerInviteUser,
+  useManagerDeactivateUser,
+  useToggleInvoiceAccess,
+  type SubCompany,
+  type SubCompanyUser,
+} from "./use-manager";
+
 // Notification hooks
 export {
   useNotifications,

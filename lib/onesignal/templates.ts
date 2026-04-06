@@ -89,6 +89,12 @@ const templates: Record<
     message: `A new ${ctx.documentType || 'document'}${ctx.jobNumber ? ` for job #${ctx.jobNumber}` : ''} has been uploaded.`,
     actionUrl: ctx.entityId ? `/jobs/${ctx.entityId}` : '/jobs',
   }),
+
+  invoice_access_requested: (ctx) => ({
+    title: 'Invoice Access Request',
+    message: `${ctx.companyName ? `${ctx.companyName} is` : 'A user is'} requesting access to view invoices.`,
+    actionUrl: '/manager/invoices',
+  }),
 };
 
 export function getNotificationContent(

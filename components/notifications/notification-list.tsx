@@ -26,6 +26,7 @@ const typeIcons: Partial<Record<NotificationType, string>> = {
   job_complete: "Job Complete",
   invoice_overdue: "Invoice Overdue",
   document_uploaded: "New Document",
+  invoice_access_requested: "Invoice Access Request",
 };
 
 interface NotificationItemProps {

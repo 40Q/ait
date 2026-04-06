@@ -12,6 +12,7 @@ export const NOTIFICATION_TYPES = [
   'job_complete',
   'invoice_overdue',
   'document_uploaded',
+  'invoice_access_requested',
 ] as const;
 
 export const NOTIFICATION_PRIORITIES = ['low', 'normal', 'high'] as const;
@@ -143,6 +144,7 @@ export const notificationTypeLabels: Record<NotificationType, string> = {
   job_complete: 'Job Complete',
   invoice_overdue: 'Invoice Overdue',
   document_uploaded: 'Document Uploaded',
+  invoice_access_requested: 'Invoice Access Request',
 };
 
 // Priority labels for display

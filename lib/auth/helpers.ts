@@ -1,6 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 
-export type UserRole = "admin" | "client";
+export type UserRole = "admin" | "client" | "manager";
 
 export interface UserProfile {
   role: UserRole;
@@ -35,8 +35,21 @@ export async function isAdmin(
 }
 
 /**
+ * Check if a user is a manager.
+ */
+export async function isManager(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<boolean> {
+  const profile = await getUserProfile(supabase, userId);
+  return profile?.role === "manager";
+}
+
+/**
  * Get the dashboard path for a user based on their role.
  */
 export function getDashboardPath(role: UserRole | undefined): string {
-  return role === "admin" ? "/admin/dashboard" : "/dashboard";
+  if (role === "admin") return "/admin/dashboard";
+  if (role === "manager") return "/manager/dashboard";
+  return "/dashboard";
 }

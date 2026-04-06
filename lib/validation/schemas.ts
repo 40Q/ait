@@ -39,7 +39,7 @@ export const inviteUserSchema = z.object({
   email: emailSchema,
   fullName: nameSchema.optional().default(""),
   companyId: uuidSchema,
-  role: z.enum(["client", "admin"]).optional().default("client"),
+  role: z.enum(["client", "manager"]).optional().default("client"),
   password: z.string().min(8, "Password must be at least 8 characters").optional(),
 });
 
@@ -143,7 +143,7 @@ export const logisticsFormSchema = z.object({
 
 export const notificationPrioritySchema = z.enum(NOTIFICATION_PRIORITIES);
 export const notificationTypeSchema = z.enum(NOTIFICATION_TYPES);
-export const userRoleSchema = z.enum(["admin", "client"]);
+export const userRoleSchema = z.enum(["admin", "client", "manager"]);
 
 export const sendExternalNotificationSchema = z.object({
   userId: uuidSchema.optional(),

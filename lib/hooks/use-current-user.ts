@@ -7,9 +7,13 @@ export interface CurrentUserProfile {
   id: string;
   email: string;
   full_name: string | null;
-  role: "admin" | "client";
+  role: "admin" | "client" | "manager";
   company_id: string | null;
   company_name: string | null;
+  /** True when the user's company is a sub-company (has a parent_company_id) */
+  is_sub_company_user: boolean;
+  /** True when a manager has explicitly granted this user invoice access */
+  invoice_access: boolean;
 }
 
 /**
@@ -29,14 +33,14 @@ export function useCurrentUser() {
 
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("id, email, full_name, role, company_id, company:companies(name)")
+        .select("id, email, full_name, role, company_id, invoice_access, company:companies(name, parent_company_id)")
         .eq("id", user.id)
         .single();
 
       if (error) throw error;
 
       // Handle company relation - Supabase returns object for single FK relations
-      const company = profile.company as unknown as { name: string } | null;
+      const company = profile.company as unknown as { name: string; parent_company_id: string | null } | null;
 
       return {
         id: profile.id,
@@ -45,6 +49,8 @@ export function useCurrentUser() {
         role: profile.role,
         company_id: profile.company_id,
         company_name: company?.name ?? null,
+        is_sub_company_user: !!company?.parent_company_id,
+        invoice_access: profile.invoice_access ?? false,
       } as CurrentUserProfile;
     },
   });

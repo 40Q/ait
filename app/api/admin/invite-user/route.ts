@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     const userMetadata = {
       full_name: body.fullName || body.email,
-      role: "client",
+      role: body.role || "client",
       company_id: body.companyId,
     };
 
@@ -161,7 +161,7 @@ async function handleReInviteWithPassword(
       email_confirm: true,
       user_metadata: {
         full_name: body.fullName || body.email,
-        role: "client",
+        role: body.role || "client",
         company_id: body.companyId,
       },
     }
@@ -218,7 +218,7 @@ async function handleReInvite(
       ban_duration: "none",
       user_metadata: {
         full_name: body.fullName || body.email,
-        role: "client",
+        role: body.role || "client",
         company_id: body.companyId,
       },
     }

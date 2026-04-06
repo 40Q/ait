@@ -30,9 +30,11 @@ BEGIN
   EXECUTE format('CREATE SEQUENCE IF NOT EXISTS public.request_number_seq_%s START WITH %s',
     current_year, current_max + 1);
 
-  -- Update sequence to current max if it exists but is behind
-  EXECUTE format('SELECT setval(''public.request_number_seq_%s'', GREATEST(nextval(''public.request_number_seq_%s'') - 1, %s))',
-    current_year, current_year, current_max);
+  -- Only fast-forward the sequence if there are existing records to catch up to
+  IF current_max > 0 THEN
+    EXECUTE format('SELECT setval(''public.request_number_seq_%s'', GREATEST(nextval(''public.request_number_seq_%s'') - 1, %s))',
+      current_year, current_year, current_max);
+  END IF;
 END $$;
 
 -- Update the trigger function to use sequences
@@ -79,8 +81,10 @@ BEGIN
   EXECUTE format('CREATE SEQUENCE IF NOT EXISTS public.quote_number_seq_%s START WITH %s',
     current_year, current_max + 1);
 
-  EXECUTE format('SELECT setval(''public.quote_number_seq_%s'', GREATEST(nextval(''public.quote_number_seq_%s'') - 1, %s))',
-    current_year, current_year, current_max);
+  IF current_max > 0 THEN
+    EXECUTE format('SELECT setval(''public.quote_number_seq_%s'', GREATEST(nextval(''public.quote_number_seq_%s'') - 1, %s))',
+      current_year, current_year, current_max);
+  END IF;
 END $$;
 
 CREATE OR REPLACE FUNCTION public.generate_quote_number()
@@ -124,8 +128,10 @@ BEGIN
   EXECUTE format('CREATE SEQUENCE IF NOT EXISTS public.job_number_seq_%s START WITH %s',
     current_year_month, current_max + 1);
 
-  EXECUTE format('SELECT setval(''public.job_number_seq_%s'', GREATEST(nextval(''public.job_number_seq_%s'') - 1, %s))',
-    current_year_month, current_year_month, current_max);
+  IF current_max > 0 THEN
+    EXECUTE format('SELECT setval(''public.job_number_seq_%s'', GREATEST(nextval(''public.job_number_seq_%s'') - 1, %s))',
+      current_year_month, current_year_month, current_max);
+  END IF;
 END $$;
 
 CREATE OR REPLACE FUNCTION public.generate_job_number()

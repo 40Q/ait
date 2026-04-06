@@ -3,7 +3,7 @@
 import { AdminSidebar } from "./admin-sidebar";
 import { AdminHeader } from "./admin-header";
 import { useState } from "react";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useRequestStatusCounts } from "@/lib/hooks";
 import { OneSignalProvider } from "@/components/providers/onesignal-provider";
 
@@ -27,6 +27,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         {/* Mobile Sidebar */}
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
           <SheetContent side="left" className="w-64 p-0">
+            <SheetTitle className="sr-only">Navigation</SheetTitle>
             <AdminSidebar pendingRequestsCount={pendingRequestsCount} />
           </SheetContent>
         </Sheet>

@@ -6,7 +6,7 @@ interface InviteUserParams {
   email: string;
   fullName: string;
   companyId: string;
-  role?: "client" | "admin";
+  role?: "client" | "admin" | "manager";
   password?: string;
 }
 

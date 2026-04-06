@@ -8,3 +8,6 @@ export { AdminHeader } from "./admin-header";
 export { AdminMobileSidebar } from "./admin-mobile-sidebar";
 export { AdminLayout } from "./admin-layout";
 export { adminNavItems, type AdminNavItem } from "./admin-nav-items";
+export { ManagerSidebar } from "./manager-sidebar";
+export { ManagerLayout } from "./manager-layout";
+export { managerNavItems, type ManagerNavItem } from "./manager-nav-items";

@@ -72,29 +72,45 @@ export async function updateSession(request: NextRequest) {
     }
 
     const profile = await getUserProfile(supabase, user.id);
-    const isAdmin = profile?.role === "admin";
+    const role = profile?.role;
+    const isAdminUser = role === "admin";
+    const isManagerUser = role === "manager";
     const isAdminRoute = pathname.startsWith("/admin") && !pathname.startsWith("/admin/login");
+    const isManagerRoute = pathname.startsWith("/manager");
     const isLoginPage = pathname === "/login" || pathname === "/admin/login";
 
-    // Redirect based on role
-    if (isAdmin && !isAdminRoute) {
-      // Admin trying to access client routes - redirect to admin dashboard
+    // Admins must stay in /admin
+    if (isAdminUser && !isAdminRoute) {
       const url = request.nextUrl.clone();
       url.pathname = "/admin/dashboard";
       return NextResponse.redirect(url);
     }
 
-    if (!isAdmin && isAdminRoute) {
-      // Non-admin trying to access admin routes - redirect to client dashboard
+    // Managers must stay in /manager
+    if (isManagerUser && !isManagerRoute) {
       const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
+      url.pathname = "/manager/dashboard";
+      return NextResponse.redirect(url);
+    }
+
+    // Non-admins must not access /admin
+    if (!isAdminUser && isAdminRoute) {
+      const url = request.nextUrl.clone();
+      url.pathname = getDashboardPath(role);
+      return NextResponse.redirect(url);
+    }
+
+    // Non-managers must not access /manager
+    if (!isManagerUser && isManagerRoute) {
+      const url = request.nextUrl.clone();
+      url.pathname = getDashboardPath(role);
       return NextResponse.redirect(url);
     }
 
     if (isLoginPage) {
       // Authenticated user on login page - redirect to their dashboard
       const url = request.nextUrl.clone();
-      url.pathname = getDashboardPath(profile?.role);
+      url.pathname = getDashboardPath(role);
       return NextResponse.redirect(url);
     }
   }

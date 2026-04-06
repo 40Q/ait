@@ -59,6 +59,13 @@ import {
 import { QuickBooksCustomerSelect } from "@/components/ui/quickbooks-customer-select";
 import { generatePassword } from "@/lib/utils/generate-password";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   useCompany,
   useCompanyUsers,
   useUpdateCompany,
@@ -111,6 +118,7 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
   const [showInvitePassword, setShowInvitePassword] = useState(false);
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
   const [passwordCopied, setPasswordCopied] = useState(false);
+  const [inviteRole, setInviteRole] = useState<"client" | "manager">("client");
   const [inviteSuccess, setInviteSuccess] = useState(false);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -197,7 +205,7 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
         email: inviteEmail,
         fullName: inviteFullName || inviteEmail,
         companyId: id,
-        role: "client",
+        role: inviteRole,
         password: invitePassword || undefined,
       },
       {
@@ -785,6 +793,19 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
                     ? "Account will be created with this password — no email sent."
                     : "No password? An invite email will be sent instead."}
                 </p>
+                <Label>Role</Label>
+                <Select
+                  value={inviteRole}
+                  onValueChange={(v) => setInviteRole(v as "client" | "manager")}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="client">Client</SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <Button
                 onClick={handleInviteUser}

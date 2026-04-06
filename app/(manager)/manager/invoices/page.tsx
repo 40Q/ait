@@ -13,9 +13,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pagination } from "@/components/ui/pagination";
 import { InvoiceCard, InvoiceStats } from "@/components/invoices";
-import { Search, Receipt, Send, CheckCircle2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Search } from "lucide-react";
 import {
   useInvoiceList,
   useCurrentUser,
@@ -24,126 +22,56 @@ import {
   useInvoiceStats,
   usePagination,
 } from "@/lib/hooks";
-import { useMutation } from "@tanstack/react-query";
 import type { InvoiceListItem, InvoiceStatus, InvoiceFilters } from "@/lib/database/types";
 import { toast } from "sonner";
 
-function useRequestInvoiceAccess() {
-  return useMutation({
-    mutationFn: async () => {
-      const response = await fetch("/api/client/request-invoice-access", {
-        method: "POST",
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to send request");
-      }
-      return result;
-    },
-  });
-}
-
-function InvoiceAccessGate() {
-  const requestAccess = useRequestInvoiceAccess();
-
-  const handleRequest = () => {
-    requestAccess.mutate(undefined, {
-      onSuccess: () => toast.success("Request sent to your manager"),
-      onError: (err) => toast.error(err.message),
-    });
-  };
-
-  return (
-    <Card>
-      <CardContent className="flex flex-col items-center justify-center py-16 gap-4 text-center">
-        <div className="rounded-full bg-muted p-4">
-          <Receipt className="h-8 w-8 text-muted-foreground" />
-        </div>
-        <div>
-          <p className="font-medium text-lg">Invoice Access Required</p>
-          <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-            Invoice access is managed by your organization&apos;s administrator.
-            You can request access and they will be notified.
-          </p>
-        </div>
-        {requestAccess.isSuccess ? (
-          <p className="flex items-center gap-2 text-sm text-green-600">
-            <CheckCircle2 className="h-4 w-4" />
-            Request sent to your manager
-          </p>
-        ) : (
-          <Button
-            onClick={handleRequest}
-            disabled={requestAccess.isPending}
-          >
-            {requestAccess.isPending ? (
-              "Sending..."
-            ) : (
-              <>
-                <Send className="mr-2 h-4 w-4" />
-                Request Invoice Access
-              </>
-            )}
-          </Button>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-export default function InvoicesPage() {
+/**
+ * Manager Invoices Page
+ *
+ * Managers can see invoices for their company and all sub-companies.
+ * RLS handles the filtering automatically — no company_id filter needed.
+ */
+export default function ManagerInvoicesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  // Pagination
   const { currentPage, pageSize, setPage, setPageSize } = usePagination({
     initialPageSize: 10,
   });
 
-  // Get current user's company
   const { data: currentUser, isLoading: userLoading } = useCurrentUser();
-  const companyId = currentUser?.company_id;
-  const isSubCompanyUser = currentUser?.is_sub_company_user ?? false;
 
-  // Build filters
   const filters: InvoiceFilters | undefined = useMemo(() => {
-    if (!companyId) return undefined;
-    const f: InvoiceFilters = { company_id: companyId };
+    const f: InvoiceFilters = {};
     if (statusFilter !== "all") {
       f.status = statusFilter as InvoiceStatus;
     }
     return f;
-  }, [companyId, statusFilter]);
+  }, [statusFilter]);
 
-  // Fetch paginated invoices
   const { data: paginatedData, isLoading: invoicesLoading } = useInvoiceList(
     filters,
     currentPage,
     pageSize
   );
 
-  // Fetch stats (server-side calculation)
-  const { data: stats } = useInvoiceStats(companyId ?? undefined);
-
-  // PDF download
+  const { data: stats } = useInvoiceStats(currentUser?.company_id ?? undefined);
   const { downloadPdf, downloadingId } = useDownloadInvoicePdf();
 
-  // Real-time updates
-  useRealtimeInvoices(companyId ?? undefined);
+  useRealtimeInvoices(undefined);
 
-  // Client-side search filtering on current page
   const displayedInvoices = useMemo(() => {
     const invoices = paginatedData?.data ?? [];
     if (!searchQuery) return invoices;
 
     const searchLower = searchQuery.toLowerCase();
-    return invoices.filter((invoice) =>
-      invoice.invoice_number.toLowerCase().includes(searchLower) ||
-      (invoice.job_number?.toLowerCase().includes(searchLower) ?? false)
+    return invoices.filter(
+      (invoice) =>
+        invoice.invoice_number.toLowerCase().includes(searchLower) ||
+        (invoice.job_number?.toLowerCase().includes(searchLower) ?? false)
     );
   }, [paginatedData?.data, searchQuery]);
 
-  // Reset to first page when status filter changes
   const handleStatusFilterChange = (value: string) => {
     setStatusFilter(value);
     setPage(1);
@@ -157,28 +85,12 @@ export default function InvoicesPage() {
     }
   };
 
-  const isLoading = userLoading || (!isSubCompanyUser && invoicesLoading);
-
-  // Sub-company users without explicit invoice access see the gate
-  if (!userLoading && isSubCompanyUser && !currentUser?.invoice_access) {
-    return (
-      <div className="space-y-6">
-        <PageHeader
-          title="Invoices"
-          description="View and manage all your invoices"
-        />
-        <InvoiceAccessGate />
-      </div>
-    );
-  }
+  const isLoading = userLoading || invoicesLoading;
 
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <PageHeader
-          title="Invoices"
-          description="View and manage all your invoices"
-        />
+        <PageHeader title="Invoices" description="View invoices across all your companies" />
         <div className="grid gap-4 sm:grid-cols-3">
           {[...Array(3)].map((_, i) => (
             <Skeleton key={i} className="h-24" />
@@ -198,10 +110,9 @@ export default function InvoicesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Invoices"
-        description="View and manage all your invoices"
+        description="View invoices across all your companies"
       />
 
-      {/* Summary Stats */}
       <InvoiceStats
         totalAmount={stats?.totalAmount ?? 0}
         paidAmount={stats?.paidAmount ?? 0}
@@ -209,7 +120,6 @@ export default function InvoicesPage() {
         unpaidCount={stats?.unpaidCount ?? 0}
       />
 
-      {/* Filters */}
       <div className="flex flex-col gap-4 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -233,7 +143,6 @@ export default function InvoicesPage() {
         </Select>
       </div>
 
-      {/* Invoices List */}
       {displayedInvoices.length > 0 ? (
         <div className="space-y-3">
           {displayedInvoices.map((invoice) => (
@@ -250,13 +159,12 @@ export default function InvoicesPage() {
         <div className="text-center py-12">
           <p className="text-muted-foreground">
             {(paginatedData?.total ?? 0) === 0
-              ? "No invoices found. Invoices will appear here once they are synced from QuickBooks."
-              : "No invoices found matching your filters."}
+              ? "No invoices found."
+              : "No invoices matching your filters."}
           </p>
         </div>
       )}
 
-      {/* Pagination */}
       {paginatedData && paginatedData.totalPages > 0 && (
         <Pagination
           currentPage={currentPage}
