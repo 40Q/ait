@@ -10,13 +10,14 @@ import { isAdmin } from "@/lib/auth/helpers";
  *
  * Fields:
  *   company_id (required)
- *   invoice_number (required)
  *   amount (required, number)
  *   invoice_date (required, YYYY-MM-DD)
  *   due_date (required, YYYY-MM-DD)
  *   status (required: unpaid | paid | overdue)
  *   job_id (optional)
  *   pdf (optional, file)
+ *
+ * Invoice number is auto-generated as M-0001, M-0002, ... via a DB sequence.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -34,7 +35,6 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
 
     const company_id = formData.get("company_id") as string | null;
-    const invoice_number = formData.get("invoice_number") as string | null;
     const amountRaw = formData.get("amount") as string | null;
     const invoice_date = formData.get("invoice_date") as string | null;
     const due_date = formData.get("due_date") as string | null;
@@ -42,9 +42,9 @@ export async function POST(request: NextRequest) {
     const job_id = formData.get("job_id") as string | null;
     const pdfFile = formData.get("pdf") as File | null;
 
-    if (!company_id || !invoice_number || !amountRaw || !invoice_date || !due_date || !status) {
+    if (!company_id || !amountRaw || !invoice_date || !due_date || !status) {
       return NextResponse.json(
-        { error: "company_id, invoice_number, amount, invoice_date, due_date, and status are required" },
+        { error: "company_id, amount, invoice_date, due_date, and status are required" },
         { status: 400 }
       );
     }
@@ -80,12 +80,22 @@ export async function POST(request: NextRequest) {
       pdf_path = tempPath;
     }
 
+    // Generate invoice number via DB sequence (race-condition safe)
+    const { data: invoiceNumberData, error: seqError } = await adminClient
+      .rpc("next_manual_invoice_number");
+
+    if (seqError || !invoiceNumberData) {
+      console.error("[admin/invoices] Failed to generate invoice number:", seqError?.message);
+      if (pdf_path) await adminClient.storage.from("invoices").remove([pdf_path]);
+      return NextResponse.json({ error: "Failed to generate invoice number" }, { status: 500 });
+    }
+
     // Insert invoice
     const { data: invoice, error: insertError } = await adminClient
       .from("invoices")
       .insert({
         company_id,
-        invoice_number: invoice_number.trim(),
+        invoice_number: invoiceNumberData as string,
         amount,
         invoice_date,
         due_date,

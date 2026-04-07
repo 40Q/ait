@@ -1,6 +1,18 @@
 -- Add pdf_path to invoices for manually uploaded invoices (non-QuickBooks)
 ALTER TABLE invoices ADD COLUMN IF NOT EXISTS pdf_path TEXT;
 
+-- Sequence for auto-generating manual invoice numbers (M-0001, M-0002, ...)
+CREATE SEQUENCE IF NOT EXISTS manual_invoice_seq START 1;
+
+-- Function to generate the next manual invoice number
+CREATE OR REPLACE FUNCTION next_manual_invoice_number()
+RETURNS TEXT
+LANGUAGE SQL
+SECURITY DEFINER
+AS $$
+  SELECT 'M-' || LPAD(nextval('manual_invoice_seq')::TEXT, 4, '0');
+$$;
+
 -- Create storage bucket for invoices
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('invoices', 'invoices', false)

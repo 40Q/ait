@@ -200,7 +200,6 @@ export default function InvoicesPage() {
     const raw = new FormData(e.currentTarget);
     const formData = new FormData();
     formData.set("company_id", createCompanyId);
-    formData.set("invoice_number", raw.get("invoice_number") as string);
     formData.set("amount", raw.get("amount") as string);
     formData.set("invoice_date", raw.get("invoice_date") as string);
     formData.set("due_date", raw.get("due_date") as string);
@@ -481,28 +480,17 @@ export default function InvoicesPage() {
                 </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="create-invoice-number">Invoice #</Label>
-                  <Input
-                    id="create-invoice-number"
-                    name="invoice_number"
-                    placeholder="INV-001"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="create-amount">Amount ($)</Label>
-                  <Input
-                    id="create-amount"
-                    name="amount"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="0.00"
-                    required
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="create-amount">Amount ($)</Label>
+                <Input
+                  id="create-amount"
+                  name="amount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  required
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
