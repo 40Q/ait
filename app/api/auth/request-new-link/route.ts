@@ -34,18 +34,15 @@ export async function POST(request: NextRequest) {
     // Only resend if the user exists and has NOT confirmed their account yet
     if (!authUser?.user || authUser.user.confirmed_at) return NextResponse.json({ success: true });
 
-    // Use generateLink (admin API) instead of resetPasswordForEmail — it works reliably
-    // for unconfirmed users and sends the recovery email via the configured mailer.
-    const { error } = await adminClient.auth.admin.generateLink({
-      type: "recovery",
-      email,
-      options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?type=recovery`,
-      },
+    // Same flow as admin "Resend Invite": send a recovery email so the user can
+    // set their password. Note: do NOT call generateLink after this — it would
+    // overwrite the token just emailed to the user, making their link invalid.
+    const { error } = await adminClient.auth.resetPasswordForEmail(email, {
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?type=recovery`,
     });
 
     if (error) {
-      console.error("[request-new-link] Failed to generate recovery link:", error.message);
+      console.error("[request-new-link] Failed to send email:", error.message);
     }
   } catch (err) {
     console.error("[request-new-link] Unexpected error:", err);

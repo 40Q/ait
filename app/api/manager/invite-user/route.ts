@@ -232,6 +232,8 @@ async function handleReInvite(
     .update({ company_id: body.companyId, full_name: body.fullName || body.email })
     .eq("id", existingProfile.id);
 
+  // Note: do NOT call generateLink after this — it would overwrite the token
+  // just emailed to the user, making their link invalid.
   const { error: resetError } = await adminClient.auth.resetPasswordForEmail(
     body.email.toLowerCase().trim(),
     {
@@ -242,14 +244,6 @@ async function handleReInvite(
   if (resetError) {
     return NextResponse.json({ error: resetError.message }, { status: 429 });
   }
-
-  const { data: linkData } = await adminClient.auth.admin.generateLink({
-    type: "recovery",
-    email: body.email.toLowerCase().trim(),
-    options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?type=recovery`,
-    },
-  });
 
   onesignalClient
     .registerUserEmail({
@@ -265,7 +259,6 @@ async function handleReInvite(
   return NextResponse.json({
     success: true,
     userId: existingProfile.id,
-    inviteLink: linkData?.properties?.action_link,
     message: "Invitation email re-sent successfully",
   });
 }
