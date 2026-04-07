@@ -1,19 +1,65 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, Upload, X, FileText, Image } from "lucide-react";
+import { AlertTriangle, Upload, X, FileText, Image, ChevronDown, ChevronUp } from "lucide-react";
 import { equipmentTypeOptions, type PickupRequestFormData } from "./types";
 
 interface StepEquipmentProps {
   data: PickupRequestFormData;
   onChange: (data: Partial<PickupRequestFormData>) => void;
+  formVariant?: string;
 }
 
-export function StepEquipment({ data, onChange }: StepEquipmentProps) {
+// IDs that belong to e-waste in the standard form — hidden in CyrusOne variant
+// (replaced by the single "ewaste" checkbox)
+const EWASTE_IDS = new Set([
+  "lcd_monitors",
+  "crt_monitors",
+  "cellphones",
+  "telephones",
+  "tvs",
+  "vcr_dvd",
+]);
+
+// Metal sub-types shown as a group in CyrusOne variant
+// "racks" already exists in the standard list; misc_metals and metal_caging are new
+const METAL_IDS = ["metal_misc", "racks", "metal_caging"];
+
+// Wood sub-types (all new)
+const WOOD_IDS = ["wood_plywood", "wood_pallets", "wood_crates"];
+
+// IDs to hide entirely in CyrusOne (moved into Metal/Wood groups or replaced)
+const CYRUSONE_HIDDEN_IDS = new Set([...EWASTE_IDS, ...METAL_IDS, ...WOOD_IDS, "ewaste"]);
+
+// Accepted / Not Accepted e-waste lists
+const EWASTE_ACCEPTED = [
+  "Laptops & Desktops",
+  "LCD/LED Monitors",
+  "Servers & Network Equipment",
+  "Hard Drives & Storage Media",
+  "Printers & Peripherals",
+  "Cell Phones & Tablets",
+  "Cables & Accessories",
+  "Small Consumer Electronics",
+];
+
+const EWASTE_NOT_ACCEPTED = [
+  "CRT Monitors (surcharge applies — contact us)",
+  "Standalone batteries",
+  "Fluorescent tubes & light bulbs",
+  "Smoke detectors",
+  "Hazardous materials",
+  "Items with unknown/unidentified substances",
+];
+
+export function StepEquipment({ data, onChange, formVariant }: StepEquipmentProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showEwasteInfo, setShowEwasteInfo] = useState(false);
+  const isCyrusOne = formVariant === "cyrusone";
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -21,7 +67,6 @@ export function StepEquipment({ data, onChange }: StepEquipmentProps) {
       const newFiles = Array.from(files);
       onChange({ equipmentFiles: [...data.equipmentFiles, ...newFiles] });
     }
-    // Reset input so same file can be selected again
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -59,6 +104,55 @@ export function StepEquipment({ data, onChange }: StepEquipmentProps) {
     });
   };
 
+  const renderEquipmentRow = (equipment: { id: string; label: string }) => {
+    const isChecked = data.equipmentTypes.includes(equipment.id);
+    return (
+      <div
+        key={equipment.id}
+        className="flex items-center justify-between rounded-lg border p-4"
+      >
+        <div className="flex items-center gap-3">
+          <Checkbox
+            id={equipment.id}
+            checked={isChecked}
+            onCheckedChange={(checked) =>
+              handleEquipmentToggle(equipment.id, checked === true)
+            }
+          />
+          <Label htmlFor={equipment.id} className="cursor-pointer font-normal">
+            {equipment.label}
+          </Label>
+        </div>
+        {isChecked && (
+          <div className="flex items-center gap-2">
+            <Label htmlFor={`qty-${equipment.id}`} className="text-sm">
+              Qty:
+            </Label>
+            <Input
+              id={`qty-${equipment.id}`}
+              type="number"
+              min="1"
+              className="w-20"
+              value={data.quantities[equipment.id] || ""}
+              onChange={(e) => handleQuantityChange(equipment.id, e.target.value)}
+              placeholder="0"
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Standard equipment list (CyrusOne hides e-waste items, racks, and new sub-type IDs)
+  const standardOptions = equipmentTypeOptions.filter((eq) =>
+    isCyrusOne ? !CYRUSONE_HIDDEN_IDS.has(eq.id) : !["metal_misc", "metal_caging", "wood_plywood", "wood_pallets", "wood_crates", "ewaste"].includes(eq.id)
+  );
+
+  const metalOptions = equipmentTypeOptions.filter((eq) => METAL_IDS.includes(eq.id));
+  const woodOptions = equipmentTypeOptions.filter((eq) => WOOD_IDS.includes(eq.id));
+  const ewasteOption = equipmentTypeOptions.find((eq) => eq.id === "ewaste")!;
+  const ewasteChecked = data.equipmentTypes.includes("ewaste");
+
   return (
     <div className="space-y-6">
       <div>
@@ -69,51 +163,117 @@ export function StepEquipment({ data, onChange }: StepEquipmentProps) {
       </div>
 
       <div className="space-y-4">
+        {/* Standard equipment list */}
         <div className="grid gap-3">
-          {equipmentTypeOptions.map((equipment) => {
-            const isChecked = data.equipmentTypes.includes(equipment.id);
-            return (
-              <div
-                key={equipment.id}
-                className="flex items-center justify-between rounded-lg border p-4"
-              >
+          {standardOptions.map(renderEquipmentRow)}
+        </div>
+
+        {/* CyrusOne — Metal group */}
+        {isCyrusOne && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              Metal
+            </p>
+            <div className="grid gap-3">
+              {metalOptions.map(renderEquipmentRow)}
+            </div>
+          </div>
+        )}
+
+        {/* CyrusOne — Wood group */}
+        {isCyrusOne && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              Wood
+            </p>
+            <div className="grid gap-3">
+              {woodOptions.map(renderEquipmentRow)}
+            </div>
+          </div>
+        )}
+
+        {/* CyrusOne — E-waste single checkbox */}
+        {isCyrusOne && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              E-Waste
+            </p>
+            <div className="rounded-lg border p-4 space-y-3">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Checkbox
-                    id={equipment.id}
-                    checked={isChecked}
+                    id="ewaste"
+                    checked={ewasteChecked}
                     onCheckedChange={(checked) =>
-                      handleEquipmentToggle(equipment.id, checked === true)
+                      handleEquipmentToggle("ewaste", checked === true)
                     }
                   />
-                  <Label
-                    htmlFor={equipment.id}
-                    className="cursor-pointer font-normal"
-                  >
-                    {equipment.label}
+                  <Label htmlFor="ewaste" className="cursor-pointer font-normal">
+                    {ewasteOption.label}
                   </Label>
                 </div>
-                {isChecked && (
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor={`qty-${equipment.id}`} className="text-sm">
-                      Qty:
-                    </Label>
-                    <Input
-                      id={`qty-${equipment.id}`}
-                      type="number"
-                      min="1"
-                      className="w-20"
-                      value={data.quantities[equipment.id] || ""}
-                      onChange={(e) =>
-                        handleQuantityChange(equipment.id, e.target.value)
-                      }
-                      placeholder="0"
-                    />
-                  </div>
-                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-muted-foreground h-auto py-1"
+                  onClick={() => setShowEwasteInfo((v) => !v)}
+                >
+                  Accepted / Not Accepted
+                  {showEwasteInfo ? (
+                    <ChevronUp className="ml-1 h-3 w-3" />
+                  ) : (
+                    <ChevronDown className="ml-1 h-3 w-3" />
+                  )}
+                </Button>
               </div>
-            );
-          })}
-        </div>
+
+              {ewasteChecked && (
+                <div className="flex items-center gap-2 pl-7">
+                  <Label htmlFor="qty-ewaste" className="text-sm">Qty:</Label>
+                  <Input
+                    id="qty-ewaste"
+                    type="number"
+                    min="1"
+                    className="w-20"
+                    value={data.quantities["ewaste"] || ""}
+                    onChange={(e) => handleQuantityChange("ewaste", e.target.value)}
+                    placeholder="0"
+                  />
+                </div>
+              )}
+
+              {showEwasteInfo && (
+                <div className="grid gap-4 sm:grid-cols-2 pt-2 border-t">
+                  <div>
+                    <p className="text-xs font-semibold text-green-700 dark:text-green-400 mb-1">
+                      ✓ Accepted
+                    </p>
+                    <ul className="space-y-1">
+                      {EWASTE_ACCEPTED.map((item) => (
+                        <li key={item} className="text-xs text-muted-foreground">
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-red-700 dark:text-red-400 mb-1">
+                      ✗ Not Accepted
+                    </p>
+                    <ul className="space-y-1">
+                      {EWASTE_NOT_ACCEPTED.map((item) => (
+                        <li key={item} className="text-xs text-muted-foreground">
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="estimatedWeight">
@@ -129,7 +289,14 @@ export function StepEquipment({ data, onChange }: StepEquipmentProps) {
 
         {/* File Upload Section */}
         <div className="space-y-3">
-          <Label>Upload Photo or Inventory List (Optional)</Label>
+          <div className="flex items-baseline gap-2">
+            <Label>
+              {isCyrusOne ? "Upload Photo or Inventory List *" : "Upload Photo or Inventory List (Optional)"}
+            </Label>
+            {isCyrusOne && (
+              <span className="text-xs text-muted-foreground">Required</span>
+            )}
+          </div>
           <p className="text-sm text-muted-foreground">
             Upload photos of equipment or an inventory spreadsheet to help us
             provide an accurate quote.
@@ -183,6 +350,20 @@ export function StepEquipment({ data, onChange }: StepEquipmentProps) {
             )}
           </div>
         </div>
+
+        {/* CyrusOne — Comments field */}
+        {isCyrusOne && (
+          <div className="space-y-2">
+            <Label htmlFor="comments">Comments (Optional)</Label>
+            <Textarea
+              id="comments"
+              value={data.comments}
+              onChange={(e) => onChange({ comments: e.target.value })}
+              placeholder="Any additional notes about the equipment or photos..."
+              rows={3}
+            />
+          </div>
+        )}
       </div>
 
       {/* General Questions */}

@@ -29,6 +29,7 @@ export interface RequestRow {
   on_site_contact_phone: string | null;
   preferred_date: string | null;
   additional_notes: string | null;
+  comments: string | null;
 
   // Standard form fields (nullable for other form types)
   city: string | null;

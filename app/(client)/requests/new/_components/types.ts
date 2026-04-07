@@ -112,6 +112,9 @@ export interface PickupRequestFormData {
 
   // Notes
   additionalNotes: string;
+
+  // Image/equipment tab comments (CyrusOne variant)
+  comments: string;
 }
 
 export const initialFormData: PickupRequestFormData = {
@@ -203,6 +206,9 @@ export const initialFormData: PickupRequestFormData = {
 
   // Notes
   additionalNotes: "",
+
+  // Image/equipment tab comments
+  comments: "",
 };
 
 export const equipmentTypeOptions = [
@@ -225,6 +231,15 @@ export const equipmentTypeOptions = [
   { id: "misc_box", label: "Box of Miscellaneous Assets" },
   { id: "misc_gaylord", label: "Misc. Gaylord of Equipment" },
   { id: "misc_assets", label: "Miscellaneous Assets" },
+  // CyrusOne variant — metal sub-types
+  { id: "metal_misc", label: "Misc Metals" },
+  { id: "metal_caging", label: "Caging Materials" },
+  // CyrusOne variant — wood sub-types
+  { id: "wood_plywood", label: "Plywood" },
+  { id: "wood_pallets", label: "Pallets" },
+  { id: "wood_crates", label: "Crates" },
+  // CyrusOne variant — e-waste (single consolidated checkbox)
+  { id: "ewaste", label: "E-Waste" },
 ];
 
 export const dataDestructionOptions = [
@@ -376,5 +391,6 @@ export function mapFormDataToRequestInsert(
     material_not_prepared_details: formData.materialNotPreparedDetails || null,
     packing_services_required: formData.packingServicesRequired,
     additional_notes: formData.additionalNotes || null,
+    comments: formData.comments || null,
   };
 }

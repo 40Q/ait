@@ -14,6 +14,8 @@ export interface CurrentUserProfile {
   is_sub_company_user: boolean;
   /** True when a manager has explicitly granted this user invoice access */
   invoice_access: boolean;
+  /** Request form variant configured for this user's company */
+  form_variant: string;
 }
 
 /**
@@ -33,14 +35,14 @@ export function useCurrentUser() {
 
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("id, email, full_name, role, company_id, invoice_access, company:companies(name, parent_company_id)")
+        .select("id, email, full_name, role, company_id, invoice_access, company:companies(name, parent_company_id, form_variant)")
         .eq("id", user.id)
         .single();
 
       if (error) throw error;
 
       // Handle company relation - Supabase returns object for single FK relations
-      const company = profile.company as unknown as { name: string; parent_company_id: string | null } | null;
+      const company = profile.company as unknown as { name: string; parent_company_id: string | null; form_variant: string } | null;
 
       return {
         id: profile.id,
@@ -51,6 +53,7 @@ export function useCurrentUser() {
         company_name: company?.name ?? null,
         is_sub_company_user: !!company?.parent_company_id,
         invoice_access: profile.invoice_access ?? false,
+        form_variant: company?.form_variant ?? 'standard',
       } as CurrentUserProfile;
     },
   });

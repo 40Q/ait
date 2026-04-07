@@ -17,9 +17,17 @@ import { dataDestructionOptions, packingServiceOptions } from "./types";
 interface StepServicesProps {
   data: PickupRequestFormData;
   onChange: (data: Partial<PickupRequestFormData>) => void;
+  formVariant?: string;
 }
 
-export function StepServices({ data, onChange }: StepServicesProps) {
+// CyrusOne only needs serialization-based destruction (off-site and on-site)
+const cyrusoneDestructionOptions = dataDestructionOptions.filter((opt) =>
+  ["none", "hd_serialization_cod", "onsite_hd_serialization_cod"].includes(opt.value)
+);
+
+export function StepServices({ data, onChange, formVariant }: StepServicesProps) {
+  const activeDestructionOptions =
+    formVariant === 'cyrusone' ? cyrusoneDestructionOptions : dataDestructionOptions;
   return (
     <div className="space-y-6">
       <div>
@@ -207,7 +215,7 @@ export function StepServices({ data, onChange }: StepServicesProps) {
               <SelectValue placeholder="Select data destruction service" />
             </SelectTrigger>
             <SelectContent>
-              {dataDestructionOptions.map((option) => (
+              {activeDestructionOptions.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   <div className="flex flex-col">
                     <span>{option.label}</span>
@@ -218,7 +226,7 @@ export function StepServices({ data, onChange }: StepServicesProps) {
           </Select>
           {data.dataDestructionService !== "none" && (
             <p className="mt-2 text-sm text-muted-foreground">
-              {dataDestructionOptions.find(
+              {activeDestructionOptions.find(
                 (opt) => opt.value === data.dataDestructionService
               )?.description}
             </p>

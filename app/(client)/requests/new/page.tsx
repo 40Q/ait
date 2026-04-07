@@ -13,11 +13,15 @@ import { StepServices } from "./_components/step-services";
 import { StepReview } from "./_components/step-review";
 import { initialFormData, steps, type PickupRequestFormData } from "./_components/types";
 import { useSubmitRequest } from "./_hooks/use-submit-request";
+import { useCurrentUser } from "@/lib/hooks";
 
 export default function NewRequestPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<PickupRequestFormData>(initialFormData);
   const [termsAccepted, setTermsAccepted] = useState(false);
+
+  const { data: currentUser } = useCurrentUser();
+  const formVariant = currentUser?.form_variant ?? 'standard';
 
   const { submit, isUploading, isSubmitting, error } = useSubmitRequest();
 
@@ -26,19 +30,20 @@ export default function NewRequestPage() {
   };
 
   const isLastStep = currentStep === steps.length - 1;
-  const canSubmit = isLastStep && termsAccepted;
+  const photoRequired = formVariant === 'cyrusone' && formData.equipmentFiles.length === 0;
+  const canSubmit = isLastStep && termsAccepted && !photoRequired;
   const isPending = isUploading || isSubmitting;
 
   const renderStep = () => {
     switch (currentStep) {
       case 0:
-        return <StepLocation data={formData} onChange={handleFormChange} />;
+        return <StepLocation data={formData} onChange={handleFormChange} formVariant={formVariant} />;
       case 1:
         return <StepSchedule data={formData} onChange={handleFormChange} />;
       case 2:
-        return <StepEquipment data={formData} onChange={handleFormChange} />;
+        return <StepEquipment data={formData} onChange={handleFormChange} formVariant={formVariant} />;
       case 3:
-        return <StepServices data={formData} onChange={handleFormChange} />;
+        return <StepServices data={formData} onChange={handleFormChange} formVariant={formVariant} />;
       case 4:
         return (
           <StepReview
@@ -71,6 +76,11 @@ export default function NewRequestPage() {
         <CardFooter className="flex flex-col gap-4 border-t px-6 py-4">
           {error && (
             <p className="text-sm text-destructive w-full">{error}</p>
+          )}
+          {isLastStep && photoRequired && (
+            <p className="text-sm text-destructive w-full">
+              A photo or inventory file is required. Please go back to the Equipment step and upload one.
+            </p>
           )}
           <div className="flex justify-between w-full">
             <Button

@@ -21,6 +21,7 @@ import { prePickupCallOptions, dockTypeOptions, truckSizeOptions } from "./types
 interface StepLocationProps {
   data: PickupRequestFormData;
   onChange: (data: Partial<PickupRequestFormData>) => void;
+  formVariant?: string;
 }
 
 const usStates = [
@@ -31,10 +32,17 @@ const usStates = [
   "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
 ];
 
-export function StepLocation({ data, onChange }: StepLocationProps) {
+export function StepLocation({ data, onChange, formVariant }: StepLocationProps) {
   const { data: user } = useCurrentUser();
-  const { data: savedLocations = [] } = useCompanyLocations(user?.company_id ?? "");
+  const { data: rawLocations = [] } = useCompanyLocations(user?.company_id ?? "");
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
+
+  // Sort alphabetically; primary location always first
+  const savedLocations = [...rawLocations].sort((a, b) => {
+    if (a.is_primary && !b.is_primary) return -1;
+    if (!a.is_primary && b.is_primary) return 1;
+    return a.name.localeCompare(b.name);
+  });
 
   // Determine if we should show the "save location" checkbox:
   // - Show when there are no saved locations (user is entering manually)
@@ -306,25 +314,27 @@ export function StepLocation({ data, onChange }: StepLocationProps) {
         </CardContent>
       </Card>
 
-      {/* Accounts Payable Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <FileText className="h-4 w-4" />
-            Accounts Payable
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <Label htmlFor="accountsPayableEmail">Accounts Payable Email(s)</Label>
-            <EmailTagInput
-              value={data.accountsPayableEmail}
-              onChange={(val) => onChange({ accountsPayableEmail: val })}
-              placeholder="ap@company.com"
-            />
-          </div>
-        </CardContent>
-      </Card>
+      {/* Accounts Payable Section — hidden for CyrusOne (uses a default AP email) */}
+      {formVariant !== 'cyrusone' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileText className="h-4 w-4" />
+              Accounts Payable
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Label htmlFor="accountsPayableEmail">Accounts Payable Email(s)</Label>
+              <EmailTagInput
+                value={data.accountsPayableEmail}
+                onChange={(val) => onChange({ accountsPayableEmail: val })}
+                placeholder="ap@company.com"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Facility Information Section */}
       <Card>
