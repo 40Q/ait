@@ -23,6 +23,7 @@ import {
   AlertCircle,
   XCircle,
   Loader2,
+  Building2,
 } from "lucide-react";
 import { FetchingIndicator } from "@/components/ui/fetching-indicator";
 import { useCompanyList, usePagination } from "@/lib/hooks";
@@ -159,6 +160,18 @@ export default function CompaniesPage() {
                       >
                         {company.name}
                       </Link>
+                      {company.parent_company_name && (
+                        <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
+                          <Building2 className="h-3 w-3 shrink-0" />
+                          <span>Sub-company of </span>
+                          <Link
+                            href={`/admin/companies/${company.parent_company_id}`}
+                            className="hover:underline"
+                          >
+                            {company.parent_company_name}
+                          </Link>
+                        </div>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">

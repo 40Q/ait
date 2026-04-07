@@ -109,7 +109,7 @@ export class CompanyRepository extends BaseRepository<
 
     let query = this.supabase
       .from("companies")
-      .select("*", { count: "exact" })
+      .select("*, parent:parent_company_id(id, name)", { count: "exact" })
       .order("name", { ascending: true });
 
     if (filters?.status) {
@@ -174,6 +174,8 @@ export class CompanyRepository extends BaseRepository<
         quickbooksStatus = "connected";
       }
 
+      const parent = company.parent as { id: string; name: string } | null;
+
       return {
         id: company.id,
         name: company.name,
@@ -183,6 +185,8 @@ export class CompanyRepository extends BaseRepository<
         pending_request_count: pendingRequestCounts.get(company.id) ?? 0,
         quickbooks_status: quickbooksStatus,
         created_at: company.created_at,
+        parent_company_id: parent?.id ?? null,
+        parent_company_name: parent?.name ?? null,
       };
     });
 

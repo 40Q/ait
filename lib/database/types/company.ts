@@ -55,6 +55,8 @@ export interface CompanyListItem {
   pending_request_count: number;
   quickbooks_status: QuickBooksStatus;
   created_at: string;
+  parent_company_id: string | null;
+  parent_company_name: string | null;
 }
 
 // Filters for querying
