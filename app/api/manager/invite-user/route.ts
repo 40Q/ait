@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { email, fullName, companyId } = body;
+    const { email, fullName, companyId, password } = body;
 
     if (!email || !companyId) {
       return NextResponse.json(
@@ -56,15 +56,52 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Invite the user
+    const userMetadata = {
+      full_name: fullName || email,
+      role: "client",
+      company_id: companyId,
+    };
+
+    // If a password is provided, create the account directly (no invite email)
+    if (password) {
+      const { data, error } = await adminClient.auth.admin.createUser({
+        email: email.toLowerCase().trim(),
+        password,
+        email_confirm: true,
+        user_metadata: userMetadata,
+      });
+
+      if (error) {
+        const isUserExists =
+          error.message?.toLowerCase().includes("already") ||
+          error.message?.toLowerCase().includes("registered") ||
+          error.status === 422;
+
+        if (!isUserExists) {
+          return NextResponse.json({ error: error.message }, { status: 400 });
+        }
+
+        return await handleReInviteWithPassword(adminClient, { email, fullName, companyId, password });
+      }
+
+      if (data.user?.id) {
+        onesignalClient
+          .registerUserEmail({ externalId: data.user.id, email, role: "client", companyId })
+          .catch((err) => console.error("[manager/invite-user] OneSignal registration failed:", err));
+      }
+
+      return NextResponse.json({
+        success: true,
+        userId: data.user?.id,
+        message: "Account created successfully",
+      });
+    }
+
+    // No password — send invite email
     const { data, error } = await adminClient.auth.admin.inviteUserByEmail(
       email.toLowerCase().trim(),
       {
-        data: {
-          full_name: fullName || email,
-          role: "client",
-          company_id: companyId,
-        },
+        data: userMetadata,
         redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?type=invite`,
       }
     );
@@ -104,6 +141,57 @@ export async function POST(request: NextRequest) {
     console.error("POST /api/manager/invite-user:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
+}
+
+async function handleReInviteWithPassword(
+  adminClient: ReturnType<typeof createAdminClient>,
+  body: { email: string; fullName?: string; companyId: string; password: string }
+) {
+  const { data: existingProfile } = await adminClient
+    .from("profiles")
+    .select("id")
+    .eq("email", body.email.toLowerCase().trim())
+    .maybeSingle();
+
+  if (!existingProfile) {
+    return NextResponse.json(
+      { error: "User account is in an inconsistent state. Please contact support." },
+      { status: 400 }
+    );
+  }
+
+  const { error: updateError } = await adminClient.auth.admin.updateUserById(
+    existingProfile.id,
+    {
+      ban_duration: "none",
+      password: body.password,
+      email_confirm: true,
+      user_metadata: {
+        full_name: body.fullName || body.email,
+        role: "client",
+        company_id: body.companyId,
+      },
+    }
+  );
+
+  if (updateError) {
+    return NextResponse.json({ error: "Failed to update user account" }, { status: 500 });
+  }
+
+  await adminClient
+    .from("profiles")
+    .update({ company_id: body.companyId, full_name: body.fullName || body.email })
+    .eq("id", existingProfile.id);
+
+  onesignalClient
+    .registerUserEmail({ externalId: existingProfile.id, email: body.email, role: "client", companyId: body.companyId })
+    .catch((err) => console.error("[manager/invite-user] OneSignal registration failed:", err));
+
+  return NextResponse.json({
+    success: true,
+    userId: existingProfile.id,
+    message: "Account updated successfully",
+  });
 }
 
 async function handleReInvite(

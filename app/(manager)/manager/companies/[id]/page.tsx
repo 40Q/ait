@@ -107,6 +107,7 @@ export default function ManagerCompanyDetailPage({ params }: CompanyDetailPagePr
         <InviteUserCard
           companyId={id}
           apiBaseUrl="/api/manager"
+          showPasswordOption
           onRefetch={refetchUsers}
         />
       </div>
