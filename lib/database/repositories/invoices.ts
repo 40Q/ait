@@ -91,6 +91,7 @@ export class InvoiceRepository extends BaseRepository<
         due_date,
         quickbooks_id,
         quickbooks_synced_at,
+        pdf_path,
         created_at,
         company:companies(name),
         job:jobs(job_number)
@@ -143,6 +144,7 @@ export class InvoiceRepository extends BaseRepository<
       due_date: row.due_date,
       quickbooks_id: row.quickbooks_id,
       quickbooks_synced_at: row.quickbooks_synced_at,
+      pdf_path: row.pdf_path ?? null,
       created_at: row.created_at,
     })) as InvoiceListItem[];
 

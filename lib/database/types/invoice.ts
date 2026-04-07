@@ -13,6 +13,7 @@ export interface InvoiceRow {
   quickbooks_id: string | null;
   quickbooks_synced_at: string | null;
   quickbooks_data: Record<string, unknown> | null;
+  pdf_path: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -54,6 +55,7 @@ export interface InvoiceListItem {
   due_date: string;
   quickbooks_id: string | null;
   quickbooks_synced_at: string | null;
+  pdf_path: string | null;
   created_at: string;
 }
 

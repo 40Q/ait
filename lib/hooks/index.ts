@@ -100,6 +100,7 @@ export {
   useDisconnectQuickBooks,
   useRealtimeInvoices,
   useDownloadInvoicePdf,
+  useCreateInvoice,
   useInvoiceStats,
   useInvoiceFilters,
 } from "./use-invoices";

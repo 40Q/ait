@@ -222,13 +222,17 @@ export function useDownloadInvoicePdf() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const downloadPdf = useCallback(async (invoice: InvoiceListItem) => {
-    if (!invoice.quickbooks_id) {
-      throw new Error("Invoice not synced from QuickBooks");
+    if (!invoice.pdf_path && !invoice.quickbooks_id) {
+      throw new Error("No PDF available for this invoice");
     }
 
     setDownloadingId(invoice.id);
     try {
-      const response = await fetch(`/api/quickbooks/invoice/${invoice.id}/pdf`);
+      const endpoint = invoice.pdf_path
+        ? `/api/admin/invoices/${invoice.id}/pdf`
+        : `/api/quickbooks/invoice/${invoice.id}/pdf`;
+
+      const response = await fetch(endpoint);
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || "Failed to download PDF");
@@ -262,6 +266,32 @@ export function useInvoiceStats(companyId?: string) {
     queryKey: [...queryKeys.invoices.all, "stats", companyId],
     queryFn: () => repo.getStats(companyId),
     ...getQueryOptions("counts"),
+  });
+}
+
+/**
+ * Hook to create a manual invoice (admin only)
+ */
+export function useCreateInvoice() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (formData: FormData) => {
+      const response = await fetch("/api/admin/invoices", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to create invoice");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all });
+    },
   });
 }
 

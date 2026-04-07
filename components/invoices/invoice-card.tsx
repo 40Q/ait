@@ -64,7 +64,7 @@ export function InvoiceCard({
                 variant="outline"
                 size="sm"
                 onClick={() => onDownloadPdf(invoice)}
-                disabled={!invoice.quickbooks_id || isDownloading}
+                disabled={(!invoice.quickbooks_id && !invoice.pdf_path) || isDownloading}
               >
                 {isDownloading ? (
                   <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />

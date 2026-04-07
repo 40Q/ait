@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -39,6 +40,7 @@ import {
   Download,
   Link as LinkIcon,
   Loader2,
+  Plus,
 } from "lucide-react";
 import {
   useInvoiceList,
@@ -49,7 +51,9 @@ import {
   useRealtimeInvoices,
   useJobList,
   useDownloadInvoicePdf,
+  useCreateInvoice,
   useInvoiceStats,
+  useCompanyList,
   usePagination,
 } from "@/lib/hooks";
 import { formatDateShort, formatRelativeTime } from "@/lib/utils/date";
@@ -58,6 +62,9 @@ import { toast } from "sonner";
 
 export default function InvoicesPage() {
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [createCompanyId, setCreateCompanyId] = useState("");
+  const [createStatus, setCreateStatus] = useState("unpaid");
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceListItem | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -97,9 +104,13 @@ export default function InvoicesPage() {
   const { data: qbStatus } = useQuickBooksStatus();
   const { data: jobsData } = useJobList(undefined, 1, 100);
 
+  // Company list for create dialog
+  const { data: companiesData } = useCompanyList(undefined, 1, 200);
+
   // Mutations and actions
   const syncInvoices = useSyncInvoices();
   const linkInvoice = useLinkInvoiceToJob();
+  const createInvoice = useCreateInvoice();
   const { downloadPdf, downloadingId } = useDownloadInvoicePdf();
 
   // Real-time updates
@@ -184,6 +195,29 @@ export default function InvoicesPage() {
     }
   };
 
+  const handleCreateSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const raw = new FormData(e.currentTarget);
+    const formData = new FormData();
+    formData.set("company_id", createCompanyId);
+    formData.set("invoice_number", raw.get("invoice_number") as string);
+    formData.set("amount", raw.get("amount") as string);
+    formData.set("invoice_date", raw.get("invoice_date") as string);
+    formData.set("due_date", raw.get("due_date") as string);
+    formData.set("status", createStatus);
+    const pdf = raw.get("pdf") as File | null;
+    if (pdf && pdf.size > 0) formData.set("pdf", pdf);
+    try {
+      await createInvoice.mutateAsync(formData);
+      toast.success("Invoice created successfully");
+      setCreateDialogOpen(false);
+      setCreateCompanyId("");
+      setCreateStatus("unpaid");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to create invoice");
+    }
+  };
+
   if (invoicesLoading) {
     return (
       <div className="space-y-6">
@@ -208,6 +242,10 @@ export default function InvoicesPage() {
         title="Invoices"
         description="Manage invoices synced from QuickBooks"
       >
+        <Button variant="outline" onClick={() => setCreateDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Create Invoice
+        </Button>
         <Button onClick={handleSync} disabled={syncInvoices.isPending || !qbStatus?.connected}>
           <RefreshCw
             className={`mr-2 h-4 w-4 ${syncInvoices.isPending ? "animate-spin" : ""}`}
@@ -379,7 +417,7 @@ export default function InvoicesPage() {
                     size="icon"
                     title="Download PDF"
                     onClick={() => handleDownloadPdf(invoice)}
-                    disabled={!invoice.quickbooks_id || downloadingId === invoice.id}
+                    disabled={(!invoice.quickbooks_id && !invoice.pdf_path) || downloadingId === invoice.id}
                   >
                     {downloadingId === invoice.id ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -415,6 +453,121 @@ export default function InvoicesPage() {
           onPageSizeChange={setPageSize}
         />
       )}
+
+      {/* Create Invoice Dialog */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Create Invoice</DialogTitle>
+            <DialogDescription>
+              Manually create an invoice for companies not using QuickBooks.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateSubmit}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="create-company">Company</Label>
+                <Select value={createCompanyId} onValueChange={setCreateCompanyId} required>
+                  <SelectTrigger id="create-company">
+                    <SelectValue placeholder="Select a company..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(companiesData?.data ?? []).map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="create-invoice-number">Invoice #</Label>
+                  <Input
+                    id="create-invoice-number"
+                    name="invoice_number"
+                    placeholder="INV-001"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="create-amount">Amount ($)</Label>
+                  <Input
+                    id="create-amount"
+                    name="amount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="create-invoice-date">Invoice Date</Label>
+                  <Input
+                    id="create-invoice-date"
+                    name="invoice_date"
+                    type="date"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="create-due-date">Due Date</Label>
+                  <Input
+                    id="create-due-date"
+                    name="due_date"
+                    type="date"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="create-status">Status</Label>
+                <Select value={createStatus} onValueChange={setCreateStatus}>
+                  <SelectTrigger id="create-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unpaid">Unpaid</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="overdue">Overdue</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="create-pdf">PDF (optional)</Label>
+                <Input
+                  id="create-pdf"
+                  name="pdf"
+                  type="file"
+                  accept="application/pdf"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCreateDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={createInvoice.isPending}>
+                {createInvoice.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Create Invoice
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Link Invoice Dialog */}
       <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
