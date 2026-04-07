@@ -27,57 +27,23 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   ArrowLeft,
   Loader2,
   CheckCircle2,
-  UserPlus,
-  Mail,
   AlertTriangle,
-  Users,
-  Copy,
-  Check,
-  Eye,
-  EyeOff,
-  RefreshCw,
-  MoreHorizontal,
 } from "lucide-react";
 import { QuickBooksCustomerSelect } from "@/components/ui/quickbooks-customer-select";
-import { generatePassword } from "@/lib/utils/generate-password";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   useCompany,
   useCompanyUsers,
   useUpdateCompany,
-  useInviteUser,
-  useDeactivateUser,
 } from "@/lib/hooks";
 import { LocationsSection } from "@/components/locations";
 import { EmailTagInput } from "@/components/ui/email-tag-input";
 import { useFormValidation } from "@/lib/hooks/use-form-validation";
 import { companyFormSchema, type CompanyFormInput } from "@/lib/validation";
 import type { CompanyStatus } from "@/lib/database/types";
-import { toast } from "sonner";
+import { PortalUsersCard, InviteUserCard } from "@/components/company-users-section";
 
 interface CompanyFormData extends CompanyFormInput {
   status: CompanyStatus;
@@ -95,8 +61,6 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
   const { data: company, isLoading, error, refetch } = useCompany(id);
   const { data: companyUsers = [], refetch: refetchUsers } = useCompanyUsers(id);
   const updateCompany = useUpdateCompany();
-  const inviteUser = useInviteUser();
-  const deleteUser = useDeactivateUser();
   const { errors, validate, clearFieldError } = useFormValidation<CompanyFormInput>(companyFormSchema);
 
   const [formData, setFormData] = useState<CompanyFormData>({
@@ -112,26 +76,9 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
     accountsPayableEmail: "",
     accountsPayablePhone: "",
   });
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteFullName, setInviteFullName] = useState("");
-  const [invitePassword, setInvitePassword] = useState("");
-  const [showInvitePassword, setShowInvitePassword] = useState(false);
-  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
-  const [passwordCopied, setPasswordCopied] = useState(false);
-  const [inviteRole, setInviteRole] = useState<"client" | "manager">("client");
-  const [inviteSuccess, setInviteSuccess] = useState(false);
-  const [inviteLink, setInviteLink] = useState<string | null>(null);
-  const [linkCopied, setLinkCopied] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [userToDelete, setUserToDelete] = useState<{ id: string; email: string } | null>(null);
-  const [userToSetPassword, setUserToSetPassword] = useState<{ id: string; email: string } | null>(null);
-  const [setPasswordValue, setSetPasswordValue] = useState("");
-  const [showSetPasswordValue, setShowSetPasswordValue] = useState(false);
-  const [setPasswordLoading, setSetPasswordLoading] = useState(false);
-  const [setPasswordError, setSetPasswordError] = useState<string | null>(null);
-  const [setPasswordSuccess, setSetPasswordSuccess] = useState(false);
 
   // Populate form when company data loads
   useEffect(() => {
@@ -189,144 +136,7 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
     );
   };
 
-  const handleGenerateInvitePassword = () => {
-    setInvitePassword(generatePassword());
-    setShowInvitePassword(true);
-  };
 
-  const handleInviteUser = () => {
-    if (!inviteEmail) return;
-
-    setInviteSuccess(false);
-    setInviteLink(null);
-    setGeneratedPassword(null);
-    inviteUser.mutate(
-      {
-        email: inviteEmail,
-        fullName: inviteFullName || inviteEmail,
-        companyId: id,
-        role: inviteRole,
-        password: invitePassword || undefined,
-      },
-      {
-        onSuccess: (data) => {
-          const pwd = invitePassword || null;
-          setInviteEmail("");
-          setInviteFullName("");
-          setInvitePassword("");
-          setShowInvitePassword(false);
-          setInviteSuccess(true);
-          setInviteLink(data.inviteLink ?? null);
-          setGeneratedPassword(pwd);
-          refetchUsers();
-        },
-      }
-    );
-  };
-
-  const handleCopyLink = () => {
-    if (!inviteLink) return;
-    navigator.clipboard.writeText(inviteLink).then(() => {
-      setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000);
-    });
-  };
-
-  const handleCopyPassword = () => {
-    if (!generatedPassword) return;
-    navigator.clipboard.writeText(generatedPassword).then(() => {
-      setPasswordCopied(true);
-      setTimeout(() => setPasswordCopied(false), 2000);
-    });
-  };
-
-  const handleResendInvite = async (email: string, fullName: string | null) => {
-    try {
-      const response = await fetch("/api/admin/invite-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, fullName: fullName || email, companyId: id, role: "client" }),
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to resend invite");
-      }
-      toast.success("Invitation resent");
-      refetchUsers();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to resend invite");
-    }
-  };
-
-  const handleCopyInviteLink = async (userId: string) => {
-    try {
-      const response = await fetch(`/api/admin/users/${userId}/invite-link`, { method: "POST" });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to generate link");
-      await navigator.clipboard.writeText(data.inviteLink);
-      toast.success("Invite link copied");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to copy link");
-    }
-  };
-
-  const handleSendRecoveryEmail = async (userId: string) => {
-    try {
-      const response = await fetch(`/api/admin/users/${userId}/send-recovery-email`, { method: "POST" });
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to send email");
-      }
-      toast.success("Recovery email sent");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to send recovery email");
-    }
-  };
-
-  const openSetPassword = (user: { id: string; email: string }) => {
-    setUserToSetPassword(user);
-    setSetPasswordValue("");
-    setShowSetPasswordValue(false);
-    setSetPasswordError(null);
-    setSetPasswordSuccess(false);
-  };
-
-  const closeSetPassword = () => {
-    setUserToSetPassword(null);
-    setSetPasswordValue("");
-    setShowSetPasswordValue(false);
-    setSetPasswordError(null);
-    setSetPasswordSuccess(false);
-  };
-
-  const handleSetPassword = async () => {
-    if (!userToSetPassword) return;
-    if (!setPasswordValue || setPasswordValue.length < 8) {
-      setSetPasswordError("Password must be at least 8 characters");
-      return;
-    }
-    setSetPasswordLoading(true);
-    setSetPasswordError(null);
-    try {
-      const response = await fetch(`/api/admin/users/${userToSetPassword.id}/set-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: setPasswordValue }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
-      setSetPasswordSuccess(true);
-    } catch (err) {
-      setSetPasswordError(err instanceof Error ? err.message : "Failed to set password");
-    } finally {
-      setSetPasswordLoading(false);
-    }
-  };
-
-  const handleGenerateSetPassword = () => {
-    setSetPasswordValue(generatePassword());
-    setShowSetPasswordValue(true);
-  };
 
   const handleDeleteCompany = async () => {
     setIsDeleting(true);
@@ -351,17 +161,6 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
       setDeleteError("An unexpected error occurred");
       setIsDeleting(false);
     }
-  };
-
-  const handleDeleteUser = () => {
-    if (!userToDelete) return;
-
-    deleteUser.mutate(userToDelete.id, {
-      onSuccess: () => {
-        setUserToDelete(null);
-        refetchUsers();
-      },
-    });
   };
 
   if (isLoading) {
@@ -647,229 +446,21 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
 
         {/* Sidebar Actions */}
         <div className="space-y-6">
-          {/* Portal Users */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Portal Users
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {companyUsers.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No users yet</p>
-              ) : (
-                <ul className="space-y-2">
-                  {companyUsers.map((user) => (
-                    <li
-                      key={user.id}
-                      className="flex items-center justify-between text-sm"
-                    >
-                      <div className="flex-1 min-w-0 mr-2">
-                        <span className="text-muted-foreground truncate block">{user.email}</span>
-                        {user.invite_pending && (
-                          <span className="text-xs text-amber-600">Invite pending</span>
-                        )}
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {user.invite_pending ? (
-                            <>
-                              <DropdownMenuItem onClick={() => handleResendInvite(user.email, user.full_name)}>
-                                Resend Invite
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleCopyInviteLink(user.id)}>
-                                Copy Invite Link
-                              </DropdownMenuItem>
-                            </>
-                          ) : (
-                            <>
-                              <DropdownMenuItem onClick={() => handleSendRecoveryEmail(user.id)}>
-                                Send Recovery Email
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => openSetPassword({ id: user.id, email: user.email })}>
-                                Set Password
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() => setUserToDelete({ id: user.id, email: user.email })}
-                          >
-                            Remove
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
+          <PortalUsersCard
+            companyId={id}
+            users={companyUsers}
+            apiBaseUrl="/api/admin"
+            showSetPassword
+            onRefetch={refetchUsers}
+          />
 
-          {/* Invite User */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <UserPlus className="h-4 w-4" />
-                Add Portal User
-              </CardTitle>
-              <CardDescription>
-                Send an invitation or create an account with a password directly
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="inviteEmail">Email</Label>
-                <Input
-                  id="inviteEmail"
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(e) => {
-                    setInviteEmail(e.target.value);
-                    setInviteSuccess(false);
-                  }}
-                  placeholder="user@company.com"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="inviteFullName">Full Name</Label>
-                <Input
-                  id="inviteFullName"
-                  value={inviteFullName}
-                  onChange={(e) => setInviteFullName(e.target.value)}
-                  placeholder="John Smith"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="invitePassword">
-                  Password{" "}
-                  <span className="text-muted-foreground font-normal">(optional)</span>
-                </Label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Input
-                      id="invitePassword"
-                      type={showInvitePassword ? "text" : "password"}
-                      value={invitePassword}
-                      onChange={(e) => setInvitePassword(e.target.value)}
-                      placeholder="Leave blank to send email invite"
-                      className="pr-9"
-                    />
-                    {invitePassword && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-0 top-0 h-full px-2.5 hover:bg-transparent"
-                        onClick={() => setShowInvitePassword(!showInvitePassword)}
-                      >
-                        {showInvitePassword ? (
-                          <EyeOff className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <Eye className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={handleGenerateInvitePassword}
-                    title="Generate password"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {invitePassword
-                    ? "Account will be created with this password — no email sent."
-                    : "No password? An invite email will be sent instead."}
-                </p>
-                <Label>Role</Label>
-                <Select
-                  value={inviteRole}
-                  onValueChange={(v) => setInviteRole(v as "client" | "manager")}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="client">Client</SelectItem>
-                    <SelectItem value="manager">Manager</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button
-                onClick={handleInviteUser}
-                disabled={!inviteEmail || inviteUser.isPending}
-                className="w-full"
-              >
-                {inviteUser.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : invitePassword ? (
-                  <UserPlus className="mr-2 h-4 w-4" />
-                ) : (
-                  <Mail className="mr-2 h-4 w-4" />
-                )}
-                {invitePassword ? "Create Account" : "Send Invitation"}
-              </Button>
-              {inviteSuccess && (
-                <div className="space-y-2">
-                  <p className="text-sm text-green-600 flex items-center gap-1">
-                    <CheckCircle2 className="h-4 w-4" />
-                    {generatedPassword ? "Account created successfully" : "Invitation sent successfully"}
-                  </p>
-                  {generatedPassword && (
-                    <div className="rounded-md border bg-muted p-3 space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground">Password to share with customer:</p>
-                      <p className="font-mono text-sm break-all">{generatedPassword}</p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        onClick={handleCopyPassword}
-                      >
-                        {passwordCopied ? (
-                          <Check className="mr-2 h-4 w-4 text-green-600" />
-                        ) : (
-                          <Copy className="mr-2 h-4 w-4" />
-                        )}
-                        {passwordCopied ? "Copied!" : "Copy Password"}
-                      </Button>
-                    </div>
-                  )}
-                  {inviteLink && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={handleCopyLink}
-                    >
-                      {linkCopied ? (
-                        <Check className="mr-2 h-4 w-4 text-green-600" />
-                      ) : (
-                        <Copy className="mr-2 h-4 w-4" />
-                      )}
-                      {linkCopied ? "Copied!" : "Copy Invitation Link"}
-                    </Button>
-                  )}
-                </div>
-              )}
-              {inviteUser.error && (
-                <p className="text-sm text-destructive">
-                  {inviteUser.error.message}
-                </p>
-              )}
-            </CardContent>
-          </Card>
+          <InviteUserCard
+            companyId={id}
+            apiBaseUrl="/api/admin"
+            showRoleSelect
+            showPasswordOption
+            onRefetch={refetchUsers}
+          />
 
           {/* Danger Zone */}
           <Card className="border-destructive/50">
@@ -934,102 +525,6 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
         </div>
       </div>
 
-      {/* Set Password Dialog */}
-      <Dialog open={!!userToSetPassword} onOpenChange={(open) => !open && closeSetPassword()}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Set New Password</DialogTitle>
-            <DialogDescription>
-              {userToSetPassword?.email} — set a password and share it with the user directly.
-            </DialogDescription>
-          </DialogHeader>
-          {setPasswordSuccess ? (
-            <div className="py-4 text-center space-y-1">
-              <p className="font-medium text-green-600">Password updated</p>
-              <p className="text-sm text-muted-foreground">The user can now log in with the new password.</p>
-            </div>
-          ) : (
-            <div className="space-y-3 py-2">
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Input
-                    type={showSetPasswordValue ? "text" : "password"}
-                    value={setPasswordValue}
-                    onChange={(e) => { setSetPasswordValue(e.target.value); setSetPasswordError(null); }}
-                    placeholder="Enter or generate a password"
-                    className="pr-9"
-                    disabled={setPasswordLoading}
-                  />
-                  {setPasswordValue && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-0 h-full px-2.5 hover:bg-transparent"
-                      onClick={() => setShowSetPasswordValue(!showSetPasswordValue)}
-                    >
-                      {showSetPasswordValue ? (
-                        <EyeOff className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <Eye className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </Button>
-                  )}
-                </div>
-                <Button type="button" variant="outline" size="icon" onClick={handleGenerateSetPassword} title="Generate password" disabled={setPasswordLoading}>
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-              </div>
-              {setPasswordError && <p className="text-sm text-destructive">{setPasswordError}</p>}
-            </div>
-          )}
-          <DialogFooter>
-            {setPasswordSuccess ? (
-              <Button onClick={closeSetPassword}>Close</Button>
-            ) : (
-              <>
-                <Button variant="outline" onClick={closeSetPassword} disabled={setPasswordLoading}>Cancel</Button>
-                <Button onClick={handleSetPassword} disabled={!setPasswordValue || setPasswordLoading}>
-                  {setPasswordLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Set Password
-                </Button>
-              </>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete User Confirmation Dialog */}
-      <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove User?</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <span className="block">
-                Are you sure you want to remove <strong>{userToDelete?.email}</strong>?
-              </span>
-              <span className="block">
-                They will be permanently removed from the portal. You can
-                re-invite them later if needed.
-              </span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {deleteUser.error && (
-            <p className="text-sm text-destructive">{deleteUser.error.message}</p>
-          )}
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteUser.isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteUser}
-              disabled={deleteUser.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleteUser.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Remove
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

@@ -19,6 +19,7 @@ export interface SubCompanyUser {
   full_name: string | null;
   invite_pending: boolean;
   invoice_access: boolean;
+  invoice_access_requested: boolean;
 }
 
 interface CreateSubCompanyData {
