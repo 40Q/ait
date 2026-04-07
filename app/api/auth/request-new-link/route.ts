@@ -34,14 +34,21 @@ export async function POST(request: NextRequest) {
     // Only resend if the user exists and has NOT confirmed their account yet
     if (!authUser?.user || authUser.user.confirmed_at) return NextResponse.json({ success: true });
 
-    // inviteUserByEmail returns 422 for any existing user (even unconfirmed),
-    // so we use resetPasswordForEmail which works regardless of confirmation status.
-    // The callback handles type=recovery by redirecting to set-password — same flow.
-    await adminClient.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?type=recovery`,
+    // Use generateLink (admin API) instead of resetPasswordForEmail — it works reliably
+    // for unconfirmed users and sends the recovery email via the configured mailer.
+    const { error } = await adminClient.auth.admin.generateLink({
+      type: "recovery",
+      email,
+      options: {
+        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?type=recovery`,
+      },
     });
-  } catch {
-    // Swallow — always return success to avoid leaking information
+
+    if (error) {
+      console.error("[request-new-link] Failed to generate recovery link:", error.message);
+    }
+  } catch (err) {
+    console.error("[request-new-link] Unexpected error:", err);
   }
 
   return NextResponse.json({ success: true });
