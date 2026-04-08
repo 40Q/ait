@@ -67,6 +67,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Inherit form_variant from the manager's company
+    const { data: managerCompany } = await adminClient
+      .from("companies")
+      .select("form_variant")
+      .eq("id", profile.company_id)
+      .single();
+
     const body = await request.json();
     const { name, contact_email, phone, address, city, state, zip } = body;
 
@@ -86,6 +93,7 @@ export async function POST(request: NextRequest) {
         zip: zip || null,
         status: "active",
         parent_company_id: profile.company_id,
+        form_variant: managerCompany?.form_variant ?? 'standard',
       })
       .select()
       .single();
