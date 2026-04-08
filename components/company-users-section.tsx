@@ -57,6 +57,7 @@ import {
   Loader2,
   Receipt,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { generatePassword } from "@/lib/utils/generate-password";
 import { toast } from "sonner";
 
@@ -68,6 +69,7 @@ export interface PortalUser {
   id: string;
   email: string;
   full_name: string | null;
+  role?: string;
   invite_pending: boolean;
   /** Present only in manager context */
   invoice_access?: boolean;
@@ -89,6 +91,9 @@ interface PortalUsersCardProps {
   showSetPassword?: boolean;
   /** Show invoice-access toggle icon (manager only, default false) */
   showInvoiceAccess?: boolean;
+  /** Show "Change Role" option in dropdown (admin only, default false) */
+  showRoleChange?: boolean;
+  isLoading?: boolean;
   onRefetch: () => void;
 }
 
@@ -98,6 +103,8 @@ export function PortalUsersCard({
   apiBaseUrl,
   showSetPassword = false,
   showInvoiceAccess = false,
+  showRoleChange = false,
+  isLoading = false,
   onRefetch,
 }: PortalUsersCardProps) {
   // Remove user
@@ -112,6 +119,12 @@ export function PortalUsersCard({
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  // Change role
+  const [userToChangeRole, setUserToChangeRole] = useState<{ id: string; email: string; role: string } | null>(null);
+  const [newRole, setNewRole] = useState<string>("client");
+  const [roleChangeLoading, setRoleChangeLoading] = useState(false);
+  const [roleChangeError, setRoleChangeError] = useState<string | null>(null);
 
   // Per-user loading states for icon buttons
   const [resendingId, setResendingId] = useState<string | null>(null);
@@ -201,6 +214,36 @@ export function PortalUsersCard({
     }
   };
 
+  const openChangeRole = (user: PortalUser) => {
+    setUserToChangeRole({ id: user.id, email: user.email, role: user.role ?? "client" });
+    setNewRole(user.role ?? "client");
+    setRoleChangeError(null);
+  };
+
+  const handleChangeRole = async () => {
+    if (!userToChangeRole) return;
+    setRoleChangeLoading(true);
+    setRoleChangeError(null);
+    try {
+      const res = await fetch(`/api/admin/users/${userToChangeRole.id}/change-role`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: newRole }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to change role");
+      }
+      toast.success(`Role updated to ${newRole}`);
+      setUserToChangeRole(null);
+      onRefetch();
+    } catch (err) {
+      setRoleChangeError(err instanceof Error ? err.message : "Failed to change role");
+    } finally {
+      setRoleChangeLoading(false);
+    }
+  };
+
   const handleDeleteUser = async () => {
     if (!userToDelete) return;
     setDeleteLoading(true);
@@ -270,7 +313,19 @@ export function PortalUsersCard({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {users.length === 0 ? (
+          {isLoading ? (
+            <ul className="space-y-2">
+              {[...Array(3)].map((_, i) => (
+                <li key={i} className="flex items-center justify-between">
+                  <div className="space-y-1.5 flex-1 mr-2">
+                    <Skeleton className="h-3.5 w-40" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                  <Skeleton className="h-7 w-7 rounded-md" />
+                </li>
+              ))}
+            </ul>
+          ) : users.length === 0 ? (
             <p className="text-sm text-muted-foreground">No users yet</p>
           ) : (
             <ul className="space-y-2">
@@ -281,9 +336,14 @@ export function PortalUsersCard({
                     {user.full_name && (
                       <span className="text-xs text-muted-foreground truncate block">{user.full_name}</span>
                     )}
-                    {user.invite_pending && (
-                      <span className="text-xs text-amber-600">Invite pending</span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {user.invite_pending && (
+                        <span className="text-xs text-amber-600">Invite pending</span>
+                      )}
+                      {user.role && (
+                        <span className="text-xs text-muted-foreground capitalize">{user.role}</span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0">
@@ -348,6 +408,11 @@ export function PortalUsersCard({
                             {showSetPassword && (
                               <DropdownMenuItem onClick={() => openSetPassword({ id: user.id, email: user.email })}>
                                 Set Password
+                              </DropdownMenuItem>
+                            )}
+                            {showRoleChange && (
+                              <DropdownMenuItem onClick={() => openChangeRole(user)}>
+                                Change Role
                               </DropdownMenuItem>
                             )}
                           </>
@@ -437,6 +502,44 @@ export function PortalUsersCard({
                 </Button>
               </>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Role Dialog */}
+      <Dialog open={!!userToChangeRole} onOpenChange={(open) => !open && setUserToChangeRole(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Change Role</DialogTitle>
+            <DialogDescription>
+              {userToChangeRole?.email} — current role:{" "}
+              <span className="capitalize font-medium">{userToChangeRole?.role}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Select value={newRole} onValueChange={setNewRole}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="client">Client</SelectItem>
+                <SelectItem value="manager">Manager</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>
+            {roleChangeError && <p className="text-sm text-destructive">{roleChangeError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUserToChangeRole(null)} disabled={roleChangeLoading}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleChangeRole}
+              disabled={roleChangeLoading || newRole === userToChangeRole?.role}
+            >
+              {roleChangeLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

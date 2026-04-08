@@ -15,7 +15,7 @@ interface CompanyDetailPageProps {
 export default function ManagerCompanyDetailPage({ params }: CompanyDetailPageProps) {
   const { id } = use(params);
 
-  const { data: users = [], refetch: refetchUsers } = useSubCompanyUsers(id);
+  const { data: users = [], isLoading: usersLoading, refetch: refetchUsers } = useSubCompanyUsers(id);
   const toggleInvoiceAccess = useToggleInvoiceAccess();
 
   const requestingUsers = users.filter((u) => u.invoice_access_requested);
@@ -98,6 +98,7 @@ export default function ManagerCompanyDetailPage({ params }: CompanyDetailPagePr
         <PortalUsersCard
           companyId={id}
           users={users}
+          isLoading={usersLoading}
           apiBaseUrl="/api/manager"
           showSetPassword
           showInvoiceAccess

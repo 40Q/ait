@@ -59,7 +59,7 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
   const router = useRouter();
 
   const { data: company, isLoading, error, refetch } = useCompany(id);
-  const { data: companyUsers = [], refetch: refetchUsers } = useCompanyUsers(id);
+  const { data: companyUsers = [], isLoading: usersLoading, refetch: refetchUsers } = useCompanyUsers(id);
   const updateCompany = useUpdateCompany();
   const { errors, validate, clearFieldError } = useFormValidation<CompanyFormInput>(companyFormSchema);
 
@@ -449,8 +449,10 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
           <PortalUsersCard
             companyId={id}
             users={companyUsers}
+            isLoading={usersLoading}
             apiBaseUrl="/api/admin"
             showSetPassword
+            showRoleChange
             onRefetch={refetchUsers}
           />
 

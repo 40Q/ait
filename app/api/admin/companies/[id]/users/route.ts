@@ -34,7 +34,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // Get all profiles for this company
     const { data: profiles, error: profilesError } = await supabase
       .from("profiles")
-      .select("id, email, full_name")
+      .select("id, email, full_name, role")
       .eq("company_id", companyId)
       .order("email", { ascending: true });
 
@@ -65,6 +65,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           id: profile.id,
           email: profile.email,
           full_name: profile.full_name,
+          role: profile.role,
           invite_pending: !authUser.user.confirmed_at,
         });
       }
