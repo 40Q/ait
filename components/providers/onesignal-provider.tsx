@@ -21,6 +21,12 @@ async function ensureInitialized(): Promise<boolean> {
           allowLocalhostAsSecureOrigin: process.env.NODE_ENV === "development",
           serviceWorkerParam: { scope: "/" },
           serviceWorkerPath: "/OneSignalSDKWorker.js",
+          promptOptions: {
+            slidedown: {
+              enabled: true,
+              autoPrompt: false,
+            },
+          },
         });
         return true;
       } catch (error) {
@@ -77,10 +83,15 @@ export function OneSignalProvider({ children }: { children: React.ReactNode }) {
         }
         await OneSignal.User.addTags(tags);
 
-        // Request permission if not granted
+        // Request permission if not granted via OneSignal's slidedown.
+        // We cannot call Notifications.requestPermission() directly from a useEffect
+        // because Chrome 84+ silently blocks native permission dialogs that aren't
+        // triggered by a user gesture. Slidedown.promptPush() shows OneSignal's own
+        // HTML prompt first; the user's click on "Allow" then satisfies the browser's
+        // gesture requirement for the native dialog.
         const permission = await OneSignal.Notifications.permission;
         if (!permission) {
-          await OneSignal.Notifications.requestPermission();
+          await OneSignal.Slidedown.promptPush();
         }
 
         userRegisteredRef.current = currentUser.id;
