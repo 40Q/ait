@@ -10,6 +10,7 @@ let initPromise: Promise<boolean> | null = null;
 
 async function ensureInitialized(): Promise<boolean> {
   if (!ONESIGNAL_APP_ID) {
+    console.warn("[OneSignal] NEXT_PUBLIC_ONESIGNAL_APP_ID is not set");
     return false;
   }
 
@@ -21,21 +22,18 @@ async function ensureInitialized(): Promise<boolean> {
           allowLocalhostAsSecureOrigin: process.env.NODE_ENV === "development",
           serviceWorkerParam: { scope: "/" },
           serviceWorkerPath: "/OneSignalSDKWorker.js",
-          promptOptions: {
-            slidedown: {
-              enabled: true,
-              autoPrompt: false,
-            },
-          },
         });
+        console.log("[OneSignal] Initialized");
         return true;
       } catch (error) {
         if (
           error instanceof Error &&
           error.message.includes("already initialized")
         ) {
+          console.log("[OneSignal] Already initialized");
           return true;
         }
+        console.error("[OneSignal] Init failed:", error);
         initPromise = null;
         return false;
       }
@@ -54,27 +52,28 @@ export function OneSignalProvider({ children }: { children: React.ReactNode }) {
     if (userRegisteredRef.current === currentUser.id) return;
 
     const registerUser = async () => {
+      console.log("[OneSignal] Starting registration for user", currentUser.id);
       const initialized = await ensureInitialized();
-      if (!initialized) return;
+      if (!initialized) {
+        console.warn("[OneSignal] Init failed, aborting registration");
+        return;
+      }
 
       try {
-        // Try to login with external user ID
-        // This may fail with 409 if the ID is already linked to another subscription
-        // That's OK - we use tags for targeting, not external_id
         try {
           await OneSignal.login(currentUser.id);
-        } catch {
-          // Ignore login errors - tags will still work for targeting
+          console.log("[OneSignal] Logged in");
+        } catch (e) {
+          console.warn("[OneSignal] Login error (non-fatal):", e);
         }
 
-        // Add email for email notifications
         try {
           await OneSignal.User.addEmail(currentUser.email);
-        } catch {
-          // Ignore email errors
+          console.log("[OneSignal] Email added");
+        } catch (e) {
+          console.warn("[OneSignal] addEmail error (non-fatal):", e);
         }
 
-        // Add tags for role-based and company-based targeting
         const tags: Record<string, string> = {
           user_role: currentUser.role,
         };
@@ -82,21 +81,26 @@ export function OneSignalProvider({ children }: { children: React.ReactNode }) {
           tags.company_id = currentUser.company_id;
         }
         await OneSignal.User.addTags(tags);
+        console.log("[OneSignal] Tags set:", tags);
 
-        // Request permission if not granted via OneSignal's slidedown.
-        // We cannot call Notifications.requestPermission() directly from a useEffect
-        // because Chrome 84+ silently blocks native permission dialogs that aren't
-        // triggered by a user gesture. Slidedown.promptPush() shows OneSignal's own
-        // HTML prompt first; the user's click on "Allow" then satisfies the browser's
-        // gesture requirement for the native dialog.
-        const permission = await OneSignal.Notifications.permission;
+        const permissionNative = OneSignal.Notifications.permissionNative;
+        const permission = OneSignal.Notifications.permission;
+        console.log("[OneSignal] Permission native:", permissionNative, "| granted:", permission);
+
         if (!permission) {
-          await OneSignal.Slidedown.promptPush();
+          if (permissionNative === "denied") {
+            console.warn("[OneSignal] Push permission was denied by user — cannot prompt again");
+          } else {
+            console.log("[OneSignal] Requesting permission via Slidedown.promptPush()");
+            await OneSignal.Slidedown.promptPush({ force: true });
+          }
+        } else {
+          console.log("[OneSignal] Permission already granted");
         }
 
         userRegisteredRef.current = currentUser.id;
-      } catch {
-        // Silent fail - notifications are not critical
+      } catch (e) {
+        console.error("[OneSignal] Registration error:", e);
       }
     };
 
