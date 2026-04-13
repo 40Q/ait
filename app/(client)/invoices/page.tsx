@@ -197,7 +197,7 @@ export default function InvoicesPage() {
         description="View and manage all your invoices"
       />
 
-      {/* Prompt sub-company users to request access to parent company invoices */ console.log(currentUser)}
+      {/* Prompt sub-company users to request access to parent company invoices */ }
       {!userLoading && isSubCompanyUser && !currentUser?.invoice_access && (
         <ParentInvoiceAccessBanner parentCompanyName={currentUser?.parent_company_name ?? null} />
       )}
