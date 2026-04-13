@@ -43,7 +43,7 @@ function useRequestInvoiceAccess() {
   });
 }
 
-function InvoiceAccessGate() {
+function ParentInvoiceAccessBanner({ parentCompanyName }: { parentCompanyName: string | null }) {
   const requestAccess = useRequestInvoiceAccess();
 
   const handleRequest = () => {
@@ -53,28 +53,31 @@ function InvoiceAccessGate() {
     });
   };
 
+  const label = parentCompanyName ?? "Organization";
+
   return (
     <Card>
-      <CardContent className="flex flex-col items-center justify-center py-16 gap-4 text-center">
-        <div className="rounded-full bg-muted p-4">
-          <Receipt className="h-8 w-8 text-muted-foreground" />
-        </div>
-        <div>
-          <p className="font-medium text-lg">Invoice Access Required</p>
-          <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-            Invoice access is managed by your organization&apos;s administrator.
-            You can request access and they will be notified.
-          </p>
+      <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-4">
+        <div className="flex items-center gap-3">
+          <div className="rounded-full bg-muted p-2 mt-0.5 shrink-0">
+            <Receipt className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="font-medium text-sm">{label} invoices</p>
+          </div>
         </div>
         {requestAccess.isSuccess ? (
-          <p className="flex items-center gap-2 text-sm text-green-600">
+          <p className="flex items-center gap-2 text-sm text-green-600 shrink-0">
             <CheckCircle2 className="h-4 w-4" />
-            Request sent to your manager
+            Request sent
           </p>
         ) : (
           <Button
+            variant="outline"
+            size="sm"
             onClick={handleRequest}
             disabled={requestAccess.isPending}
+            className="shrink-0"
           >
             {requestAccess.isPending ? (
               "Sending..."
@@ -104,16 +107,21 @@ export default function InvoicesPage() {
   const { data: currentUser, isLoading: userLoading } = useCurrentUser();
   const companyId = currentUser?.company_id;
   const isSubCompanyUser = currentUser?.is_sub_company_user ?? false;
+  const hasParentInvoiceAccess = isSubCompanyUser && (currentUser?.invoice_access ?? false);
 
-  // Build filters
+  // Build filters — sub-company users with parent access omit company_id so RLS
+  // returns both their own and parent company invoices
   const filters: InvoiceFilters | undefined = useMemo(() => {
     if (!companyId) return undefined;
-    const f: InvoiceFilters = { company_id: companyId };
+    const f: InvoiceFilters = {};
+    if (!hasParentInvoiceAccess) {
+      f.company_id = companyId;
+    }
     if (statusFilter !== "all") {
       f.status = statusFilter as InvoiceStatus;
     }
     return f;
-  }, [companyId, statusFilter]);
+  }, [companyId, statusFilter, hasParentInvoiceAccess]);
 
   // Fetch paginated invoices
   const { data: paginatedData, isLoading: invoicesLoading } = useInvoiceList(
@@ -122,8 +130,9 @@ export default function InvoicesPage() {
     pageSize
   );
 
-  // Fetch stats (server-side calculation)
-  const { data: stats } = useInvoiceStats(companyId ?? undefined);
+  // Fetch stats — omit companyId when user can see parent invoices so totals include both
+  const statsCompanyId = hasParentInvoiceAccess ? undefined : (companyId ?? undefined);
+  const { data: stats } = useInvoiceStats(statsCompanyId);
 
   // PDF download
   const { downloadPdf, downloadingId } = useDownloadInvoicePdf();
@@ -157,20 +166,7 @@ export default function InvoicesPage() {
     }
   };
 
-  const isLoading = userLoading || (!isSubCompanyUser && invoicesLoading);
-
-  // Sub-company users without explicit invoice access see the gate
-  if (!userLoading && isSubCompanyUser && !currentUser?.invoice_access) {
-    return (
-      <div className="space-y-6">
-        <PageHeader
-          title="Invoices"
-          description="View and manage all your invoices"
-        />
-        <InvoiceAccessGate />
-      </div>
-    );
-  }
+  const isLoading = userLoading || invoicesLoading;
 
   if (isLoading) {
     return (
@@ -200,6 +196,11 @@ export default function InvoicesPage() {
         title="Invoices"
         description="View and manage all your invoices"
       />
+
+      {/* Prompt sub-company users to request access to parent company invoices */ console.log(currentUser)}
+      {!userLoading && isSubCompanyUser && !currentUser?.invoice_access && (
+        <ParentInvoiceAccessBanner parentCompanyName={currentUser?.parent_company_name ?? null} />
+      )}
 
       {/* Summary Stats */}
       <InvoiceStats
@@ -250,7 +251,7 @@ export default function InvoicesPage() {
         <div className="text-center py-12">
           <p className="text-muted-foreground">
             {(paginatedData?.total ?? 0) === 0
-              ? "No invoices found. Invoices will appear here once they are synced from QuickBooks."
+              ? "No invoices found."
               : "No invoices found matching your filters."}
           </p>
         </div>

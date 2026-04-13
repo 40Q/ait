@@ -36,10 +36,10 @@ export async function POST() {
       return NextResponse.json({ error: "No company associated with your account" }, { status: 400 });
     }
 
-    // Get requester's company to find parent
+    // Get requester's company and parent company details
     const { data: requesterCompany } = await adminClient
       .from("companies")
-      .select("name, parent_company_id")
+      .select("name, parent_company_id, parent:parent_company_id(name)")
       .eq("id", requesterProfile.company_id)
       .single();
 
@@ -73,6 +73,8 @@ export async function POST() {
     // Create a notification for each manager
     const notificationRepo = new NotificationRepository(adminClient);
     const requesterName = requesterProfile.full_name || requesterProfile.email;
+    const parentCompany = requesterCompany.parent as unknown as { name: string } | null;
+    const parentCompanyName = parentCompany?.name ?? "parent company";
 
     await Promise.all(
       managers.map((manager) =>
@@ -80,7 +82,7 @@ export async function POST() {
           user_id: manager.id,
           type: "invoice_access_requested",
           title: "Invoice Access Request",
-          message: `${requesterName} from ${requesterCompany.name} is requesting access to view invoices.`,
+          message: `${requesterName} from ${requesterCompany.name} is requesting access to view ${parentCompanyName} invoices.`,
           priority: "normal",
           action_url: `/manager/companies/${requesterProfile.company_id}`,
           entity_type: null,
