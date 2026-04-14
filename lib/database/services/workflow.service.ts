@@ -201,6 +201,7 @@ export class WorkflowService {
     const jobWithRelations = await this.jobRepo.findByIdWithRelations(jobId);
     if (jobWithRelations) {
       const { job_number, company_id, pickup_date } = jobWithRelations;
+      const companyName = jobWithRelations.company?.name ?? "Unknown Company";
 
       // Send notifications based on new status
       switch (newStatus) {
@@ -209,6 +210,7 @@ export class WorkflowService {
             jobId,
             jobNumber: job_number,
             companyId: company_id,
+            companyName,
             scheduledDate: pickup_date
               ? new Date(pickup_date).toLocaleDateString()
               : "TBD",
@@ -222,8 +224,20 @@ export class WorkflowService {
             jobId,
             jobNumber: job_number,
             companyId: company_id,
+            companyName,
           }).catch((error) => {
             console.error("Failed to send pickup complete notification:", error);
+          });
+          break;
+
+        case "processing":
+          this.notificationService.onJobProcessing({
+            jobId,
+            jobNumber: job_number,
+            companyId: company_id,
+            companyName,
+          }).catch((error) => {
+            console.error("Failed to send job processing notification:", error);
           });
           break;
 
@@ -232,6 +246,7 @@ export class WorkflowService {
             jobId,
             jobNumber: job_number,
             companyId: company_id,
+            companyName,
           }).catch((error) => {
             console.error("Failed to send job complete notification:", error);
           });

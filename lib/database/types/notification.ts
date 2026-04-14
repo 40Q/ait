@@ -9,10 +9,12 @@ export const NOTIFICATION_TYPES = [
   'quote_revision_requested',
   'pickup_scheduled',
   'pickup_complete',
+  'job_processing',
   'job_complete',
   'invoice_overdue',
   'document_uploaded',
   'invoice_access_requested',
+  'invoice_access_granted',
 ] as const;
 
 export const NOTIFICATION_PRIORITIES = ['low', 'normal', 'high'] as const;
@@ -141,10 +143,12 @@ export const notificationTypeLabels: Record<NotificationType, string> = {
   quote_revision_requested: 'Revision Requested',
   pickup_scheduled: 'Pickup Scheduled',
   pickup_complete: 'Pickup Complete',
+  job_processing: 'Job Processing',
   job_complete: 'Job Complete',
   invoice_overdue: 'Invoice Overdue',
   document_uploaded: 'Document Uploaded',
   invoice_access_requested: 'Invoice Access Request',
+  invoice_access_granted: 'Invoice Access Granted',
 };
 
 // Priority labels for display
@@ -162,6 +166,9 @@ export const notificationCardColors: Partial<Record<NotificationType, 'orange' |
   quote_declined: 'red',
   quote_revision_requested: 'orange',
   pickup_scheduled: 'blue',
+  pickup_complete: 'blue',
+  job_processing: 'blue',
   job_complete: 'green',
   invoice_overdue: 'red',
+  invoice_access_granted: 'green',
 };

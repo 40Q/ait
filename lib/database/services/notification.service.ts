@@ -22,6 +22,7 @@ interface TemplateContext {
   scheduledDate?: string;
   documentType?: string;
   entityId?: string;
+  isAdmin?: boolean;
 }
 
 interface UserInfo {
@@ -275,56 +276,135 @@ export class NotificationService {
     jobId: string;
     jobNumber: string;
     companyId: string;
+    companyName: string;
     scheduledDate: string;
   }): Promise<void> {
-    await this.notifyCompany({
-      companyId: params.companyId,
-      type: "pickup_scheduled",
-      context: {
-        jobNumber: params.jobNumber,
-        scheduledDate: params.scheduledDate,
+    await Promise.all([
+      this.notifyCompany({
+        companyId: params.companyId,
+        type: "pickup_scheduled",
+        context: {
+          jobNumber: params.jobNumber,
+          scheduledDate: params.scheduledDate,
+          entityId: params.jobId,
+        },
+        priority: "normal",
+        entityType: "job",
         entityId: params.jobId,
-      },
-      priority: "normal",
-      entityType: "job",
-      entityId: params.jobId,
-    });
+      }),
+      this.broadcast({
+        type: "pickup_scheduled",
+        context: {
+          jobNumber: params.jobNumber,
+          companyName: params.companyName,
+          scheduledDate: params.scheduledDate,
+          entityId: params.jobId,
+          isAdmin: true,
+        },
+        priority: "normal",
+        entityType: "job",
+        entityId: params.jobId,
+      }),
+    ]);
   }
 
   async onPickupComplete(params: {
     jobId: string;
     jobNumber: string;
     companyId: string;
+    companyName: string;
   }): Promise<void> {
-    await this.notifyCompany({
-      companyId: params.companyId,
-      type: "pickup_complete",
-      context: {
-        jobNumber: params.jobNumber,
+    await Promise.all([
+      this.notifyCompany({
+        companyId: params.companyId,
+        type: "pickup_complete",
+        context: {
+          jobNumber: params.jobNumber,
+          entityId: params.jobId,
+        },
+        priority: "low",
+        entityType: "job",
         entityId: params.jobId,
-      },
-      priority: "low",
-      entityType: "job",
-      entityId: params.jobId,
-    });
+      }),
+      this.broadcast({
+        type: "pickup_complete",
+        context: {
+          jobNumber: params.jobNumber,
+          companyName: params.companyName,
+          entityId: params.jobId,
+          isAdmin: true,
+        },
+        priority: "low",
+        entityType: "job",
+        entityId: params.jobId,
+      }),
+    ]);
+  }
+
+  async onJobProcessing(params: {
+    jobId: string;
+    jobNumber: string;
+    companyId: string;
+    companyName: string;
+  }): Promise<void> {
+    await Promise.all([
+      this.notifyCompany({
+        companyId: params.companyId,
+        type: "job_processing",
+        context: {
+          jobNumber: params.jobNumber,
+          entityId: params.jobId,
+        },
+        priority: "normal",
+        entityType: "job",
+        entityId: params.jobId,
+      }),
+      this.broadcast({
+        type: "job_processing",
+        context: {
+          jobNumber: params.jobNumber,
+          companyName: params.companyName,
+          entityId: params.jobId,
+          isAdmin: true,
+        },
+        priority: "normal",
+        entityType: "job",
+        entityId: params.jobId,
+      }),
+    ]);
   }
 
   async onJobComplete(params: {
     jobId: string;
     jobNumber: string;
     companyId: string;
+    companyName: string;
   }): Promise<void> {
-    await this.notifyCompany({
-      companyId: params.companyId,
-      type: "job_complete",
-      context: {
-        jobNumber: params.jobNumber,
+    await Promise.all([
+      this.notifyCompany({
+        companyId: params.companyId,
+        type: "job_complete",
+        context: {
+          jobNumber: params.jobNumber,
+          entityId: params.jobId,
+        },
+        priority: "high",
+        entityType: "job",
         entityId: params.jobId,
-      },
-      priority: "high",
-      entityType: "job",
-      entityId: params.jobId,
-    });
+      }),
+      this.broadcast({
+        type: "job_complete",
+        context: {
+          jobNumber: params.jobNumber,
+          companyName: params.companyName,
+          entityId: params.jobId,
+          isAdmin: true,
+        },
+        priority: "high",
+        entityType: "job",
+        entityId: params.jobId,
+      }),
+    ]);
   }
 
   async onInvoiceOverdue(params: {
@@ -363,6 +443,17 @@ export class NotificationService {
       priority: "normal",
       entityType: "document",
       entityId: params.documentId,
+    });
+  }
+
+  async onInvoiceAccessGranted(params: {
+    userId: string;
+  }): Promise<void> {
+    await this.send({
+      userId: params.userId,
+      type: "invoice_access_granted",
+      context: {},
+      priority: "normal",
     });
   }
 

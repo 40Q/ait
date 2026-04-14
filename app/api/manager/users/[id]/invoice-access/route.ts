@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { isManager } from "@/lib/auth/helpers";
+import { NotificationService } from "@/lib/database/services/notification.service";
 
 /**
  * POST /api/manager/users/[id]/invoice-access
@@ -69,6 +70,13 @@ export async function POST(
       .eq("id", userId);
 
     if (error) throw error;
+
+    if (grant) {
+      const notificationService = new NotificationService(adminClient);
+      notificationService.onInvoiceAccessGranted({ userId }).catch((error) => {
+        console.error("Failed to send invoice access granted notification:", error);
+      });
+    }
 
     return NextResponse.json({
       success: true,

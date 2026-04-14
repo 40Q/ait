@@ -24,6 +24,7 @@ interface TemplateContext {
   scheduledDate?: string;
   documentType?: string;
   entityId?: string;
+  isAdmin?: boolean;
 }
 
 const templates: Record<
@@ -62,20 +63,34 @@ const templates: Record<
 
   pickup_scheduled: (ctx) => ({
     title: 'Pickup Scheduled',
-    message: `Your pickup${ctx.jobNumber ? ` for job #${ctx.jobNumber}` : ''} has been scheduled${ctx.scheduledDate ? ` for ${ctx.scheduledDate}` : ''}.`,
-    actionUrl: ctx.entityId ? `/jobs/${ctx.entityId}` : '/jobs',
+    message: ctx.isAdmin
+      ? `Pickup for job${ctx.jobNumber ? ` #${ctx.jobNumber}` : ''}${ctx.companyName ? ` (${ctx.companyName})` : ''} has been scheduled${ctx.scheduledDate ? ` for ${ctx.scheduledDate}` : ''}.`
+      : `Your pickup${ctx.jobNumber ? ` for job #${ctx.jobNumber}` : ''} has been scheduled${ctx.scheduledDate ? ` for ${ctx.scheduledDate}` : ''}.`,
+    actionUrl: ctx.entityId ? (ctx.isAdmin ? `/admin/jobs/${ctx.entityId}` : `/jobs/${ctx.entityId}`) : (ctx.isAdmin ? '/admin/jobs' : '/jobs'),
   }),
 
   pickup_complete: (ctx) => ({
     title: 'Pickup Complete',
-    message: `The pickup${ctx.jobNumber ? ` for job #${ctx.jobNumber}` : ''} has been completed. Processing will begin shortly.`,
-    actionUrl: ctx.entityId ? `/jobs/${ctx.entityId}` : '/jobs',
+    message: ctx.isAdmin
+      ? `Pickup for job${ctx.jobNumber ? ` #${ctx.jobNumber}` : ''}${ctx.companyName ? ` (${ctx.companyName})` : ''} has been completed.`
+      : `The pickup${ctx.jobNumber ? ` for job #${ctx.jobNumber}` : ''} has been completed. Processing will begin shortly.`,
+    actionUrl: ctx.entityId ? (ctx.isAdmin ? `/admin/jobs/${ctx.entityId}` : `/jobs/${ctx.entityId}`) : (ctx.isAdmin ? '/admin/jobs' : '/jobs'),
+  }),
+
+  job_processing: (ctx) => ({
+    title: 'Job In Processing',
+    message: ctx.isAdmin
+      ? `Job${ctx.jobNumber ? ` #${ctx.jobNumber}` : ''}${ctx.companyName ? ` (${ctx.companyName})` : ''} has entered processing.`
+      : `Job${ctx.jobNumber ? ` #${ctx.jobNumber}` : ''} is now being processed. Your documents will be available once complete.`,
+    actionUrl: ctx.entityId ? (ctx.isAdmin ? `/admin/jobs/${ctx.entityId}` : `/jobs/${ctx.entityId}`) : (ctx.isAdmin ? '/admin/jobs' : '/jobs'),
   }),
 
   job_complete: (ctx) => ({
     title: 'Job Complete',
-    message: `Job${ctx.jobNumber ? ` #${ctx.jobNumber}` : ''} has been completed. Your documents are ready for download.`,
-    actionUrl: ctx.entityId ? `/jobs/${ctx.entityId}` : '/jobs',
+    message: ctx.isAdmin
+      ? `Job${ctx.jobNumber ? ` #${ctx.jobNumber}` : ''}${ctx.companyName ? ` (${ctx.companyName})` : ''} has been completed.`
+      : `Job${ctx.jobNumber ? ` #${ctx.jobNumber}` : ''} has been completed. Your documents are ready for download.`,
+    actionUrl: ctx.entityId ? (ctx.isAdmin ? `/admin/jobs/${ctx.entityId}` : `/jobs/${ctx.entityId}`) : (ctx.isAdmin ? '/admin/jobs' : '/jobs'),
   }),
 
   invoice_overdue: (ctx) => ({
@@ -94,6 +109,12 @@ const templates: Record<
     title: 'Invoice Access Request',
     message: `${ctx.companyName ? `${ctx.companyName} is` : 'A user is'} requesting access to view invoices.`,
     actionUrl: '/manager/invoices',
+  }),
+
+  invoice_access_granted: () => ({
+    title: 'Invoice Access Granted',
+    message: 'Your request for invoice access has been approved. You can now view invoices.',
+    actionUrl: '/invoices',
   }),
 };
 
