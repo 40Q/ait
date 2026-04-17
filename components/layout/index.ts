@@ -10,4 +10,4 @@ export { AdminLayout } from "./admin-layout";
 export { adminNavItems, type AdminNavItem } from "./admin-nav-items";
 export { ManagerSidebar } from "./manager-sidebar";
 export { ManagerLayout } from "./manager-layout";
-export { managerNavItems, type ManagerNavItem } from "./manager-nav-items";
+export { managerNavItems, managerNavSections, type ManagerNavItem, type ManagerNavSection } from "./manager-nav-items";

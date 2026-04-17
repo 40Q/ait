@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/logo";
 import { SignOutButton } from "@/components/auth/sign-out-button";
-import { managerNavItems, type ManagerNavItem } from "./manager-nav-items";
+import { managerNavSections, type ManagerNavItem } from "./manager-nav-items";
 
 interface ManagerSidebarProps {
   className?: string;
@@ -45,13 +45,22 @@ export function ManagerSidebar({ className }: ManagerSidebarProps) {
         <span className="ml-2 font-bold text-sidebar-foreground">AIT Portal</span>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        {managerNavItems.map((item) => (
-          <NavLink
-            key={item.href}
-            item={item}
-            isActive={pathname === item.href || pathname.startsWith(`${item.href}/`)}
-          />
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-4">
+        {managerNavSections.map((section) => (
+          <div key={section.label}>
+            <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+              {section.label}
+            </p>
+            <div className="space-y-1">
+              {section.items.map((item) => (
+                <NavLink
+                  key={item.href}
+                  item={item}
+                  isActive={pathname === item.href || pathname.startsWith(`${item.href}/`)}
+                />
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
 

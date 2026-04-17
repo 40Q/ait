@@ -86,13 +86,6 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Managers must stay in /manager
-    if (isManagerUser && !isManagerRoute) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/manager/dashboard";
-      return NextResponse.redirect(url);
-    }
-
     // Non-admins must not access /admin
     if (!isAdminUser && isAdminRoute) {
       const url = request.nextUrl.clone();
