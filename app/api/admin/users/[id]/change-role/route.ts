@@ -8,7 +8,7 @@ import { isAdmin } from "@/lib/auth/helpers";
  * Changes a user's role. Updates both the profiles table and auth user_metadata
  * so the role is consistent everywhere.
  *
- * Body: { role: "client" | "manager" | "admin" }
+ * Body: { role: "client" | "manager" }
  */
 export async function PATCH(
   request: NextRequest,
@@ -31,9 +31,9 @@ export async function PATCH(
     const body = await request.json();
     const { role } = body;
 
-    if (!["client", "manager", "admin"].includes(role)) {
+    if (!["client", "manager"].includes(role)) {
       return NextResponse.json(
-        { error: "role must be client, manager, or admin" },
+        { error: "role must be client or manager" },
         { status: 400 }
       );
     }

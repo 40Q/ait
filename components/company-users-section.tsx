@@ -524,7 +524,6 @@ export function PortalUsersCard({
               <SelectContent>
                 <SelectItem value="client">Client</SelectItem>
                 <SelectItem value="manager">Manager</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>
             </Select>
             {roleChangeError && <p className="text-sm text-destructive">{roleChangeError}</p>}
