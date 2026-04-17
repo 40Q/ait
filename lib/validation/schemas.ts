@@ -73,6 +73,7 @@ export const companyFormSchema = z.object({
     { message: "One or more email addresses are invalid" }
   ),
   accountsPayablePhone: phoneSchema.default(""),
+  formVariant: z.enum(["standard", "cyrusone"]).default("standard"),
 });
 
 export const locationFormSchema = z.object({

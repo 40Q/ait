@@ -27,6 +27,13 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   ArrowLeft,
   Loader2,
   CheckCircle2,
@@ -75,6 +82,7 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
     status: "active",
     accountsPayableEmail: "",
     accountsPayablePhone: "",
+    formVariant: "standard",
   });
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -95,6 +103,7 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
         status: company.status,
         accountsPayableEmail: company.accounts_payable_email || "",
         accountsPayablePhone: company.accounts_payable_phone || "",
+        formVariant: (company.form_variant as "standard" | "cyrusone") ?? "standard",
       });
     }
   }, [company]);
@@ -128,6 +137,7 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
           quickbooks_customer_id: result.data.quickbooksCustomerId || null,
           accounts_payable_email: result.data.accountsPayableEmail || null,
           accounts_payable_phone: result.data.accountsPayablePhone || null,
+          form_variant: result.data.formVariant,
         },
       },
       {
@@ -376,6 +386,31 @@ export default function CompanyDetailPage({ params }: CompanyDetailPageProps) {
                       <p className="text-sm text-destructive">{errors.accountsPayablePhone}</p>
                     )}
                   </div>
+                </div>
+              </div>
+
+              {/* Portal Settings */}
+              <div className="pt-4 border-t">
+                <h4 className="text-sm font-medium mb-3">Portal Settings</h4>
+                <div className="space-y-2">
+                  <Label htmlFor="formVariant">Form Variant</Label>
+                  <Select
+                    value={formData.formVariant}
+                    onValueChange={(value) =>
+                      handleChange({ formVariant: value as "standard" | "cyrusone" })
+                    }
+                  >
+                    <SelectTrigger id="formVariant">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="standard">Standard</SelectItem>
+                      <SelectItem value="cyrusone">CyrusOne</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Controls which request form this company sees.
+                  </p>
                 </div>
               </div>
             </CardContent>

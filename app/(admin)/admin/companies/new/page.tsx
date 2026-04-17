@@ -19,6 +19,13 @@ import { useCreateCompany } from "@/lib/hooks";
 import { useFormValidation } from "@/lib/hooks/use-form-validation";
 import { companyFormSchema, type CompanyFormInput } from "@/lib/validation";
 import { QuickBooksCustomerSelect } from "@/components/ui/quickbooks-customer-select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const initialFormData: CompanyFormInput = {
   name: "",
@@ -31,6 +38,7 @@ const initialFormData: CompanyFormInput = {
   quickbooksCustomerId: "",
   accountsPayableEmail: "",
   accountsPayablePhone: "",
+  formVariant: "standard",
 };
 
 export default function NewCompanyPage() {
@@ -67,6 +75,7 @@ export default function NewCompanyPage() {
         status: "active",
         accounts_payable_email: null,
         accounts_payable_phone: null,
+        form_variant: result.data.formVariant,
       },
       {
         onSuccess: (company) => router.push(`/admin/companies/${company.id}`),
@@ -198,6 +207,31 @@ export default function NewCompanyPage() {
                 {errors.zip && (
                   <p className="text-sm text-destructive">{errors.zip}</p>
                 )}
+              </div>
+            </div>
+
+            {/* Portal Settings */}
+            <div className="pt-4 border-t">
+              <h4 className="text-sm font-medium mb-3">Portal Settings</h4>
+              <div className="space-y-2">
+                <Label htmlFor="formVariant">Form Variant</Label>
+                <Select
+                  value={formData.formVariant}
+                  onValueChange={(value) =>
+                    handleChange({ formVariant: value as "standard" | "cyrusone" })
+                  }
+                >
+                  <SelectTrigger id="formVariant">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="standard">Standard</SelectItem>
+                    <SelectItem value="cyrusone">CyrusOne</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Controls which request form this company sees.
+                </p>
               </div>
             </div>
 
