@@ -63,6 +63,7 @@ export interface RequestRow {
   equipment_file_paths: string[] | null;
   has_heavy_equipment: boolean | null;
   has_hazmat_or_batteries: boolean | null;
+  materials_available_for_reuse: boolean | null;
   service_type: ServiceType | null;
   data_destruction_service: DataDestructionService | null;
   packing_service: PackingService | null;

@@ -86,6 +86,7 @@ export interface PickupRequestFormData {
   // General Questions
   hasHeavyEquipment: boolean; // Equipment too large/heavy for one person
   hasHazmatOrBatteries: boolean; // Batteries or hazardous materials
+  materialsAvailableForReuse: boolean | null; // Materials available for re-use (required, non-CyrusOne only)
 
   // Services
   serviceType: "pickup" | "dropoff";
@@ -180,6 +181,7 @@ export const initialFormData: PickupRequestFormData = {
   // General Questions
   hasHeavyEquipment: false,
   hasHazmatOrBatteries: false,
+  materialsAvailableForReuse: null,
 
   // Services
   serviceType: "pickup",
@@ -383,6 +385,7 @@ export function mapFormDataToRequestInsert(
     equipment_file_paths: formData.equipmentFilePaths,
     has_heavy_equipment: formData.hasHeavyEquipment,
     has_hazmat_or_batteries: formData.hasHazmatOrBatteries,
+    materials_available_for_reuse: formData.materialsAvailableForReuse,
     service_type: formData.serviceType,
     data_destruction_service: formData.dataDestructionService,
     packing_service: formData.packingService,

@@ -31,7 +31,8 @@ export default function NewRequestPage() {
 
   const isLastStep = currentStep === steps.length - 1;
   const photoRequired = formVariant === 'cyrusone' && formData.equipmentFiles.length === 0;
-  const canSubmit = isLastStep && termsAccepted && !photoRequired;
+  const reuseAnswerRequired = formVariant !== 'cyrusone' && formData.materialsAvailableForReuse === null;
+  const canSubmit = isLastStep && termsAccepted && !photoRequired && !reuseAnswerRequired;
   const isPending = isUploading || isSubmitting;
 
   const renderStep = () => {
@@ -80,6 +81,11 @@ export default function NewRequestPage() {
           {isLastStep && photoRequired && (
             <p className="text-sm text-destructive w-full">
               A photo or inventory file is required. Please go back to the Equipment step and upload one.
+            </p>
+          )}
+          {isLastStep && reuseAnswerRequired && (
+            <p className="text-sm text-destructive w-full">
+              Please answer the materials re-use question in the Equipment step before submitting.
             </p>
           )}
           <div className="flex justify-between w-full">

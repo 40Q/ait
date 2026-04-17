@@ -110,6 +110,7 @@ export interface AdminRequest {
   estimatedWeight?: string;
   hasHeavyEquipment: boolean;
   hasHazmatOrBatteries: boolean;
+  materialsAvailableForReuse?: boolean | null;
   equipmentFiles?: string[];
 
   // Services

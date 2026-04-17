@@ -428,6 +428,46 @@ export function StepEquipment({ data, onChange, formVariant }: StepEquipmentProp
               </p>
             </div>
           </div>
+
+          {!isCyrusOne && (
+            <div className="space-y-2">
+              <div>
+                <Label className="text-sm font-medium">
+                  Are your materials available for re-use?{" "}
+                  <span className="text-destructive">*</span>
+                </Label>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Let us know if any of the materials being picked up are suitable for re-use.
+                </p>
+              </div>
+              <div className="flex items-center gap-6 mt-2">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="materialsAvailableForReuse-yes"
+                    checked={data.materialsAvailableForReuse === true}
+                    onCheckedChange={(checked) =>
+                      onChange({ materialsAvailableForReuse: checked === true ? true : null })
+                    }
+                  />
+                  <Label htmlFor="materialsAvailableForReuse-yes" className="cursor-pointer font-normal">
+                    Yes
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="materialsAvailableForReuse-no"
+                    checked={data.materialsAvailableForReuse === false}
+                    onCheckedChange={(checked) =>
+                      onChange({ materialsAvailableForReuse: checked === true ? false : null })
+                    }
+                  />
+                  <Label htmlFor="materialsAvailableForReuse-no" className="cursor-pointer font-normal">
+                    No
+                  </Label>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
