@@ -19,6 +19,7 @@ export interface CompanyRow {
   // Accounts Payable contact
   accounts_payable_email: string | null;
   accounts_payable_phone: string | null;
+  form_variant: "standard" | "cyrusone" | null;
   created_at: string;
   updated_at: string;
 }
