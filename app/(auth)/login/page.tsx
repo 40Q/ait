@@ -231,9 +231,9 @@ export default function LoginPage() {
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
         Need help?{" "}
-        <Link href="/support" className="text-primary hover:underline">
+        <a href="mailto:info@ait-co.com" className="text-primary hover:underline">
           Contact Support
-        </Link>
+        </a>
       </p>
     </>
   );
