@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useCurrentUser } from "@/lib/hooks/use-current-user";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,10 +54,23 @@ const initialFormData: LocalLogisticsFormData = {
 };
 
 export default function LogisticsPage() {
+  const router = useRouter();
+  const { data: currentUser, isLoading: loadingUser } = useCurrentUser();
+
+  useEffect(() => {
+    if (!loadingUser && currentUser?.form_variant !== "cyrusone") {
+      router.replace("/requests/new");
+    }
+  }, [loadingUser, currentUser, router]);
+
   const [formData, setFormData] =
     useState<LocalLogisticsFormData>(initialFormData);
   const { submit, isSubmitting, error } = useSubmitLogistics();
   const { errors, validate, clearFieldError } = useFormValidation<LocalLogisticsFormData>(logisticsFormSchema);
+
+  if (loadingUser || currentUser?.form_variant !== "cyrusone") {
+    return null;
+  }
 
   const handleChange = (data: Partial<LocalLogisticsFormData>) => {
     setFormData((prev) => ({ ...prev, ...data }));

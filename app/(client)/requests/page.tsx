@@ -30,8 +30,7 @@ import {
   Box,
   Package,
 } from "lucide-react";
-import { isCyrusOneUser } from "@/lib/user";
-import { useRequestList, useRequestStatusCounts, usePagination } from "@/lib/hooks";
+import { useRequestList, useRequestStatusCounts, usePagination, useCurrentUser } from "@/lib/hooks";
 import { formatDateShort } from "@/lib/utils/date";
 import type { RequestListItem, RequestStatus } from "@/lib/database/types";
 
@@ -89,7 +88,8 @@ function RequestCard({ request }: { request: RequestListItem }) {
 }
 
 function NewRequestButton() {
-  const isCyrusOne = isCyrusOneUser();
+  const { data: currentUser } = useCurrentUser();
+  const isCyrusOne = currentUser?.form_variant === "cyrusone";
 
   if (!isCyrusOne) {
     return (

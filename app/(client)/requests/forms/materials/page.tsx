@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useCurrentUser } from "@/lib/hooks/use-current-user";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -29,9 +31,22 @@ const initialFormData: LocalMaterialsFormData = {
 };
 
 export default function MaterialsPage() {
+  const router = useRouter();
+  const { data: currentUser, isLoading: loadingUser } = useCurrentUser();
+
+  useEffect(() => {
+    if (!loadingUser && currentUser?.form_variant !== "cyrusone") {
+      router.replace("/requests/new");
+    }
+  }, [loadingUser, currentUser, router]);
+
   const [formData, setFormData] = useState<LocalMaterialsFormData>(initialFormData);
   const { submit, isSubmitting, error } = useSubmitMaterials();
   const { errors, validate, clearFieldError } = useFormValidation<LocalMaterialsFormData>(materialsFormSchema);
+
+  if (loadingUser || currentUser?.form_variant !== "cyrusone") {
+    return null;
+  }
 
   const handleChange = (data: Partial<LocalMaterialsFormData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
