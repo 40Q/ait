@@ -1,6 +1,16 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "ait-omega.vercel.app" }],
+        destination: "https://pickup.ait-co.com/:path*",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {
