@@ -8,6 +8,7 @@ import {
   Receipt,
   Settings,
   Calendar,
+  Users,
   LucideIcon,
 } from "lucide-react";
 
@@ -58,6 +59,11 @@ export const adminNavItems: AdminNavItem[] = [
     title: "Invoices",
     href: "/admin/invoices",
     icon: Receipt,
+  },
+  {
+    title: "Users",
+    href: "/admin/users",
+    icon: Users,
   },
   {
     title: "Settings",

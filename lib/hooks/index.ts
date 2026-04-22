@@ -68,6 +68,12 @@ export {
 export { useInviteUser } from "./use-invite-user";
 export { useDeactivateUser } from "./use-deactivate-user";
 export { useRequestNewLink } from "./use-request-new-link";
+export {
+  useAdminUsers,
+  useSetAdminPassword,
+  useSendAdminRecoveryEmail,
+  type AdminUser,
+} from "./use-admin-users";
 
 // Account hooks
 export { useChangePassword } from "./use-change-password";
