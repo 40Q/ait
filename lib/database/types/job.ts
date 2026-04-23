@@ -47,7 +47,6 @@ export type JobUpdate = Partial<
   Omit<
     JobRow,
     | "id"
-    | "job_number"
     | "created_at"
     | "company_id"
     | "quote_id"

@@ -94,6 +94,52 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
   const [pendingStatus, setPendingStatus] = useState<JobStatus | null>(null);
   const [selectedDocType, setSelectedDocType] = useState<string>("");
 
+  // Edit mode state for job number
+  const [isEditingJobNumber, setIsEditingJobNumber] = useState(false);
+  const [editJobNumber, setEditJobNumber] = useState("");
+  const [jobNumberError, setJobNumberError] = useState("");
+
+  const startEditingJobNumber = () => {
+    if (!job) return;
+    setEditJobNumber(job.job_number);
+    setJobNumberError("");
+    setIsEditingJobNumber(true);
+  };
+
+  const cancelEditingJobNumber = () => {
+    setIsEditingJobNumber(false);
+    setJobNumberError("");
+  };
+
+  const saveJobNumber = () => {
+    if (!job) return;
+    const trimmed = editJobNumber.trim();
+    if (!trimmed) {
+      setJobNumberError("Job ID cannot be empty");
+      return;
+    }
+    if (trimmed === job.job_number) {
+      setIsEditingJobNumber(false);
+      return;
+    }
+    updateJob.mutate(
+      { id: job.id, data: { job_number: trimmed } },
+      {
+        onSuccess: () => {
+          setIsEditingJobNumber(false);
+          setJobNumberError("");
+        },
+        onError: (error) => {
+          if (error.message?.includes("duplicate") || error.message?.includes("unique")) {
+            setJobNumberError("That Job ID is already in use");
+          } else {
+            setJobNumberError("Failed to update Job ID");
+          }
+        },
+      }
+    );
+  };
+
   // Edit mode state for schedule
   const [isEditingSchedule, setIsEditingSchedule] = useState(false);
   const [editPickupDate, setEditPickupDate] = useState("");
@@ -263,8 +309,42 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">{job.job_number}</h1>
-            <StatusBadge status={job.status} />
+            {isEditingJobNumber ? (
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <Input
+                    className="h-9 w-48 text-lg font-bold font-mono"
+                    value={editJobNumber}
+                    onChange={(e) => {
+                      setEditJobNumber(e.target.value);
+                      setJobNumberError("");
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveJobNumber();
+                      if (e.key === "Escape") cancelEditingJobNumber();
+                    }}
+                    autoFocus
+                  />
+                  <Button size="sm" onClick={saveJobNumber} disabled={updateJob.isPending}>
+                    {updateJob.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={cancelEditingJobNumber}>
+                    Cancel
+                  </Button>
+                </div>
+                {jobNumberError && (
+                  <p className="text-sm text-destructive">{jobNumberError}</p>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold">{job.job_number}</h1>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={startEditingJobNumber}>
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+            {!isEditingJobNumber && <StatusBadge status={job.status} />}
           </div>
           <p className="text-sm text-muted-foreground">
             Created on {new Date(job.created_at).toLocaleDateString()}
