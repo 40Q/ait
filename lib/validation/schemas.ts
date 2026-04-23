@@ -85,6 +85,7 @@ export const locationFormSchema = z.object({
 });
 
 export const jobFormSchema = z.object({
+  job_number: z.string().optional(),
   company_id: z.string().min(1, "Company is required"),
   pickup_date: z.string().min(1, "Pickup date is required"),
   pickup_time_window: z.string(),

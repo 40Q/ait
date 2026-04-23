@@ -23,6 +23,7 @@ import { jobFormSchema, type JobFormInput } from "@/lib/validation";
 import type { EquipmentItem, Location, Contact } from "@/lib/database/types";
 
 interface JobFormData {
+  job_number: string;
   company_id: string;
   pickup_date: string;
   pickup_time_window: string;
@@ -44,6 +45,7 @@ interface JobFormData {
 }
 
 const initialFormData: JobFormData = {
+  job_number: "",
   company_id: "",
   pickup_date: "",
   pickup_time_window: "",
@@ -121,6 +123,7 @@ export default function NewJobPage() {
   const handleSubmit = () => {
     // Validate form fields
     const result = validate({
+      job_number: formData.job_number || undefined,
       company_id: formData.company_id,
       pickup_date: formData.pickup_date,
       pickup_time_window: formData.pickup_time_window,
@@ -155,6 +158,7 @@ export default function NewJobPage() {
 
     createJob.mutate(
       {
+        ...(result.data.job_number ? { job_number: result.data.job_number } : {}),
         company_id: result.data.company_id,
         quote_id: null,
         request_id: null,
@@ -206,6 +210,16 @@ export default function NewJobPage() {
               {errors.company_id && (
                 <p className="text-sm text-destructive">{errors.company_id}</p>
               )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="jobNumber">Job ID</Label>
+              <Input
+                id="jobNumber"
+                placeholder="Auto-generated if left blank (e.g. W2604005)"
+                value={formData.job_number}
+                onChange={(e) => handleChange({ job_number: e.target.value })}
+              />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
