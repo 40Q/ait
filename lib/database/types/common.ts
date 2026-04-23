@@ -25,6 +25,8 @@ export type DocumentType =
   | "asset_serialization"
   | "warehouse_report"
   | "pickup_document"
+  | "certificate_of_insurance"
+  | "workers_compensation"
   | "miscellaneous";
 
 export type DockType = "none" | "ground_level" | "truck_level";

@@ -30,6 +30,8 @@ const documentTypes: { value: string; label: string }[] = [
   { value: "asset_serialization", label: "Asset Serialization Report" },
   { value: "warehouse_report", label: "Warehouse Processing Report" },
   { value: "pickup_document", label: "Pickup Document" },
+  { value: "certificate_of_insurance", label: "Certificate of Insurance (COI)" },
+  { value: "workers_compensation", label: "Workers Compensation (WC)" },
 ];
 
 export default function DocumentsPage() {

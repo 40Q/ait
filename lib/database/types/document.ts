@@ -1,4 +1,4 @@
-import type { DocumentType } from "./common";
+import type { DocumentType, Location } from "./common";
 
 // Document row
 export interface DocumentRow {
@@ -52,6 +52,7 @@ export interface DocumentListItem {
   file_size: number | null;
   uploaded_by_name: string;
   created_at: string;
+  location?: Location | null;
 }
 
 // Filters for querying
@@ -70,6 +71,8 @@ export const documentTypeLabels: Record<DocumentType, string> = {
   asset_serialization: "Asset Serialization Report",
   warehouse_report: "Warehouse Processing Report",
   pickup_document: "Pickup Document",
+  certificate_of_insurance: "Certificate of Insurance",
+  workers_compensation: "Workers Compensation",
   miscellaneous: "Miscellaneous",
 };
 
@@ -81,5 +84,7 @@ export const documentTypeShortLabels: Record<DocumentType, string> = {
   asset_serialization: "Asset Serial",
   warehouse_report: "Warehouse",
   pickup_document: "Pickup",
+  certificate_of_insurance: "COI",
+  workers_compensation: "WC",
   miscellaneous: "Misc",
 };

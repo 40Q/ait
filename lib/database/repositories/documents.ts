@@ -86,7 +86,7 @@ export class DocumentRepository extends BaseRepository<
         file_path,
         file_size,
         created_at,
-        job:jobs(job_number),
+        job:jobs(job_number, location),
         company:companies(name),
         uploaded_by_profile:profiles!uploaded_by(full_name)
       `,
@@ -157,6 +157,7 @@ export class DocumentRepository extends BaseRepository<
       file_size: row.file_size,
       uploaded_by_name: row.uploaded_by_profile?.full_name ?? "Unknown",
       created_at: row.created_at,
+      location: row.job?.location ?? null,
     } as DocumentListItem));
 
     const total = count ?? 0;
@@ -181,6 +182,8 @@ export class DocumentRepository extends BaseRepository<
       "asset_serialization",
       "warehouse_report",
       "pickup_document",
+      "certificate_of_insurance",
+      "workers_compensation",
     ];
     const counts: Record<string, number> = { all: 0 };
 
