@@ -8,13 +8,22 @@ export const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December"
 ] as const;
 
+// Date-only strings (YYYY-MM-DD) must be treated as local time, not UTC.
+// new Date("2025-01-28") parses as UTC midnight, which shifts to the prior day
+// in any timezone behind UTC. Appending T00:00:00 forces local-time parsing.
+function parseDateInput(date: string | Date): Date {
+  if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return new Date(date + "T00:00:00");
+  }
+  return typeof date === "string" ? new Date(date) : date;
+}
+
 /**
  * Format a date string or Date object to a readable format
  */
 export function formatDate(date: string | Date | null | undefined): string {
   if (!date) return "";
-  const d = typeof date === "string" ? new Date(date) : date;
-  return format(d, "PPP"); // "January 15, 2025"
+  return format(parseDateInput(date), "PPP"); // "January 15, 2025"
 }
 
 /**
@@ -22,8 +31,7 @@ export function formatDate(date: string | Date | null | undefined): string {
  */
 export function formatDateTime(date: string | Date | null | undefined): string {
   if (!date) return "";
-  const d = typeof date === "string" ? new Date(date) : date;
-  return format(d, "PPP 'at' p"); // "January 15, 2025 at 3:30 PM"
+  return format(parseDateInput(date), "PPP 'at' p"); // "January 15, 2025 at 3:30 PM"
 }
 
 /**
@@ -31,8 +39,7 @@ export function formatDateTime(date: string | Date | null | undefined): string {
  */
 export function formatDateShort(date: string | Date | null | undefined): string {
   if (!date) return "";
-  const d = typeof date === "string" ? new Date(date) : date;
-  return format(d, "MMM d, yyyy"); // "Jan 15, 2025"
+  return format(parseDateInput(date), "MMM d, yyyy"); // "Jan 15, 2025"
 }
 
 /**
@@ -40,8 +47,7 @@ export function formatDateShort(date: string | Date | null | undefined): string 
  */
 export function formatDateTimeShort(date: string | Date | null | undefined): string {
   if (!date) return "";
-  const d = typeof date === "string" ? new Date(date) : date;
-  return format(d, "MMM d, h:mm a"); // "Jan 15, 3:30 PM"
+  return format(parseDateInput(date), "MMM d, h:mm a"); // "Jan 15, 3:30 PM"
 }
 
 // Calendar utilities

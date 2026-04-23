@@ -49,6 +49,7 @@ import { jobStatusLabels, type JobStatus, type DocumentType } from "@/lib/databa
 import { createClient } from "@/lib/supabase/client";
 import { uploadFile, getSignedUrl, STORAGE_BUCKETS } from "@/lib/storage/upload";
 import { DocumentList } from "@/components/ui/document-list";
+import { formatDateShort } from "@/lib/utils/date";
 
 const allJobStatuses: JobStatus[] = [
   "needs_scheduling",
@@ -693,7 +694,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-muted-foreground">Pickup Date</p>
-                      <p className="font-medium">{job.pickup_date ? new Date(job.pickup_date).toLocaleDateString() : "Not scheduled"}</p>
+                      <p className="font-medium">{job.pickup_date ? formatDateShort(job.pickup_date) : "Not scheduled"}</p>
                     </div>
                   </div>
                   {job.pickup_time_window && (
