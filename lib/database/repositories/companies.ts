@@ -257,7 +257,7 @@ export class CompanyRepository extends BaseRepository<
   async getCompanyLocations(companyId: string): Promise<CompanyLocationListItem[]> {
     const { data, error } = await this.supabase
       .from("company_locations")
-      .select("id, name, address, city, state, zip_code, is_primary")
+      .select("id, name, address, city, state, zip_code, is_primary, building_info, contact_name, contact_email, contact_phone")
       .eq("company_id", companyId)
       .order("is_primary", { ascending: false })
       .order("name", { ascending: true });

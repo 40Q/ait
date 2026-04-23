@@ -143,4 +143,8 @@ export interface CompanyLocationListItem {
   state: string;
   zip_code: string;
   is_primary: boolean;
+  building_info: string | null;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
 }

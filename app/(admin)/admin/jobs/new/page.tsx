@@ -15,9 +15,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CompanySelect } from "@/components/ui/company-select";
-import { ArrowLeft, Loader2, Plus, Trash2 } from "lucide-react";
-import { useCreateJob } from "@/lib/hooks";
+import { ArrowLeft, Loader2, MapPin, Plus, Star, Trash2 } from "lucide-react";
+import { useCreateJob, useCompanyLocations } from "@/lib/hooks";
 import { useFormValidation } from "@/lib/hooks/use-form-validation";
 import { jobFormSchema, type JobFormInput } from "@/lib/validation";
 import type { EquipmentItem, Location, Contact } from "@/lib/database/types";
@@ -77,6 +84,35 @@ export default function NewJobPage() {
   const { errors, validate, clearFieldError } = useFormValidation<JobFormInput>(jobFormSchema);
 
   const [formData, setFormData] = useState<JobFormData>(initialFormData);
+  const [selectedLocationId, setSelectedLocationId] = useState<string>("");
+
+  const { data: companyLocations = [] } = useCompanyLocations(formData.company_id);
+  const savedLocations = [...companyLocations].sort((a, b) => {
+    if (a.is_primary && !b.is_primary) return -1;
+    if (!a.is_primary && b.is_primary) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  const handleSelectLocation = (locationId: string) => {
+    setSelectedLocationId(locationId);
+    if (locationId === "manual") {
+      handleChange({ address: "", city: "", state: "", zip_code: "", building_info: "" });
+      return;
+    }
+    const loc = savedLocations.find((l) => l.id === locationId);
+    if (loc) {
+      handleChange({
+        address: loc.address,
+        city: loc.city,
+        state: loc.state,
+        zip_code: loc.zip_code,
+        building_info: loc.building_info ?? "",
+        ...(loc.contact_name ? { contact_name: loc.contact_name } : {}),
+        ...(loc.contact_email ? { contact_email: loc.contact_email } : {}),
+        ...(loc.contact_phone ? { contact_phone: loc.contact_phone } : {}),
+      });
+    }
+  };
 
   const handleChange = (data: Partial<JobFormData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
@@ -204,7 +240,10 @@ export default function NewJobPage() {
               <Label>Company *</Label>
               <CompanySelect
                 value={formData.company_id}
-                onValueChange={(value) => handleChange({ company_id: value })}
+                onValueChange={(value) => {
+                  handleChange({ company_id: value });
+                  setSelectedLocationId("");
+                }}
                 placeholder="Search for a company..."
               />
               {errors.company_id && (
@@ -266,6 +305,38 @@ export default function NewJobPage() {
             <CardDescription>Enter the pickup address details</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {formData.company_id && savedLocations.length > 0 && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Saved Locations
+                </Label>
+                <Select value={selectedLocationId} onValueChange={handleSelectLocation}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a saved location or enter manually" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="manual">
+                      <span className="text-muted-foreground">Enter manually</span>
+                    </SelectItem>
+                    {savedLocations.map((loc) => (
+                      <SelectItem key={loc.id} value={loc.id}>
+                        <div className="flex items-center gap-2">
+                          {loc.is_primary && (
+                            <Star className="h-3 w-3 fill-current text-yellow-500" />
+                          )}
+                          <span className="font-medium">{loc.name}</span>
+                          <span className="text-muted-foreground">
+                            — {loc.address}, {loc.city}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="address">Address *</Label>
               <Input
