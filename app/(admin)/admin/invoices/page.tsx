@@ -200,10 +200,12 @@ export default function InvoicesPage() {
     const raw = new FormData(e.currentTarget);
     const formData = new FormData();
     formData.set("company_id", createCompanyId);
-    formData.set("amount", raw.get("amount") as string);
-    formData.set("invoice_date", raw.get("invoice_date") as string);
-    formData.set("due_date", raw.get("due_date") as string);
-    formData.set("status", createStatus);
+    // Defaults for hidden fields
+    const today = new Date().toISOString().split("T")[0];
+    formData.set("amount", "0");
+    formData.set("invoice_date", today);
+    formData.set("due_date", today);
+    formData.set("status", "unpaid");
     const pdf = raw.get("pdf") as File | null;
     if (pdf && pdf.size > 0) formData.set("pdf", pdf);
     try {
@@ -222,14 +224,8 @@ export default function InvoicesPage() {
       <div className="space-y-6">
         <PageHeader
           title="Invoices"
-          description="Manage invoices synced from QuickBooks"
+          description="Manage invoices"
         />
-        <div className="grid gap-4 sm:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-24" />
-          ))}
-        </div>
-        <Skeleton className="h-16" />
         <Skeleton className="h-96" />
       </div>
     );
@@ -239,58 +235,65 @@ export default function InvoicesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Invoices"
-        description="Manage invoices synced from QuickBooks"
+        description="Manage invoices"
       >
         <Button variant="outline" onClick={() => setCreateDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Create Invoice
+          Upload Invoice
         </Button>
-        <Button onClick={handleSync} disabled={syncInvoices.isPending || !qbStatus?.connected}>
-          <RefreshCw
-            className={`mr-2 h-4 w-4 ${syncInvoices.isPending ? "animate-spin" : ""}`}
-          />
-          {syncInvoices.isPending ? "Syncing..." : "Sync Invoices"}
-        </Button>
+        {/* QuickBooks sync button — hidden for now */}
+        {false && (
+          <Button onClick={handleSync} disabled={syncInvoices.isPending || !qbStatus?.connected}>
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${syncInvoices.isPending ? "animate-spin" : ""}`}
+            />
+            {syncInvoices.isPending ? "Syncing..." : "Sync Invoices"}
+          </Button>
+        )}
       </PageHeader>
 
-      {/* Stats */}
-      <InvoiceStats
-        totalAmount={stats?.totalAmount ?? 0}
-        paidAmount={stats?.paidAmount ?? 0}
-        unpaidAmount={stats?.unpaidAmount ?? 0}
-        unlinkedCount={stats?.unlinkedCount ?? 0}
-        showUnlinked
-      />
+      {/* Stats — hidden for now */}
+      {false && (
+        <InvoiceStats
+          totalAmount={stats?.totalAmount ?? 0}
+          paidAmount={stats?.paidAmount ?? 0}
+          unpaidAmount={stats?.unpaidAmount ?? 0}
+          unlinkedCount={stats?.unlinkedCount ?? 0}
+          showUnlinked
+        />
+      )}
 
-      {/* Sync Status */}
-      <Card>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div
-                  className={`h-2 w-2 rounded-full ${
-                    qbStatus?.connected ? "bg-green-500" : "bg-red-500"
-                  }`}
-                />
-                <span className="text-sm font-medium">
-                  {qbStatus?.connected
-                    ? "QuickBooks Connected"
-                    : "QuickBooks Not Connected"}
-                </span>
+      {/* QuickBooks Sync Status — hidden for now */}
+      {false && (
+        <Card>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`h-2 w-2 rounded-full ${
+                      qbStatus?.connected ? "bg-green-500" : "bg-red-500"
+                    }`}
+                  />
+                  <span className="text-sm font-medium">
+                    {qbStatus?.connected
+                      ? "QuickBooks Connected"
+                      : "QuickBooks Not Connected"}
+                  </span>
+                </div>
+                {qbStatus?.connected && (
+                  <span className="text-sm text-muted-foreground">
+                    Last synced: {formatRelativeTime(qbStatus.lastSync)}
+                  </span>
+                )}
               </div>
-              {qbStatus?.connected && (
-                <span className="text-sm text-muted-foreground">
-                  Last synced: {formatRelativeTime(qbStatus.lastSync)}
-                </span>
-              )}
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/admin/settings">Configure</Link>
+              </Button>
             </div>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/admin/settings">Configure</Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col gap-4 sm:flex-row">
@@ -457,9 +460,9 @@ export default function InvoicesPage() {
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Create Invoice</DialogTitle>
+            <DialogTitle>Upload Invoice</DialogTitle>
             <DialogDescription>
-              Manually create an invoice for companies not using QuickBooks.
+              Upload a PDF invoice for a company.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateSubmit}>
@@ -480,56 +483,61 @@ export default function InvoicesPage() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="create-amount">Amount ($)</Label>
-                <Input
-                  id="create-amount"
-                  name="amount"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="0.00"
-                  required
-                />
-              </div>
+              {/* Amount, dates, and status — hidden for now */}
+              {false && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="create-amount">Amount ($)</Label>
+                    <Input
+                      id="create-amount"
+                      name="amount"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="create-invoice-date">Invoice Date</Label>
-                  <Input
-                    id="create-invoice-date"
-                    name="invoice_date"
-                    type="date"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="create-due-date">Due Date</Label>
-                  <Input
-                    id="create-due-date"
-                    name="due_date"
-                    type="date"
-                    required
-                  />
-                </div>
-              </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="create-invoice-date">Invoice Date</Label>
+                      <Input
+                        id="create-invoice-date"
+                        name="invoice_date"
+                        type="date"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="create-due-date">Due Date</Label>
+                      <Input
+                        id="create-due-date"
+                        name="due_date"
+                        type="date"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="create-status">Status</Label>
+                    <Select value={createStatus} onValueChange={setCreateStatus}>
+                      <SelectTrigger id="create-status">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unpaid">Unpaid</SelectItem>
+                        <SelectItem value="paid">Paid</SelectItem>
+                        <SelectItem value="overdue">Overdue</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
 
               <div className="space-y-2">
-                <Label htmlFor="create-status">Status</Label>
-                <Select value={createStatus} onValueChange={setCreateStatus}>
-                  <SelectTrigger id="create-status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unpaid">Unpaid</SelectItem>
-                    <SelectItem value="paid">Paid</SelectItem>
-                    <SelectItem value="overdue">Overdue</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="create-pdf">PDF (optional)</Label>
+                <Label htmlFor="create-pdf">PDF</Label>
                 <Input
                   id="create-pdf"
                   name="pdf"
@@ -546,11 +554,11 @@ export default function InvoicesPage() {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={createInvoice.isPending}>
+              <Button type="submit" disabled={createInvoice.isPending || !createCompanyId}>
                 {createInvoice.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Create Invoice
+                Upload Invoice
               </Button>
             </DialogFooter>
           </form>
