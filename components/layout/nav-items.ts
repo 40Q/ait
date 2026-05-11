@@ -4,7 +4,6 @@ import {
   ClipboardList,
   Briefcase,
   FileCheck,
-  FileText,
   MapPin,
   Settings,
   LucideIcon,
@@ -42,11 +41,6 @@ export const clientNavItems: NavItem[] = [
     title: "Documents",
     href: "/documents",
     icon: FileCheck,
-  },
-  {
-    title: "Pickup Details",
-    href: "/pickup-details",
-    icon: FileText,
   },
   {
     title: "Locations",
