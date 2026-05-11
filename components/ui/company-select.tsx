@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/popover";
 import { Check, ChevronsUpDown, Loader2, Search, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useCompanySearch, useCompanyList } from "@/lib/hooks";
+import { useCompany, useCompanySearch, useCompanyList } from "@/lib/hooks";
 
 interface CompanySelectProps {
   value: string;
@@ -39,12 +39,21 @@ export function CompanySelect({
   const companies = isSearching ? searchResults : initialCompanies;
   const showLoading = isSearching ? (loadingSearch || isFetching) : loadingInitial;
 
-  // Update selected name when value changes externally
+  // Fetch the company by id so we can display its name when `value` is set
+  // externally (e.g., prefilled from a request) without a click event.
+  const { data: selectedCompany } = useCompany(value);
+
+  // Sync selected name with external value changes.
   useEffect(() => {
     if (!value) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedName("");
+      return;
     }
-  }, [value]);
+    if (selectedCompany && selectedCompany.id === value) {
+      setSelectedName(selectedCompany.name);
+    }
+  }, [value, selectedCompany]);
 
   const handleSelect = (companyId: string, companyName: string) => {
     onValueChange(companyId);

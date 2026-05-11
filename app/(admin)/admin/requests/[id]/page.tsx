@@ -141,10 +141,16 @@ export default function RequestDetailPage({ params }: RequestDetailPageProps) {
 
       {/* Action Buttons */}
       {request.status === "pending" && (
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <Button asChild>
             <Link href={`/admin/quotes/new?request=${request.id}`}>
               Create Quote
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href={`/admin/jobs/new?request=${request.id}`}>
+              Create Job Without Quote
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>

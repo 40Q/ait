@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { CompanySelect } from "@/components/ui/company-select";
 import { ArrowLeft, Loader2, MapPin, Plus, Star, Trash2 } from "lucide-react";
-import { useCreateJob, useCompanyLocations } from "@/lib/hooks";
+import { useCreateJob, useCompanyLocations, useRequest, useUpdateRequest } from "@/lib/hooks";
 import { useFormValidation } from "@/lib/hooks/use-form-validation";
 import { jobFormSchema, type JobFormInput } from "@/lib/validation";
 import type { EquipmentItem, Location, Contact } from "@/lib/database/types";
@@ -78,13 +78,41 @@ const availableServices = [
   "Palletizing",
 ];
 
-export default function NewJobPage() {
+function NewJobPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestId = searchParams.get("request");
   const createJob = useCreateJob();
+  const updateRequest = useUpdateRequest();
+  const { data: request, isLoading: requestLoading } = useRequest(requestId || "");
   const { errors, validate, clearFieldError } = useFormValidation<JobFormInput>(jobFormSchema);
 
   const [formData, setFormData] = useState<JobFormData>(initialFormData);
   const [selectedLocationId, setSelectedLocationId] = useState<string>("");
+  const [prefilled, setPrefilled] = useState(false);
+
+  // Pre-fill from request when query param is present
+  useEffect(() => {
+    if (!requestId || !request || prefilled) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFormData((prev) => ({
+      ...prev,
+      company_id: request.company_id,
+      address: request.address || "",
+      city: request.city || "",
+      state: request.state || "",
+      zip_code: request.zip_code || "",
+      building_info: request.building_info || "",
+      contact_name: request.on_site_contact_name || "",
+      contact_email: request.on_site_contact_email || "",
+      contact_phone: request.on_site_contact_phone || "",
+      equipment:
+        request.equipment && request.equipment.length > 0
+          ? request.equipment
+          : prev.equipment,
+    }));
+    setPrefilled(true);
+  }, [requestId, request, prefilled]);
 
   const { data: companyLocations = [] } = useCompanyLocations(formData.company_id);
   const savedLocations = [...companyLocations].sort((a, b) => {
@@ -197,7 +225,7 @@ export default function NewJobPage() {
         ...(result.data.job_number ? { job_number: result.data.job_number } : {}),
         company_id: result.data.company_id,
         quote_id: null,
-        request_id: null,
+        request_id: requestId || null,
         status: "pickup_scheduled",
         pickup_date: result.data.pickup_date,
         pickup_time_window: result.data.pickup_time_window || null,
@@ -209,22 +237,45 @@ export default function NewJobPage() {
         pickup_scheduled_at: new Date().toISOString(),
       },
       {
-        onSuccess: (job) => router.push(`/admin/jobs/${job.id}`),
+        onSuccess: (job) => {
+          if (requestId) {
+            updateRequest.mutate(
+              { id: requestId, data: { status: "accepted" } },
+              {
+                onSettled: () => router.push(`/admin/jobs/${job.id}`),
+              }
+            );
+          } else {
+            router.push(`/admin/jobs/${job.id}`);
+          }
+        },
       }
     );
   };
+
+  if (requestId && requestLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/admin/jobs">
+          <Link href={requestId ? `/admin/requests/${requestId}` : "/admin/jobs"}>
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
         <PageHeader
           title="Create Job"
-          description="Create a new job directly without going through quote flow"
+          description={
+            requestId
+              ? `Create a job from request ${request?.request_number ?? ""} — skips the quote step`
+              : "Create a new job directly without going through quote flow"
+          }
         />
       </div>
 
@@ -524,13 +575,34 @@ export default function NewJobPage() {
       {/* Actions */}
       <div className="flex justify-end gap-4">
         <Button variant="outline" asChild>
-          <Link href="/admin/jobs">Cancel</Link>
+          <Link href={requestId ? `/admin/requests/${requestId}` : "/admin/jobs"}>
+            Cancel
+          </Link>
         </Button>
-        <Button onClick={handleSubmit} disabled={createJob.isPending}>
-          {createJob.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        <Button
+          onClick={handleSubmit}
+          disabled={createJob.isPending || updateRequest.isPending}
+        >
+          {(createJob.isPending || updateRequest.isPending) && (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          )}
           Create Job
         </Button>
       </div>
     </div>
+  );
+}
+
+export default function NewJobPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <NewJobPageInner />
+    </Suspense>
   );
 }

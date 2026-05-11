@@ -99,16 +99,24 @@ function RequestCard({ request }: { request: RequestListItem }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {request.status === "pending" && (
-              <Button size="sm" asChild>
-                <Link href={`/admin/quotes/new?request=${request.id}`}>
-                  Create Quote
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
+              <>
+                <Button size="sm" asChild>
+                  <Link href={`/admin/quotes/new?request=${request.id}`}>
+                    Create Quote
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/admin/jobs/new?request=${request.id}`}>
+                    Create Job
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              </>
             )}
-            <Button variant="outline" size="sm" asChild>
+            <Button variant="ghost" size="sm" asChild>
               <Link href={`/admin/requests/${request.id}`}>View Details</Link>
             </Button>
           </div>
