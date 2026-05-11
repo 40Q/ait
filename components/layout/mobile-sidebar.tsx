@@ -11,17 +11,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { useCurrentUser } from "@/lib/hooks";
-import { Truck, ChevronDown, Recycle, Box } from "lucide-react";
+import { Truck, Recycle, Box } from "lucide-react";
 import { clientNavItems, type NavItem } from "./nav-items";
 
 interface MobileSidebarProps {
@@ -64,64 +56,82 @@ function MobileNavLink({
 
 function NewRequestMobileNavItem({
   isActive,
+  pathname,
   onNavigate,
 }: {
   isActive: boolean;
+  pathname: string;
   onNavigate: () => void;
 }) {
   const { data: currentUser } = useCurrentUser();
   const isCyrusOne = currentUser?.form_variant === "cyrusone";
 
-  const baseClass = cn(
-    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-    isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-  );
+  const baseClass = (active: boolean) =>
+    cn(
+      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+      active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+    );
 
   if (!isCyrusOne) {
     return (
-      <Link href="/requests/new" onClick={onNavigate} className={baseClass}>
+      <Link href="/requests/new" onClick={onNavigate} className={baseClass(isActive)}>
         <Truck className="h-5 w-5" />
         <span className="flex-1">Request Pickup</span>
       </Link>
     );
   }
 
+  const subItems: Array<{
+    href: string;
+    icon: typeof Truck;
+    label: string;
+    hint?: string;
+  }> = [
+    {
+      href: "/requests/new",
+      icon: Truck,
+      label: "E-Waste Pickup",
+    },
+    {
+      href: "/requests/forms/materials",
+      icon: Recycle,
+      label: "Materials Pickup",
+      hint: "Wood/Metal/E-Waste",
+    },
+    {
+      href: "/requests/forms/logistics",
+      icon: Box,
+      label: "Logistics Request",
+    },
+  ];
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button className={cn(baseClass, "w-full")}>
-          <Truck className="h-5 w-5" />
-          <span className="flex-1 text-left">Request Pickup</span>
-          <ChevronDown className="h-4 w-4" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent side="right" align="start" className="w-56">
-        <DropdownMenuLabel>Standard Forms</DropdownMenuLabel>
-        <DropdownMenuItem asChild>
-          <Link href="/requests/new" onClick={onNavigate} className="cursor-pointer">
-            <Truck className="mr-2 h-4 w-4" />
-            Pickup Request
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel>Additional Forms</DropdownMenuLabel>
-        <DropdownMenuItem asChild>
-          <Link href="/requests/forms/materials" onClick={onNavigate} className="cursor-pointer">
-            <Recycle className="mr-2 h-4 w-4" />
-            Materials Pickup
-            <span className="ml-auto text-xs text-muted-foreground">
-              Wood/Metal/E-Waste
-            </span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/requests/forms/logistics" onClick={onNavigate} className="cursor-pointer">
-            <Box className="mr-2 h-4 w-4" />
-            Logistics Request
-          </Link>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="space-y-1">
+      <div className="flex items-center gap-3 px-3 pt-2 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
+        <Truck className="h-4 w-4" />
+        <span>Request Pickup</span>
+      </div>
+      <div className="space-y-1 pl-2">
+        {subItems.map((item) => {
+          const Icon = item.icon;
+          const subActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onNavigate}
+              className={baseClass(subActive)}
+            >
+              <Icon className="h-5 w-5" />
+              <span className="flex-1">{item.label}</span>
+              {item.hint && (
+                <span className="text-xs text-muted-foreground/70">{item.hint}</span>
+              )}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -148,6 +158,7 @@ export function MobileSidebar({ open, onOpenChange }: MobileSidebarProps) {
               <NewRequestMobileNavItem
                 key={item.href}
                 isActive={pathname === item.href || pathname.startsWith(`${item.href}/`)}
+                pathname={pathname}
                 onNavigate={handleNavigate}
               />
             ) : (

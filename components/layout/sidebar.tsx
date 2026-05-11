@@ -9,8 +9,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SignOutButton } from "@/components/auth/sign-out-button";
@@ -76,15 +74,12 @@ function NewRequestNavItem({ isActive }: { isActive: boolean }) {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent side="right" align="start" className="w-56">
-        <DropdownMenuLabel>Standard Forms</DropdownMenuLabel>
         <DropdownMenuItem asChild>
           <Link href="/requests/new" className="cursor-pointer">
             <Truck className="mr-2 h-4 w-4" />
-            Pickup Request
+            E-Waste Pickup
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel>Additional Forms</DropdownMenuLabel>
         <DropdownMenuItem asChild>
           <Link href="/requests/forms/materials" className="cursor-pointer">
             <Recycle className="mr-2 h-4 w-4" />

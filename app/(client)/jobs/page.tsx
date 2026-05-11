@@ -11,7 +11,8 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ListFilters } from "@/components/ui/list-filters";
 import { FetchingIndicator } from "@/components/ui/fetching-indicator";
-import { FileText, Receipt, ArrowRight, Calendar, Truck, Package } from "lucide-react";
+import { FileText, Receipt, ArrowRight, Calendar, Package } from "lucide-react";
+import { NewRequestButton } from "@/components/requests";
 import { useJobList, usePagination } from "@/lib/hooks";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { jobStatusLabels, type JobListItem, type JobStatus } from "@/lib/database/types";
@@ -104,12 +105,7 @@ export default function JobsPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Jobs" description="View all your recycling jobs">
-        <Button asChild>
-          <Link href="/requests/new">
-            <Truck className="mr-2 h-4 w-4" />
-            Request Pickup
-          </Link>
-        </Button>
+        <NewRequestButton />
       </PageHeader>
 
       <ListFilters

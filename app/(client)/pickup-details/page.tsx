@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { MapPin, Calendar, ArrowRight, Truck, AlertCircle, Loader2 } from "lucide-react";
+import { NewRequestButton } from "@/components/requests";
 import { useJobList } from "@/lib/hooks";
 import { formatDateShort } from "@/lib/utils/date";
 import type { JobListItem } from "@/lib/database/types";
@@ -58,12 +59,7 @@ export default function PickupDetailsPage() {
         title="Pickup Details"
         description="Track your pickup schedules and details"
       >
-        <Button asChild>
-          <Link href="/requests/new">
-            <Truck className="mr-2 h-4 w-4" />
-            Request Pickup
-          </Link>
-        </Button>
+        <NewRequestButton />
       </PageHeader>
 
       {/* Error State */}
@@ -88,9 +84,9 @@ export default function PickupDetailsPage() {
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                 <Truck className="h-12 w-12 text-muted-foreground" />
                 <p className="mt-4 text-muted-foreground">No pickups scheduled yet</p>
-                <Button asChild className="mt-4">
-                  <Link href="/requests/new">Request a Pickup</Link>
-                </Button>
+                <div className="mt-4">
+                  <NewRequestButton label="Request a Pickup" />
+                </div>
               </CardContent>
             </Card>
           ) : (

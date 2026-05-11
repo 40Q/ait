@@ -13,24 +13,13 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FetchingIndicator } from "@/components/ui/fetching-indicator";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Truck,
   MapPin,
   Calendar,
   ArrowRight,
-  ChevronDown,
-  Recycle,
-  Box,
   Package,
 } from "lucide-react";
-import { useRequestList, useRequestStatusCounts, usePagination, useCurrentUser } from "@/lib/hooks";
+import { NewRequestButton } from "@/components/requests";
+import { useRequestList, useRequestStatusCounts, usePagination } from "@/lib/hooks";
 import { formatDateShort } from "@/lib/utils/date";
 import type { RequestListItem, RequestStatus } from "@/lib/database/types";
 
@@ -87,60 +76,6 @@ function RequestCard({ request }: { request: RequestListItem }) {
   );
 }
 
-function NewRequestButton() {
-  const { data: currentUser } = useCurrentUser();
-  const isCyrusOne = currentUser?.form_variant === "cyrusone";
-
-  if (!isCyrusOne) {
-    return (
-      <Button asChild>
-        <Link href="/requests/new">
-          <Truck className="mr-2 h-4 w-4" />
-          New Request
-        </Link>
-      </Button>
-    );
-  }
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button>
-          <Truck className="mr-2 h-4 w-4" />
-          New Request
-          <ChevronDown className="ml-2 h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>Standard Forms</DropdownMenuLabel>
-        <DropdownMenuItem asChild>
-          <Link href="/requests/new" className="cursor-pointer">
-            <Truck className="mr-2 h-4 w-4" />
-            Pickup Request
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel>Additional Forms</DropdownMenuLabel>
-        <DropdownMenuItem asChild>
-          <Link href="/requests/forms/materials" className="cursor-pointer">
-            <Recycle className="mr-2 h-4 w-4" />
-            Materials Pickup
-            <span className="ml-auto text-xs text-muted-foreground">
-              Wood/Metal/E-Waste
-            </span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/requests/forms/logistics" className="cursor-pointer">
-            <Box className="mr-2 h-4 w-4" />
-            Logistics Request
-          </Link>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 export default function RequestsPage() {
   const [activeTab, setActiveTab] = useState("all");
 
@@ -173,7 +108,7 @@ export default function RequestsPage() {
         title="My Requests"
         description="View and manage your pickup requests"
       >
-        <NewRequestButton />
+        <NewRequestButton label="New Request" />
       </PageHeader>
 
       <Tabs value={activeTab} onValueChange={handleTabChange}>
