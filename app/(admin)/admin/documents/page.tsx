@@ -14,13 +14,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Search, Upload, Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FetchingIndicator } from "@/components/ui/fetching-indicator";
-import { useDocumentList, useDeleteDocument, usePagination } from "@/lib/hooks";
+import {
+  useDocumentList,
+  useDeleteDocument,
+  usePagination,
+  useInvoiceList,
+  useDownloadInvoicePdf,
+} from "@/lib/hooks";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
-import { type DocumentType } from "@/lib/database/types";
+import { type DocumentType, type InvoiceListItem } from "@/lib/database/types";
 import { DocumentList } from "@/components/ui/document-list";
+import { InvoiceCard } from "@/components/invoices";
 import { createClient } from "@/lib/supabase/client";
 import { getSignedUrl, STORAGE_BUCKETS } from "@/lib/storage/upload";
+import { toast } from "sonner";
 
 const documentTypes: { value: string; label: string }[] = [
   { value: "all", label: "All Types" },
@@ -45,6 +54,14 @@ export default function DocumentsPage() {
     initialPageSize: 20,
   });
 
+  // Pagination for invoices tab
+  const {
+    currentPage: invoicePage,
+    pageSize: invoicePageSize,
+    setPage: setInvoicePage,
+    setPageSize: setInvoicePageSize,
+  } = usePagination({ initialPageSize: 20 });
+
   // Fetch documents with filters
   const filters = useMemo(() => ({
     search: debouncedSearch || undefined,
@@ -52,9 +69,12 @@ export default function DocumentsPage() {
   }), [debouncedSearch, typeFilter]);
 
   const { data: paginatedData, isLoading, isFetching, error } = useDocumentList(filters, currentPage, pageSize);
+  const { data: invoicePaginatedData, isLoading: invoiceLoading, isFetching: invoiceFetching } = useInvoiceList(undefined, invoicePage, invoicePageSize);
   const deleteDocument = useDeleteDocument();
+  const { downloadPdf, downloadingId } = useDownloadInvoicePdf();
 
   const documents = paginatedData?.data ?? [];
+  const invoices = invoicePaginatedData?.data ?? [];
 
   // Reset to page 1 when filters change
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,6 +105,14 @@ export default function DocumentsPage() {
     }
   };
 
+  const handleDownloadInvoice = async (invoice: InvoiceListItem) => {
+    try {
+      await downloadPdf(invoice);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to download invoice");
+    }
+  };
+
   if (error) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -107,67 +135,121 @@ export default function DocumentsPage() {
         </Button>
       </PageHeader>
 
-      {/* Filters */}
-      <div className="flex flex-col gap-4 sm:flex-row">
-        <div className="relative flex-1 max-w-sm">
-          {isFetching ? (
-            <Loader2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground animate-spin" />
+      <Tabs defaultValue="documents">
+        <TabsList>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="invoices">
+            Invoices
+            {invoicePaginatedData && invoicePaginatedData.total > 0 && (
+              <span className="ml-1.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
+                {invoicePaginatedData.total}
+              </span>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="documents" className="mt-4 space-y-4">
+          {/* Filters */}
+          <div className="flex flex-col gap-4 sm:flex-row">
+            <div className="relative flex-1 max-w-sm">
+              {isFetching ? (
+                <Loader2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground animate-spin" />
+              ) : (
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              )}
+              <Input
+                placeholder="Search by name, job ID, or company..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+                className="pl-9"
+              />
+            </div>
+            <Select value={typeFilter} onValueChange={handleTypeFilterChange}>
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="Document Type" />
+              </SelectTrigger>
+              <SelectContent>
+                {documentTypes.map((type) => (
+                  <SelectItem key={type.value} value={type.value}>
+                    {type.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Documents List */}
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
           ) : (
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <FetchingIndicator isFetching={isFetching}>
+              <DocumentList
+                documents={documents}
+                onView={handleView}
+                onDelete={handleDelete}
+                isDeleting={deleteDocument.isPending}
+                showJob
+                showCompany
+                showSize
+                showUploader
+                emptyMessage="No documents found"
+              />
+            </FetchingIndicator>
           )}
-          <Input
-            placeholder="Search by name, job ID, or company..."
-            value={searchQuery}
-            onChange={handleSearchChange}
-            className="pl-9"
-          />
-        </div>
-        <Select value={typeFilter} onValueChange={handleTypeFilterChange}>
-          <SelectTrigger className="w-[220px]">
-            <SelectValue placeholder="Document Type" />
-          </SelectTrigger>
-          <SelectContent>
-            {documentTypes.map((type) => (
-              <SelectItem key={type.value} value={type.value}>
-                {type.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
 
-      {/* Documents List */}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
-      ) : (
-        <FetchingIndicator isFetching={isFetching}>
-          <DocumentList
-            documents={documents}
-            onView={handleView}
-            onDelete={handleDelete}
-            isDeleting={deleteDocument.isPending}
-            showJob
-            showCompany
-            showSize
-            showUploader
-            emptyMessage="No documents found"
-          />
-        </FetchingIndicator>
-      )}
+          {paginatedData && paginatedData.totalPages > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={paginatedData.totalPages}
+              totalItems={paginatedData.total}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+            />
+          )}
+        </TabsContent>
 
-      {/* Pagination */}
-      {paginatedData && paginatedData.totalPages > 0 && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={paginatedData.totalPages}
-          totalItems={paginatedData.total}
-          pageSize={pageSize}
-          onPageChange={setPage}
-          onPageSizeChange={setPageSize}
-        />
-      )}
+        <TabsContent value="invoices" className="mt-4 space-y-4">
+          {invoiceLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <FetchingIndicator isFetching={invoiceFetching}>
+              {invoices.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">No invoices found</div>
+              ) : (
+                <div className="space-y-3">
+                  {invoices.map((invoice) => (
+                    <InvoiceCard
+                      key={invoice.id}
+                      invoice={invoice}
+                      onDownloadPdf={handleDownloadInvoice}
+                      isDownloading={downloadingId === invoice.id}
+                      linkPrefix="/admin/jobs"
+                      showCompany
+                      companyLinkPrefix="/admin/companies"
+                    />
+                  ))}
+                </div>
+              )}
+            </FetchingIndicator>
+          )}
+
+          {invoicePaginatedData && invoicePaginatedData.totalPages > 0 && (
+            <Pagination
+              currentPage={invoicePage}
+              totalPages={invoicePaginatedData.totalPages}
+              totalItems={invoicePaginatedData.total}
+              pageSize={invoicePageSize}
+              onPageChange={setInvoicePage}
+              onPageSizeChange={setInvoicePageSize}
+            />
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

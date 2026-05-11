@@ -3,6 +3,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 export const STORAGE_BUCKETS = {
   REQUEST_FILES: "request-files",
   DOCUMENTS: "documents",
+  INVOICES: "invoices",
 } as const;
 
 export type StorageBucket = (typeof STORAGE_BUCKETS)[keyof typeof STORAGE_BUCKETS];

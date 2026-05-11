@@ -12,7 +12,6 @@ import {
   Calendar,
   MapPin,
   FileCheck,
-  Receipt,
   Truck,
   Clock,
   User,
@@ -21,8 +20,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { JobTimeline } from "./_components/job-timeline";
-import { InvoicesList } from "./_components/invoices-list";
-import { DocumentList } from "@/components/ui/document-list";
+import { DocumentList, type DocumentListItem } from "@/components/ui/document-list";
 import { useJob, useRealtimeJob } from "@/lib/hooks";
 import { createClient } from "@/lib/supabase/client";
 import { getSignedUrl, STORAGE_BUCKETS } from "@/lib/storage/upload";
@@ -41,12 +39,26 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
   // Subscribe to real-time updates
   useRealtimeJob(id);
 
-  const handleViewDocument = async (filePath: string) => {
+  const handleViewEntry = async (filePath: string, isInvoice: boolean) => {
     try {
+      if (isInvoice) {
+        const invoice = job?.invoices.find((inv) => inv.pdf_path === filePath);
+        if (!invoice) throw new Error("Invoice not found");
+        const response = await fetch(`/api/admin/invoices/${invoice.id}/pdf?disposition=inline`);
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || "Failed to load invoice");
+        }
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        return;
+      }
       const signedUrl = await getSignedUrl(supabase, STORAGE_BUCKETS.DOCUMENTS, filePath);
       window.open(signedUrl, "_blank");
     } catch (error) {
-      console.error("Failed to view document:", error);
+      console.error("Failed to view file:", error);
     }
   };
 
@@ -72,6 +84,19 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
   }
 
   const isPickupComplete = ["pickup_complete", "processing", "complete"].includes(job.status);
+
+  const documentEntries: DocumentListItem[] = [
+    ...job.documents,
+    ...job.invoices
+      .filter((inv) => inv.pdf_path)
+      .map((inv) => ({
+        id: inv.id,
+        name: `Invoice ${inv.invoice_number}`,
+        typeLabel: "Invoice",
+        file_path: inv.pdf_path as string,
+        created_at: inv.created_at,
+      })),
+  ];
 
   return (
     <div className="space-y-6">
@@ -144,15 +169,6 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
             <Truck className="h-4 w-4" />
             Pickup Details
           </TabsTrigger>
-          <TabsTrigger value="invoices" className="gap-2">
-            <Receipt className="h-4 w-4" />
-            Invoices
-            {job.invoices.length > 0 && (
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
-                {job.invoices.length}
-              </span>
-            )}
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="documents" className="mt-4">
@@ -162,8 +178,13 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
             </CardHeader>
             <CardContent>
               <DocumentList
-                documents={job.documents}
-                onView={handleViewDocument}
+                documents={documentEntries}
+                onView={(filePath) => {
+                  const isInvoice = job.invoices.some(
+                    (inv) => inv.pdf_path === filePath
+                  );
+                  handleViewEntry(filePath, isInvoice);
+                }}
                 emptyMessage="Documents will be uploaded once processing is complete"
               />
             </CardContent>
@@ -247,16 +268,6 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
           </Card>
         </TabsContent>
 
-        <TabsContent value="invoices" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Invoices</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <InvoicesList invoices={job.invoices} />
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       {/* Job Details */}

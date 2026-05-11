@@ -9,11 +9,13 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
  * Auth is enforced by storage RLS — this route just proxies the download.
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
+    const url = new URL(request.url);
+    const inline = url.searchParams.get("disposition") === "inline";
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -49,11 +51,12 @@ export async function GET(
     }
 
     const buffer = Buffer.from(await fileData.arrayBuffer());
+    const disposition = inline ? "inline" : "attachment";
 
     return new NextResponse(buffer, {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="invoice-${invoice.invoice_number}.pdf"`,
+        "Content-Disposition": `${disposition}; filename="invoice-${invoice.invoice_number}.pdf"`,
         "Content-Length": buffer.length.toString(),
       },
     });

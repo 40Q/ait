@@ -270,6 +270,32 @@ export function useInvoiceStats(companyId?: string) {
 }
 
 /**
+ * Hook to delete an invoice (admin only)
+ */
+export function useDeleteInvoice() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/admin/invoices/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to delete invoice");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
+    },
+  });
+}
+
+/**
  * Hook to create a manual invoice (admin only)
  */
 export function useCreateInvoice() {
@@ -291,6 +317,7 @@ export function useCreateInvoice() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
     },
   });
 }

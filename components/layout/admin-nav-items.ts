@@ -5,7 +5,6 @@ import {
   Building2,
   Briefcase,
   FolderOpen,
-  Receipt,
   Settings,
   Calendar,
   Users,
@@ -54,11 +53,6 @@ export const adminNavItems: AdminNavItem[] = [
     title: "Documents",
     href: "/admin/documents",
     icon: FolderOpen,
-  },
-  {
-    title: "Invoices",
-    href: "/admin/invoices",
-    icon: Receipt,
   },
   {
     title: "Users",

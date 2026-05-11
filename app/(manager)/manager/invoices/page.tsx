@@ -113,12 +113,15 @@ export default function ManagerInvoicesPage() {
         description="View invoices across all your companies"
       />
 
-      <InvoiceStats
-        totalAmount={stats?.totalAmount ?? 0}
-        paidAmount={stats?.paidAmount ?? 0}
-        unpaidAmount={stats?.unpaidAmount ?? 0}
-        unpaidCount={stats?.unpaidCount ?? 0}
-      />
+      {/* Summary Stats — paid/unpaid hidden until QuickBooks is connected */}
+      {false && (
+        <InvoiceStats
+          totalAmount={stats?.totalAmount ?? 0}
+          paidAmount={stats?.paidAmount ?? 0}
+          unpaidAmount={stats?.unpaidAmount ?? 0}
+          unpaidCount={stats?.unpaidCount ?? 0}
+        />
+      )}
 
       <div className="flex flex-col gap-4 sm:flex-row">
         <div className="relative flex-1">
@@ -130,17 +133,20 @@ export default function ManagerInvoicesPage() {
             className="pl-9"
           />
         </div>
-        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
-          <SelectTrigger className="w-full sm:w-40">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="paid">Paid</SelectItem>
-            <SelectItem value="unpaid">Unpaid</SelectItem>
-            <SelectItem value="overdue">Overdue</SelectItem>
-          </SelectContent>
-        </Select>
+        {/* Status filter — hidden for now */}
+        {false && (
+          <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
+            <SelectTrigger className="w-full sm:w-40">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+              <SelectItem value="unpaid">Unpaid</SelectItem>
+              <SelectItem value="overdue">Overdue</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {displayedInvoices.length > 0 ? (

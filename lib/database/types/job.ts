@@ -88,6 +88,8 @@ interface InvoiceSummary {
   amount: number;
   status: string;
   due_date: string;
+  pdf_path: string | null;
+  created_at: string;
 }
 
 // List item for tables

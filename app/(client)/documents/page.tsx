@@ -12,16 +12,24 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ExternalLink, FileText, Calendar, MapPin } from "lucide-react";
-import { useDocumentList, usePagination } from "@/lib/hooks";
+import {
+  useDocumentList,
+  usePagination,
+  useInvoiceList,
+  useDownloadInvoicePdf,
+} from "@/lib/hooks";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { createClient } from "@/lib/supabase/client";
 import { getSignedUrl, STORAGE_BUCKETS } from "@/lib/storage/upload";
 import { formatDateShort } from "@/lib/utils/date";
+import { InvoiceCard } from "@/components/invoices";
 import {
   documentTypeLabels,
   type DocumentType,
   type DocumentListItem,
+  type InvoiceListItem,
 } from "@/lib/database/types";
+import { toast } from "sonner";
 
 // Document types (excluding pickup_document which is shown in Pickup Details, and COI which has its own tab)
 const documentTypes = (
@@ -51,6 +59,14 @@ export default function DocumentsPage() {
     initialPageSize: 20,
   });
 
+  // Pagination for Invoices tab
+  const {
+    currentPage: invoicePage,
+    pageSize: invoicePageSize,
+    setPage: setInvoicePage,
+    setPageSize: setInvoicePageSize,
+  } = usePagination({ initialPageSize: 20 });
+
   const filters = useMemo(
     () => ({
       search: debouncedSearch || undefined,
@@ -70,9 +86,12 @@ export default function DocumentsPage() {
 
   const { data: paginatedData, isLoading, isFetching } = useDocumentList(filters, currentPage, pageSize);
   const { data: coiPaginatedData, isLoading: coiLoading, isFetching: coiFetching } = useDocumentList(coiFilters, coiPage, coiPageSize);
+  const { data: invoicePaginatedData, isLoading: invoiceLoading, isFetching: invoiceFetching } = useInvoiceList(undefined, invoicePage, invoicePageSize);
+  const { downloadPdf, downloadingId } = useDownloadInvoicePdf();
 
   const documents = paginatedData?.data ?? [];
   const coiDocuments = coiPaginatedData?.data ?? [];
+  const invoices = invoicePaginatedData?.data ?? [];
 
   // Filter main tab to exclude COI and pickup documents
   const filteredDocuments = documents.filter(
@@ -107,6 +126,14 @@ export default function DocumentsPage() {
     }
   };
 
+  const handleDownloadInvoice = async (invoice: InvoiceListItem) => {
+    try {
+      await downloadPdf(invoice);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to download invoice");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -122,6 +149,14 @@ export default function DocumentsPage() {
             {coiPaginatedData && coiPaginatedData.total > 0 && (
               <span className="ml-1.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
                 {coiPaginatedData.total}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="invoices">
+            Invoices
+            {invoicePaginatedData && invoicePaginatedData.total > 0 && (
+              <span className="ml-1.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
+                {invoicePaginatedData.total}
               </span>
             )}
           </TabsTrigger>
@@ -213,6 +248,46 @@ export default function DocumentsPage() {
               pageSize={coiPageSize}
               onPageChange={setCoiPage}
               onPageSizeChange={setCoiPageSize}
+            />
+          )}
+        </TabsContent>
+
+        {/* Invoices Tab */}
+        <TabsContent value="invoices" className="mt-4 space-y-4">
+          {invoiceLoading ? (
+            <LoadingSpinner />
+          ) : (
+            <FetchingIndicator isFetching={invoiceFetching}>
+              {invoices.length === 0 ? (
+                <EmptyState
+                  icon={FileText}
+                  title="No invoices yet"
+                  description="Invoices will appear here once they are uploaded to your jobs."
+                />
+              ) : (
+                <div className="space-y-3">
+                  {invoices.map((invoice) => (
+                    <InvoiceCard
+                      key={invoice.id}
+                      invoice={invoice}
+                      onDownloadPdf={handleDownloadInvoice}
+                      isDownloading={downloadingId === invoice.id}
+                      linkPrefix="/jobs"
+                    />
+                  ))}
+                </div>
+              )}
+            </FetchingIndicator>
+          )}
+
+          {invoicePaginatedData && invoicePaginatedData.totalPages > 0 && (
+            <Pagination
+              currentPage={invoicePage}
+              totalPages={invoicePaginatedData.totalPages}
+              totalItems={invoicePaginatedData.total}
+              pageSize={invoicePageSize}
+              onPageChange={setInvoicePage}
+              onPageSizeChange={setInvoicePageSize}
             />
           )}
         </TabsContent>

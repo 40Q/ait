@@ -11,7 +11,10 @@ import { formatDateShort } from "@/lib/utils/date";
 export interface DocumentListItem {
   id: string;
   name: string;
-  document_type: DocumentType;
+  /** Omit for non-document items (e.g. invoices); use `typeLabel` instead. */
+  document_type?: DocumentType;
+  /** Overrides the document-type label rendered in the badge. */
+  typeLabel?: string;
   file_path: string;
   created_at: string;
   file_size?: number | null;
@@ -68,7 +71,8 @@ export function DocumentList({
               <p className="font-medium truncate">{doc.name}</p>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 <Badge variant="outline" className="text-xs">
-                  {documentTypeLabels[doc.document_type]}
+                  {doc.typeLabel ??
+                    (doc.document_type ? documentTypeLabels[doc.document_type] : "")}
                 </Badge>
                 <span>{formatDateShort(doc.created_at)}</span>
                 {showJob && doc.job_number && (

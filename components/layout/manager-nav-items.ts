@@ -1,7 +1,6 @@
 import {
   LayoutDashboard,
   Building2,
-  Receipt,
   Truck,
   ClipboardList,
   Briefcase,
@@ -29,7 +28,6 @@ export const managerNavSections: ManagerNavSection[] = [
     items: [
       { title: "Dashboard", href: "/manager/dashboard", icon: LayoutDashboard },
       { title: "Companies", href: "/manager/companies", icon: Building2 },
-      { title: "All Invoices", href: "/manager/invoices", icon: Receipt },
     ],
   },
   {
@@ -41,7 +39,6 @@ export const managerNavSections: ManagerNavSection[] = [
       { title: "Documents", href: "/documents", icon: FileCheck },
       { title: "Pickup Details", href: "/pickup-details", icon: FileText },
       { title: "Locations", href: "/locations", icon: MapPin },
-      { title: "Invoices", href: "/invoices", icon: Receipt },
       { title: "Settings", href: "/settings", icon: Settings },
     ],
   },

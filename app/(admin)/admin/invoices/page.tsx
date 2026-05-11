@@ -5,7 +5,6 @@ import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -30,10 +29,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pagination } from "@/components/ui/pagination";
-import { InvoiceStats } from "@/components/invoices";
+import { InvoiceStats, UploadInvoiceDialog } from "@/components/invoices";
 import {
   Search,
   RefreshCw,
@@ -51,7 +49,6 @@ import {
   useRealtimeInvoices,
   useJobList,
   useDownloadInvoicePdf,
-  useCreateInvoice,
   useInvoiceStats,
   useCompanyList,
   usePagination,
@@ -63,8 +60,6 @@ import { toast } from "sonner";
 export default function InvoicesPage() {
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [createCompanyId, setCreateCompanyId] = useState("");
-  const [createStatus, setCreateStatus] = useState("unpaid");
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceListItem | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -110,7 +105,6 @@ export default function InvoicesPage() {
   // Mutations and actions
   const syncInvoices = useSyncInvoices();
   const linkInvoice = useLinkInvoiceToJob();
-  const createInvoice = useCreateInvoice();
   const { downloadPdf, downloadingId } = useDownloadInvoicePdf();
 
   // Real-time updates
@@ -192,30 +186,6 @@ export default function InvoicesPage() {
       await downloadPdf(invoice);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to download PDF");
-    }
-  };
-
-  const handleCreateSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const raw = new FormData(e.currentTarget);
-    const formData = new FormData();
-    formData.set("company_id", createCompanyId);
-    // Defaults for hidden fields
-    const today = new Date().toISOString().split("T")[0];
-    formData.set("amount", "0");
-    formData.set("invoice_date", today);
-    formData.set("due_date", today);
-    formData.set("status", "unpaid");
-    const pdf = raw.get("pdf") as File | null;
-    if (pdf && pdf.size > 0) formData.set("pdf", pdf);
-    try {
-      await createInvoice.mutateAsync(formData);
-      toast.success("Invoice created successfully");
-      setCreateDialogOpen(false);
-      setCreateCompanyId("");
-      setCreateStatus("unpaid");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to create invoice");
     }
   };
 
@@ -306,23 +276,26 @@ export default function InvoicesPage() {
             className="pl-9"
           />
         </div>
-        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="paid">
-              Paid {statusCounts?.paid ? `(${statusCounts.paid})` : ""}
-            </SelectItem>
-            <SelectItem value="unpaid">
-              Unpaid {statusCounts?.unpaid ? `(${statusCounts.unpaid})` : ""}
-            </SelectItem>
-            <SelectItem value="overdue">
-              Overdue {statusCounts?.overdue ? `(${statusCounts.overdue})` : ""}
-            </SelectItem>
-          </SelectContent>
-        </Select>
+        {/* Status filter — hidden for now */}
+        {false && (
+          <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="paid">
+                Paid {statusCounts?.paid ? `(${statusCounts?.paid})` : ""}
+              </SelectItem>
+              <SelectItem value="unpaid">
+                Unpaid {statusCounts?.unpaid ? `(${statusCounts?.unpaid})` : ""}
+              </SelectItem>
+              <SelectItem value="overdue">
+                Overdue {statusCounts?.overdue ? `(${statusCounts?.overdue})` : ""}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        )}
         <Select value={linkedFilter} onValueChange={handleLinkedFilterChange}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Linked Status" />
@@ -346,7 +319,6 @@ export default function InvoicesPage() {
               <TableHead>Date</TableHead>
               <TableHead>Due Date</TableHead>
               <TableHead className="text-right">Amount</TableHead>
-              <TableHead>Status</TableHead>
               <TableHead className="w-[100px]"></TableHead>
             </TableRow>
           </TableHeader>
@@ -411,9 +383,6 @@ export default function InvoicesPage() {
                   ${invoice.amount.toLocaleString()}
                 </TableCell>
                 <TableCell>
-                  <StatusBadge status={invoice.status as InvoiceStatus} />
-                </TableCell>
-                <TableCell>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -456,114 +425,11 @@ export default function InvoicesPage() {
         />
       )}
 
-      {/* Create Invoice Dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Upload Invoice</DialogTitle>
-            <DialogDescription>
-              Upload a PDF invoice for a company.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleCreateSubmit}>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="create-company">Company</Label>
-                <Select value={createCompanyId} onValueChange={setCreateCompanyId} required>
-                  <SelectTrigger id="create-company">
-                    <SelectValue placeholder="Select a company..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(companiesData?.data ?? []).map((company) => (
-                      <SelectItem key={company.id} value={company.id}>
-                        {company.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Amount, dates, and status — hidden for now */}
-              {false && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="create-amount">Amount ($)</Label>
-                    <Input
-                      id="create-amount"
-                      name="amount"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="create-invoice-date">Invoice Date</Label>
-                      <Input
-                        id="create-invoice-date"
-                        name="invoice_date"
-                        type="date"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="create-due-date">Due Date</Label>
-                      <Input
-                        id="create-due-date"
-                        name="due_date"
-                        type="date"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="create-status">Status</Label>
-                    <Select value={createStatus} onValueChange={setCreateStatus}>
-                      <SelectTrigger id="create-status">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="unpaid">Unpaid</SelectItem>
-                        <SelectItem value="paid">Paid</SelectItem>
-                        <SelectItem value="overdue">Overdue</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="create-pdf">PDF</Label>
-                <Input
-                  id="create-pdf"
-                  name="pdf"
-                  type="file"
-                  accept="application/pdf"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setCreateDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={createInvoice.isPending || !createCompanyId}>
-                {createInvoice.isPending && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Upload Invoice
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <UploadInvoiceDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        companies={companiesData?.data ?? []}
+      />
 
       {/* Link Invoice Dialog */}
       <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>

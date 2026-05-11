@@ -5,7 +5,6 @@ import {
   Briefcase,
   FileCheck,
   FileText,
-  Receipt,
   MapPin,
   Settings,
   LucideIcon,
@@ -53,11 +52,6 @@ export const clientNavItems: NavItem[] = [
     title: "Locations",
     href: "/locations",
     icon: MapPin,
-  },
-  {
-    title: "Invoices",
-    href: "/invoices",
-    icon: Receipt,
   },
   {
     title: "Settings",

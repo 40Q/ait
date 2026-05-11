@@ -3,16 +3,19 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { Calendar, Download, Loader2 } from "lucide-react";
 import { formatDateShort } from "@/lib/utils/date";
-import type { InvoiceListItem, InvoiceStatus } from "@/lib/database/types";
+import type { InvoiceListItem } from "@/lib/database/types";
 
 interface InvoiceCardProps {
   invoice: InvoiceListItem;
   onDownloadPdf?: (invoice: InvoiceListItem) => void;
   isDownloading?: boolean;
   linkPrefix?: string; // "/admin/jobs" or "/jobs"
+  /** Whether to render the company name. */
+  showCompany?: boolean;
+  /** If set, the company name renders as a link to `${companyLinkPrefix}/${company_id}`. */
+  companyLinkPrefix?: string;
 }
 
 export function InvoiceCard({
@@ -20,6 +23,8 @@ export function InvoiceCard({
   onDownloadPdf,
   isDownloading = false,
   linkPrefix = "/jobs",
+  showCompany = false,
+  companyLinkPrefix,
 }: InvoiceCardProps) {
   return (
     <Card className="transition-colors hover:bg-muted/50">
@@ -30,16 +35,28 @@ export function InvoiceCard({
               <span className="font-mono font-medium">
                 {invoice.invoice_number}
               </span>
-              <StatusBadge status={invoice.status as InvoiceStatus} />
             </div>
-            {invoice.job_id && invoice.job_number && (
-              <div>
-                <Link
-                  href={`${linkPrefix}/${invoice.job_id}`}
-                  className="text-sm hover:text-primary hover:underline"
-                >
-                  {invoice.job_number}
-                </Link>
+            {(showCompany || (invoice.job_id && invoice.job_number)) && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                {showCompany &&
+                  (companyLinkPrefix ? (
+                    <Link
+                      href={`${companyLinkPrefix}/${invoice.company_id}`}
+                      className="hover:text-primary hover:underline"
+                    >
+                      {invoice.company_name}
+                    </Link>
+                  ) : (
+                    <span>{invoice.company_name}</span>
+                  ))}
+                {invoice.job_id && invoice.job_number && (
+                  <Link
+                    href={`${linkPrefix}/${invoice.job_id}`}
+                    className="font-mono text-muted-foreground hover:text-primary hover:underline"
+                  >
+                    {invoice.job_number}
+                  </Link>
+                )}
               </div>
             )}
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
@@ -47,11 +64,7 @@ export function InvoiceCard({
                 <Calendar className="h-3.5 w-3.5" />
                 {formatDateShort(invoice.invoice_date)}
               </span>
-              <span
-                className={invoice.status === "overdue" ? "text-destructive" : ""}
-              >
-                Due: {formatDateShort(invoice.due_date)}
-              </span>
+              <span>Due: {formatDateShort(invoice.due_date)}</span>
             </div>
           </div>
 

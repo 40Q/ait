@@ -107,6 +107,7 @@ export {
   useRealtimeInvoices,
   useDownloadInvoicePdf,
   useCreateInvoice,
+  useDeleteInvoice,
   useInvoiceStats,
   useInvoiceFilters,
 } from "./use-invoices";

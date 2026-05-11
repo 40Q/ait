@@ -32,24 +32,23 @@ import {
   Mail,
   Package,
   Upload,
-  FileText,
   CheckCircle2,
   Clock,
   Loader2,
-  Link as LinkIcon,
-  ExternalLink,
   Pencil,
   Truck,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useJob, useUpdateJob, useUpdateJobStatus, useRealtimeJob, useCreateDocument, useDeleteDocument, useCurrentUser } from "@/lib/hooks";
+import { useJob, useUpdateJob, useUpdateJobStatus, useRealtimeJob, useCreateDocument, useDeleteDocument, useCurrentUser, useDeleteInvoice } from "@/lib/hooks";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { jobStatusLabels, type JobStatus, type DocumentType } from "@/lib/database/types";
 import { createClient } from "@/lib/supabase/client";
 import { uploadFile, getSignedUrl, STORAGE_BUCKETS } from "@/lib/storage/upload";
-import { DocumentList } from "@/components/ui/document-list";
+import { DocumentList, type DocumentListItem } from "@/components/ui/document-list";
+import { UploadInvoiceDialog } from "@/components/invoices";
 import { formatDateShort } from "@/lib/utils/date";
+import { toast } from "sonner";
 
 const allJobStatuses: JobStatus[] = [
   "needs_scheduling",
@@ -68,6 +67,7 @@ const documentTypes = [
   { value: "pickup_document", label: "Pickup Document" },
   { value: "certificate_of_insurance", label: "Certificate of Insurance (COI)" },
   { value: "workers_compensation", label: "Workers Compensation (WC)" },
+  { value: "invoice", label: "Invoice" },
   { value: "miscellaneous", label: "Miscellaneous" },
 ];
 
@@ -86,6 +86,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
   const updateJobStatus = useUpdateJobStatus();
   const createDocument = useCreateDocument();
   const deleteDocument = useDeleteDocument();
+  const deleteInvoice = useDeleteInvoice();
 
   // Subscribe to real-time updates
   useRealtimeJob(id);
@@ -93,6 +94,8 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
   const [showStatusDialog, setShowStatusDialog] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<JobStatus | null>(null);
   const [selectedDocType, setSelectedDocType] = useState<string>("");
+  const [uploadInvoiceOpen, setUploadInvoiceOpen] = useState(false);
+
 
   // Edit mode state for job number
   const [isEditingJobNumber, setIsEditingJobNumber] = useState(false);
@@ -205,7 +208,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !selectedDocType || !job || !currentUser?.id) return;
+    if (!file || !selectedDocType || selectedDocType === "invoice" || !job || !currentUser?.id) return;
 
     try {
       // Upload file to storage
@@ -240,23 +243,62 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
     }
   };
 
-  const handleDeleteDocument = async (docId: string, filePath: string) => {
+  const isInvoiceId = (entryId: string) =>
+    !!job?.invoices.some((inv) => inv.id === entryId);
+
+  const handleDeleteEntry = async (entryId: string, filePath: string) => {
     if (!job) return;
+    if (isInvoiceId(entryId)) {
+      deleteInvoice.mutate(entryId, {
+        onError: (err) => toast.error(err.message || "Failed to delete invoice"),
+      });
+      return;
+    }
     deleteDocument.mutate({
-      id: docId,
+      id: entryId,
       jobId: job.id,
       filePath,
     });
   };
 
-  const handleViewDocument = async (filePath: string) => {
+  const handleViewEntry = async (filePath: string, isInvoice: boolean) => {
     try {
+      if (isInvoice) {
+        const invoice = job?.invoices.find((inv) => inv.pdf_path === filePath);
+        if (!invoice) throw new Error("Invoice not found");
+        const response = await fetch(`/api/admin/invoices/${invoice.id}/pdf?disposition=inline`);
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || "Failed to load invoice");
+        }
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        return;
+      }
       const signedUrl = await getSignedUrl(supabase, STORAGE_BUCKETS.DOCUMENTS, filePath);
       window.open(signedUrl, "_blank");
     } catch (error) {
-      console.error("Failed to view document:", error);
+      console.error("Failed to view file:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to view file");
     }
   };
+
+  const documentEntries: DocumentListItem[] = job
+    ? [
+        ...job.documents,
+        ...job.invoices
+          .filter((inv) => inv.pdf_path)
+          .map((inv) => ({
+            id: inv.id,
+            name: `Invoice ${inv.invoice_number}`,
+            typeLabel: "Invoice",
+            file_path: inv.pdf_path as string,
+            created_at: inv.created_at,
+          })),
+      ]
+    : [];
 
   const timelineSteps = [
     { key: "created_at", label: "Needs Scheduling", status: "needs_scheduling" },
@@ -448,7 +490,6 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                 Documents ({job.documents.length})
               </TabsTrigger>
               <TabsTrigger value="details">Job Details</TabsTrigger>
-              <TabsTrigger value="invoices">Invoices</TabsTrigger>
             </TabsList>
 
             {/* Documents Tab */}
@@ -492,7 +533,13 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                     />
                     <Button
                       variant="outline"
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={() => {
+                        if (selectedDocType === "invoice") {
+                          setUploadInvoiceOpen(true);
+                        } else {
+                          fileInputRef.current?.click();
+                        }
+                      }}
                       disabled={!selectedDocType || isUploading}
                     >
                       {isUploading ? (
@@ -506,12 +553,17 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
 
                   <Separator />
 
-                  {/* Documents List */}
+                  {/* Documents + Invoices List */}
                   <DocumentList
-                    documents={job.documents}
-                    onView={handleViewDocument}
-                    onDelete={handleDeleteDocument}
-                    isDeleting={deleteDocument.isPending}
+                    documents={documentEntries}
+                    onView={(filePath) => {
+                      const isInvoice = job.invoices.some(
+                        (inv) => inv.pdf_path === filePath
+                      );
+                      handleViewEntry(filePath, isInvoice);
+                    }}
+                    onDelete={handleDeleteEntry}
+                    isDeleting={deleteDocument.isPending || deleteInvoice.isPending}
                   />
                 </CardContent>
               </Card>
@@ -598,73 +650,6 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
               </div>
             </TabsContent>
 
-            {/* Invoices Tab */}
-            <TabsContent value="invoices" className="mt-4">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle>Linked Invoices</CardTitle>
-                      <CardDescription>
-                        Invoices from QuickBooks linked to this job
-                      </CardDescription>
-                    </div>
-                    <Button variant="outline">
-                      <LinkIcon className="mr-2 h-4 w-4" />
-                      Link Invoice
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {job.invoices.length > 0 ? (
-                    <div className="space-y-2">
-                      {job.invoices.map((invoice) => (
-                        <div
-                          key={invoice.id}
-                          className="flex items-center justify-between rounded-lg border p-4"
-                        >
-                          <div>
-                            <p className="font-mono font-medium">
-                              {invoice.invoice_number}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              Due: {new Date(invoice.due_date).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <div className="text-right">
-                              <p className="font-medium">
-                                ${invoice.amount.toLocaleString()}
-                              </p>
-                              <Badge
-                                variant={
-                                  invoice.status === "paid"
-                                    ? "default"
-                                    : "secondary"
-                                }
-                              >
-                                {invoice.status}
-                              </Badge>
-                            </div>
-                            <Button variant="ghost" size="icon">
-                              <ExternalLink className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <FileText className="mx-auto h-12 w-12 mb-2 opacity-50" />
-                      <p>No invoices linked yet</p>
-                      <p className="text-sm">
-                        Link an invoice from QuickBooks to this job
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
           </Tabs>
         </div>
 
@@ -799,6 +784,17 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
           </Card>
         </div>
       </div>
+
+      <UploadInvoiceDialog
+        open={uploadInvoiceOpen}
+        onOpenChange={(open) => {
+          setUploadInvoiceOpen(open);
+          if (!open) setSelectedDocType("");
+        }}
+        companyId={job.company_id}
+        jobId={job.id}
+        description={`Upload a PDF invoice for ${job.company?.name ?? "this company"} and link it to this job.`}
+      />
 
       {/* Status Change Dialog */}
       <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
