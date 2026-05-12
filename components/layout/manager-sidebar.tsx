@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/logo";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { managerNavSections, type ManagerNavItem } from "./manager-nav-items";
+import { NewRequestNavItem } from "./new-request-nav-item";
 
 interface ManagerSidebarProps {
   className?: string;
@@ -52,13 +53,14 @@ export function ManagerSidebar({ className }: ManagerSidebarProps) {
               {section.label}
             </p>
             <div className="space-y-1">
-              {section.items.map((item) => (
-                <NavLink
-                  key={item.href}
-                  item={item}
-                  isActive={pathname === item.href || pathname.startsWith(`${item.href}/`)}
-                />
-              ))}
+              {section.items.map((item) => {
+                const isActive =
+                  pathname === item.href || pathname.startsWith(`${item.href}/`);
+                if (item.href === "/requests/new") {
+                  return <NewRequestNavItem key={item.href} isActive={isActive} />;
+                }
+                return <NavLink key={item.href} item={item} isActive={isActive} />;
+              })}
             </div>
           </div>
         ))}
