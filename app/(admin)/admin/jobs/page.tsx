@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -27,14 +26,6 @@ import type { JobStatus } from "@/lib/database/types";
 
 const validStatuses = ["all", "needs_scheduling", "pickup_scheduled", "pickup_complete", "processing", "complete"];
 
-const invoiceFilterOptions = [
-  { value: "all", label: "All Invoices" },
-  { value: "invoiced", label: "Invoiced" },
-  { value: "not_invoiced", label: "Not Invoiced" },
-  { value: "paid", label: "Paid" },
-  { value: "unpaid", label: "Unpaid" },
-];
-
 function AdminJobsContent() {
   const searchParams = useSearchParams();
 
@@ -44,7 +35,6 @@ function AdminJobsContent() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState(initialTab);
-  const [invoiceFilter, setInvoiceFilter] = useState("all");
   const debouncedSearch = useDebouncedValue(searchQuery, 300);
 
   // Sync tab with URL params
@@ -68,12 +58,8 @@ function AdminJobsContent() {
     return {
       search: debouncedSearch || undefined,
       status: activeTab !== "all" ? (activeTab as JobStatus) : undefined,
-      has_invoice: invoiceFilter === "invoiced" ? true :
-                   invoiceFilter === "not_invoiced" ? false : undefined,
-      invoice_status: invoiceFilter === "paid" ? "paid" as const :
-                      invoiceFilter === "unpaid" ? "unpaid" as const : undefined,
     };
-  }, [debouncedSearch, activeTab, invoiceFilter]);
+  }, [debouncedSearch, activeTab]);
 
   const { data: paginatedData, isLoading, isFetching, error } = useJobList(filters, currentPage, pageSize);
   const { data: statusCounts } = useJobStatusCounts();
@@ -86,11 +72,6 @@ function AdminJobsContent() {
 
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
-    setPage(1);
-  }, [setPage]);
-
-  const handleInvoiceFilterChange = useCallback((value: string) => {
-    setInvoiceFilter(value);
     setPage(1);
   }, [setPage]);
 
@@ -123,14 +104,6 @@ function AdminJobsContent() {
         onSearchChange={handleSearchChange}
         searchPlaceholder="Search by Job ID or company..."
         isLoading={isFetching}
-        filters={[
-          {
-            value: invoiceFilter,
-            onChange: handleInvoiceFilterChange,
-            options: invoiceFilterOptions,
-            className: "w-[180px]",
-          },
-        ]}
       />
 
       {/* Tabs */}
@@ -167,7 +140,6 @@ function AdminJobsContent() {
                       <TableHead>Pickup Date</TableHead>
                       <TableHead>Equipment</TableHead>
                       <TableHead className="text-center">Docs</TableHead>
-                      <TableHead>Invoice</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="w-[70px]"></TableHead>
                     </TableRow>
@@ -175,13 +147,13 @@ function AdminJobsContent() {
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-12">
+                        <TableCell colSpan={7} className="text-center py-12">
                           <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                         </TableCell>
                       </TableRow>
                     ) : jobs.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-12">
+                        <TableCell colSpan={7} className="text-center py-12">
                           <p className="text-muted-foreground">No jobs found</p>
                         </TableCell>
                       </TableRow>
@@ -213,35 +185,6 @@ function AdminJobsContent() {
                               <FileText className="h-4 w-4 text-muted-foreground" />
                               <span>{job.document_count}</span>
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            {job.invoice_total ? (
-                              <div>
-                                <span className="text-xs">
-                                  ${job.invoice_total.toLocaleString()}
-                                </span>
-                                {job.invoice_status && (
-                                  <Badge
-                                    variant={
-                                      job.invoice_status === "paid"
-                                        ? "default"
-                                        : "secondary"
-                                    }
-                                    className={
-                                      job.invoice_status === "paid"
-                                        ? "bg-green-100 text-green-800 hover:bg-green-100 ml-2"
-                                        : "ml-2"
-                                    }
-                                  >
-                                    {job.invoice_status}
-                                  </Badge>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">
-                                Not invoiced
-                              </span>
-                            )}
                           </TableCell>
                           <TableCell>
                             <StatusBadge status={job.status} />

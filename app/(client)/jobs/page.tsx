@@ -11,7 +11,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ListFilters } from "@/components/ui/list-filters";
 import { FetchingIndicator } from "@/components/ui/fetching-indicator";
-import { FileText, Receipt, ArrowRight, Calendar, Package } from "lucide-react";
+import { FileText, ArrowRight, Calendar, Package } from "lucide-react";
 import { NewRequestButton } from "@/components/requests";
 import { useJobList, usePagination } from "@/lib/hooks";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
@@ -45,15 +45,6 @@ const JobCard = memo(function JobCard({ job }: { job: JobListItem }) {
                 <FileText className="h-3.5 w-3.5" />
                 {job.document_count} docs
               </span>
-              {job.invoice_total && (
-                <span className="flex items-center gap-1">
-                  <Receipt className="h-3.5 w-3.5" />
-                  ${job.invoice_total.toLocaleString()}
-                  {job.invoice_status && (
-                    <StatusBadge status={job.invoice_status as "paid" | "unpaid" | "overdue"} />
-                  )}
-                </span>
-              )}
             </div>
           </div>
 
