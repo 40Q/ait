@@ -31,10 +31,10 @@ import {
 } from "@/lib/database/types";
 import { toast } from "sonner";
 
-// Document types (excluding pickup_document which is shown in Pickup Details, and COI which has its own tab)
+// Document types (excluding pickup_document which is shown in Pickup Details)
 const documentTypes = (
   Object.keys(documentTypeLabels) as DocumentType[]
-).filter((type) => type !== "pickup_document" && type !== "certificate_of_insurance");
+).filter((type) => type !== "pickup_document");
 
 const typeFilterOptions = [
   { value: "all", label: "All Types" },
@@ -44,18 +44,11 @@ const typeFilterOptions = [
 export default function DocumentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
-  const [coiSearchQuery, setCoiSearchQuery] = useState("");
   const debouncedSearch = useDebouncedValue(searchQuery, 300);
-  const debouncedCoiSearch = useDebouncedValue(coiSearchQuery, 300);
   const supabase = createClient();
 
   // Pagination for main docs
   const { currentPage, pageSize, setPage, setPageSize } = usePagination({
-    initialPageSize: 20,
-  });
-
-  // Pagination for COI tab
-  const { currentPage: coiPage, pageSize: coiPageSize, setPage: setCoiPage, setPageSize: setCoiPageSize } = usePagination({
     initialPageSize: 20,
   });
 
@@ -76,26 +69,16 @@ export default function DocumentsPage() {
     [debouncedSearch, typeFilter]
   );
 
-  const coiFilters = useMemo(
-    () => ({
-      search: debouncedCoiSearch || undefined,
-      document_type: "certificate_of_insurance" as DocumentType,
-    }),
-    [debouncedCoiSearch]
-  );
-
   const { data: paginatedData, isLoading, isFetching } = useDocumentList(filters, currentPage, pageSize);
-  const { data: coiPaginatedData, isLoading: coiLoading, isFetching: coiFetching } = useDocumentList(coiFilters, coiPage, coiPageSize);
   const { data: invoicePaginatedData, isLoading: invoiceLoading, isFetching: invoiceFetching } = useInvoiceList(undefined, invoicePage, invoicePageSize);
   const { downloadPdf, downloadingId } = useDownloadInvoicePdf();
 
   const documents = paginatedData?.data ?? [];
-  const coiDocuments = coiPaginatedData?.data ?? [];
   const invoices = invoicePaginatedData?.data ?? [];
 
-  // Filter main tab to exclude COI and pickup documents
+  // Pickup documents have their own page
   const filteredDocuments = documents.filter(
-    (doc) => doc.document_type !== "pickup_document" && doc.document_type !== "certificate_of_insurance"
+    (doc) => doc.document_type !== "pickup_document"
   );
 
   const handleSearchChange = useCallback((value: string) => {
@@ -107,11 +90,6 @@ export default function DocumentsPage() {
     setTypeFilter(value);
     setPage(1);
   }, [setPage]);
-
-  const handleCoiSearchChange = useCallback((value: string) => {
-    setCoiSearchQuery(value);
-    setCoiPage(1);
-  }, [setCoiPage]);
 
   const handleView = async (filePath: string) => {
     try {
@@ -144,14 +122,6 @@ export default function DocumentsPage() {
       <Tabs defaultValue="documents">
         <TabsList>
           <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="coi">
-            Certificate of Insurance
-            {coiPaginatedData && coiPaginatedData.total > 0 && (
-              <span className="ml-1.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
-                {coiPaginatedData.total}
-              </span>
-            )}
-          </TabsTrigger>
           <TabsTrigger value="invoices">
             Invoices
             {invoicePaginatedData && invoicePaginatedData.total > 0 && (
@@ -167,7 +137,7 @@ export default function DocumentsPage() {
           <ListFilters
             searchValue={searchQuery}
             onSearchChange={handleSearchChange}
-            searchPlaceholder="Search by name or job..."
+            searchPlaceholder="Search by name, job, or location..."
             isLoading={isFetching}
             filters={[
               {
@@ -207,47 +177,6 @@ export default function DocumentsPage() {
               pageSize={pageSize}
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
-            />
-          )}
-        </TabsContent>
-
-        {/* COI Tab */}
-        <TabsContent value="coi" className="mt-4 space-y-4">
-          <ListFilters
-            searchValue={coiSearchQuery}
-            onSearchChange={handleCoiSearchChange}
-            searchPlaceholder="Search by name, job, or location..."
-            isLoading={coiFetching}
-          />
-
-          {coiLoading ? (
-            <LoadingSpinner />
-          ) : (
-            <FetchingIndicator isFetching={coiFetching}>
-              {coiDocuments.length === 0 ? (
-                <EmptyState
-                  icon={FileText}
-                  title="No COI documents yet"
-                  description="Certificate of Insurance documents will appear here once they are uploaded."
-                />
-              ) : (
-                <div className="space-y-3">
-                  {coiDocuments.map((doc) => (
-                    <CoiDocumentCard key={doc.id} document={doc} onView={handleView} />
-                  ))}
-                </div>
-              )}
-            </FetchingIndicator>
-          )}
-
-          {coiPaginatedData && coiPaginatedData.totalPages > 0 && (
-            <Pagination
-              currentPage={coiPage}
-              totalPages={coiPaginatedData.totalPages}
-              totalItems={coiPaginatedData.total}
-              pageSize={coiPageSize}
-              onPageChange={setCoiPage}
-              onPageSizeChange={setCoiPageSize}
             />
           )}
         </TabsContent>
@@ -297,54 +226,6 @@ export default function DocumentsPage() {
 }
 
 function DocumentCard({
-  document,
-  onView,
-}: {
-  document: DocumentListItem;
-  onView: (filePath: string) => void;
-}) {
-  return (
-    <Card className="transition-colors hover:bg-muted/50">
-      <CardContent>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <div className="rounded-lg bg-muted p-2">
-              <FileText className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <div>
-              <p className="font-medium">{document.name}</p>
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                <Link
-                  href={`/jobs/${document.job_id}`}
-                  className="hover:text-primary hover:underline"
-                >
-                  {document.job_number}
-                </Link>
-              </div>
-              <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  {formatDateShort(document.created_at)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onView(document.file_path)}
-          >
-            <ExternalLink className="mr-2 h-4 w-4" />
-            View
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function CoiDocumentCard({
   document,
   onView,
 }: {
