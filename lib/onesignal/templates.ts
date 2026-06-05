@@ -39,7 +39,7 @@ const templates: Record<
 
   quote_sent: (ctx) => ({
     title: 'Quote Ready for Review',
-    message: `Your quote${ctx.quoteNumber ? ` #${ctx.quoteNumber}` : ''} is ready for review.`,
+    message: `Your quote${ctx.quoteNumber ? ` #${ctx.quoteNumber}` : ''} is ready. Please review and accept your quote in the portal.`,
     actionUrl: ctx.entityId ? `/requests/${ctx.entityId}` : '/requests',
   }),
 
