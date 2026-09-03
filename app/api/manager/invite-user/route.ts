@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { isManager } from "@/lib/auth/helpers";
-import { onesignalClient } from "@/lib/onesignal";
+import { registerUserEmailAfterResponse } from "@/lib/onesignal";
 
 /**
  * POST /api/manager/invite-user
@@ -85,9 +85,12 @@ export async function POST(request: NextRequest) {
       }
 
       if (data.user?.id) {
-        onesignalClient
-          .registerUserEmail({ externalId: data.user.id, email, role: "client", companyId })
-          .catch((err) => console.error("[manager/invite-user] OneSignal registration failed:", err));
+        registerUserEmailAfterResponse({
+          externalId: data.user.id,
+          email,
+          role: "client",
+          companyId,
+        });
       }
 
       return NextResponse.json({
@@ -120,16 +123,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (data.user?.id) {
-      onesignalClient
-        .registerUserEmail({
-          externalId: data.user.id,
-          email,
-          role: "client",
-          companyId,
-        })
-        .catch((err) => {
-          console.error("[manager/invite-user] OneSignal registration failed:", err);
-        });
+      registerUserEmailAfterResponse({
+        externalId: data.user.id,
+        email,
+        role: "client",
+        companyId,
+      });
     }
 
     return NextResponse.json({
@@ -183,9 +182,12 @@ async function handleReInviteWithPassword(
     .update({ company_id: body.companyId, full_name: body.fullName || body.email })
     .eq("id", existingProfile.id);
 
-  onesignalClient
-    .registerUserEmail({ externalId: existingProfile.id, email: body.email, role: "client", companyId: body.companyId })
-    .catch((err) => console.error("[manager/invite-user] OneSignal registration failed:", err));
+  registerUserEmailAfterResponse({
+    externalId: existingProfile.id,
+    email: body.email,
+    role: "client",
+    companyId: body.companyId,
+  });
 
   return NextResponse.json({
     success: true,
@@ -245,16 +247,12 @@ async function handleReInvite(
     return NextResponse.json({ error: resetError.message }, { status: 429 });
   }
 
-  onesignalClient
-    .registerUserEmail({
-      externalId: existingProfile.id,
-      email: body.email,
-      role: "client",
-      companyId: body.companyId,
-    })
-    .catch((err) => {
-      console.error("[manager/invite-user] OneSignal re-invite registration failed:", err);
-    });
+  registerUserEmailAfterResponse({
+    externalId: existingProfile.id,
+    email: body.email,
+    role: "client",
+    companyId: body.companyId,
+  });
 
   return NextResponse.json({
     success: true,

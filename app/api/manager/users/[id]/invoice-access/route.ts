@@ -73,7 +73,7 @@ export async function POST(
 
     if (grant) {
       const notificationService = new NotificationService(adminClient);
-      notificationService.onInvoiceAccessGranted({ userId }).catch((error) => {
+      await notificationService.onInvoiceAccessGranted({ userId }).catch((error) => {
         console.error("Failed to send invoice access granted notification:", error);
       });
     }

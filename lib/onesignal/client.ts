@@ -252,6 +252,8 @@ class OneSignalClient {
       tags.company_id = params.companyId;
     }
 
+    // Tags belong under `properties` — the User Model API silently ignores a
+    // top-level `tags` key, which leaves the user untargetable by tag filters.
     const payload = {
       identity: { external_id: params.externalId },
       subscriptions: [
@@ -261,7 +263,7 @@ class OneSignalClient {
           enabled: true,
         },
       ],
-      tags,
+      properties: { tags },
     };
 
     try {
@@ -316,7 +318,7 @@ class OneSignalClient {
         {
           method: "PATCH",
           headers: this.headers,
-          body: JSON.stringify({ tags }),
+          body: JSON.stringify({ properties: { tags } }),
         }
       );
 

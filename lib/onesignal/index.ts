@@ -10,4 +10,6 @@ export type {
 
 export { onesignalClient } from "./client";
 
+export { registerUserEmailAfterResponse } from "./register";
+
 export { getNotificationContent, getEmailHtmlContent } from "./templates";

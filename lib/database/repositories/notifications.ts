@@ -274,6 +274,27 @@ export class NotificationRepository extends BaseRepository<
   }
 
   /**
+   * Record external delivery for a batch of notifications.
+   * Uses a SECURITY DEFINER function: a broadcast is written on behalf of
+   * other users (admins), whose rows RLS would not let the caller update.
+   */
+  async markDelivered(
+    ids: string[],
+    delivered: { push: boolean; email: boolean }
+  ): Promise<void> {
+    if (ids.length === 0) return;
+    if (!delivered.push && !delivered.email) return;
+
+    const { error } = await this.supabase.rpc("mark_notifications_delivered", {
+      p_ids: ids,
+      p_push: delivered.push,
+      p_email: delivered.email,
+    });
+
+    if (error) throw error;
+  }
+
+  /**
    * Mark notification as email sent
    */
   async markEmailSent(id: string): Promise<void> {

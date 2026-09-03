@@ -72,7 +72,7 @@ export class WorkflowService {
     });
 
     // Send notification to client company
-    this.notificationService.onQuoteSent({
+    await this.notificationService.onQuoteSent({
       quoteId,
       quoteNumber: quote.quote_number,
       companyId: quote.company_id,
@@ -155,7 +155,7 @@ export class WorkflowService {
     const companyName = quote.company?.name || "Unknown Company";
     switch (response.status) {
       case "accepted":
-        this.notificationService.onQuoteAccepted({
+        await this.notificationService.onQuoteAccepted({
           quoteId,
           quoteNumber: quote.quote_number,
           companyName,
@@ -165,7 +165,7 @@ export class WorkflowService {
         break;
 
       case "declined":
-        this.notificationService.onQuoteDeclined({
+        await this.notificationService.onQuoteDeclined({
           quoteId,
           quoteNumber: quote.quote_number,
           companyName,
@@ -175,7 +175,7 @@ export class WorkflowService {
         break;
 
       case "revision_requested":
-        this.notificationService.onQuoteRevisionRequested({
+        await this.notificationService.onQuoteRevisionRequested({
           quoteId,
           quoteNumber: quote.quote_number,
           companyName,
@@ -206,7 +206,7 @@ export class WorkflowService {
       // Send notifications based on new status
       switch (newStatus) {
         case "pickup_scheduled":
-          this.notificationService.onPickupScheduled({
+          await this.notificationService.onPickupScheduled({
             jobId,
             jobNumber: job_number,
             companyId: company_id,
@@ -220,7 +220,7 @@ export class WorkflowService {
           break;
 
         case "pickup_complete":
-          this.notificationService.onPickupComplete({
+          await this.notificationService.onPickupComplete({
             jobId,
             jobNumber: job_number,
             companyId: company_id,
@@ -231,7 +231,7 @@ export class WorkflowService {
           break;
 
         case "processing":
-          this.notificationService.onJobProcessing({
+          await this.notificationService.onJobProcessing({
             jobId,
             jobNumber: job_number,
             companyId: company_id,
@@ -242,7 +242,7 @@ export class WorkflowService {
           break;
 
         case "complete":
-          this.notificationService.onJobComplete({
+          await this.notificationService.onJobComplete({
             jobId,
             jobNumber: job_number,
             companyId: company_id,

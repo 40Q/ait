@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { NotificationRepository } from "../repositories/notifications";
 import {
@@ -23,6 +24,20 @@ interface TemplateContext {
   documentType?: string;
   entityId?: string;
   isAdmin?: boolean;
+}
+
+interface ExternalDelivery {
+  userId?: string;
+  /** Single notification whose id travels in the push payload (direct sends only). */
+  notificationId?: string;
+  /** Every notification row this delivery covers, for delivery tracking. */
+  notificationIds?: string[];
+  role?: "admin" | "client";
+  companyId?: string;
+  content: { title: string; message: string; actionUrl?: string };
+  priority: NotificationPriority;
+  entityType?: NotificationEntityType | null;
+  entityId?: string | null;
 }
 
 interface UserInfo {
@@ -78,15 +93,14 @@ export class NotificationService {
       metadata: params.metadata || {},
     });
 
-    this.sendExternal({
+    await this.deliverExternal({
       userId: params.userId,
       notificationId: notification.id,
+      notificationIds: [notification.id],
       content,
       priority,
       entityType: params.entityType,
       entityId: params.entityId,
-    }).catch((error) => {
-      console.error("[NotificationService] send() external delivery failed:", error);
     });
 
     return notification;
@@ -107,7 +121,7 @@ export class NotificationService {
     const priority = params.priority || this.getDefaultPriority(params.type);
 
     const admins = await this.getAdminUsers();
-    await Promise.all(
+    const created = await Promise.all(
       admins.map((admin) =>
         this.notificationRepo.create({
           user_id: admin.id,
@@ -123,14 +137,13 @@ export class NotificationService {
       )
     );
 
-    this.sendExternal({
+    await this.deliverExternal({
       role: "admin",
+      notificationIds: created.map((n) => n.id),
       content,
       priority,
       entityType: params.entityType,
       entityId: params.entityId,
-    }).catch((error) => {
-      console.error("[NotificationService] broadcast() external delivery failed:", error);
     });
   }
 
@@ -150,7 +163,7 @@ export class NotificationService {
     const priority = params.priority || this.getDefaultPriority(params.type);
 
     const companyUsers = await this.getCompanyUsers(params.companyId);
-    await Promise.all(
+    const created = await Promise.all(
       companyUsers.map((user) =>
         this.notificationRepo.create({
           user_id: user.id,
@@ -166,14 +179,13 @@ export class NotificationService {
       )
     );
 
-    this.sendExternal({
+    await this.deliverExternal({
       companyId: params.companyId,
+      notificationIds: created.map((n) => n.id),
       content,
       priority,
       entityType: params.entityType,
       entityId: params.entityId,
-    }).catch((error) => {
-      console.error("[NotificationService] notifyCompany() external delivery failed:", error);
     });
   }
 
@@ -494,16 +506,33 @@ export class NotificationService {
     return (data ?? []) as UserInfo[];
   }
 
-  private async sendExternal(params: {
-    userId?: string;
-    notificationId?: string;
-    role?: "admin" | "client";
-    companyId?: string;
-    content: { title: string; message: string; actionUrl?: string };
-    priority: NotificationPriority;
-    entityType?: NotificationEntityType | null;
-    entityId?: string | null;
-  }): Promise<void> {
+  /**
+   * Schedule external (push + email) delivery.
+   *
+   * OneSignal delivery must NOT be a floating promise: on serverless the
+   * invocation can be frozen or reclaimed the moment the response is returned,
+   * killing the in-flight requests. `after()` hands the work to the platform
+   * (Vercel's waitUntil) so the invocation stays alive until delivery settles,
+   * without making the caller wait for it.
+   */
+  private async deliverExternal(params: ExternalDelivery): Promise<void> {
+    const run = () =>
+      this.sendExternal(params).catch((error) => {
+        console.error(
+          "[NotificationService] External delivery failed:",
+          error
+        );
+      });
+
+    try {
+      after(run);
+    } catch {
+      // Called outside a request scope (scripts, jobs, tests) — run inline.
+      await run();
+    }
+  }
+
+  private async sendExternal(params: ExternalDelivery): Promise<void> {
     try {
       const url = params.content.actionUrl
         ? `${this.appUrl}${params.content.actionUrl}`
@@ -568,14 +597,18 @@ export class NotificationService {
         });
       }
 
-      // Track delivery status if we have a notification ID
-      if (params.notificationId) {
-        if (pushResult) {
-          await this.notificationRepo.markPushSent(params.notificationId);
-        }
-        if (emailResult) {
-          await this.notificationRepo.markEmailSent(params.notificationId);
-        }
+      // Record what actually left the building, so a silent drop is visible.
+      // Tracking must never mask the delivery result itself.
+      try {
+        await this.notificationRepo.markDelivered(params.notificationIds ?? [], {
+          push: !!pushResult,
+          email: !!emailResult,
+        });
+      } catch (trackingError) {
+        console.error(
+          "[NotificationService] Failed to record delivery status:",
+          trackingError
+        );
       }
 
       console.log(
