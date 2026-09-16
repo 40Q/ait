@@ -70,6 +70,7 @@ export { useDeactivateUser } from "./use-deactivate-user";
 export { useRequestNewLink } from "./use-request-new-link";
 export {
   useAdminUsers,
+  useCreateAdminUser,
   useSetAdminPassword,
   useSendAdminRecoveryEmail,
   type AdminUser,

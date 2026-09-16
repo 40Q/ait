@@ -43,6 +43,12 @@ export const inviteUserSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters").optional(),
 });
 
+export const createAdminUserSchema = z.object({
+  email: emailSchema,
+  fullName: nameSchema.optional(),
+  password: passwordSchema.optional(),
+});
+
 export const linkInvoiceSchema = z.object({
   job_id: uuidSchema.nullable(),
 });
@@ -178,6 +184,7 @@ export const onesignalRegisterSchema = z.object({
 // ============================================
 
 export type InviteUserInput = z.infer<typeof inviteUserSchema>;
+export type CreateAdminUserInput = z.infer<typeof createAdminUserSchema>;
 export type LinkInvoiceInput = z.infer<typeof linkInvoiceSchema>;
 export type LoginFormInput = z.infer<typeof loginFormSchema>;
 export type CompanyFormInput = z.infer<typeof companyFormSchema>;

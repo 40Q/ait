@@ -5,6 +5,8 @@ import { format } from "date-fns";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Table,
   TableBody,
@@ -33,10 +35,12 @@ import {
   Eye,
   EyeOff,
   RefreshCw,
+  UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   useAdminUsers,
+  useCreateAdminUser,
   useSetAdminPassword,
   useSendAdminRecoveryEmail,
   type AdminUser,
@@ -45,6 +49,16 @@ import { generatePassword } from "@/lib/utils/generate-password";
 
 export default function AdminUsersPage() {
   const { data: users = [], isLoading, error } = useAdminUsers();
+
+  // New admin dialog
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newFullName, setNewFullName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newMethod, setNewMethod] = useState<"invite" | "password">("invite");
+  const [newPassword, setNewPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [createSuccess, setCreateSuccess] = useState<"invite" | "password" | null>(null);
+  const createAdmin = useCreateAdminUser();
 
   // Set password dialog
   const [passwordTarget, setPasswordTarget] = useState<AdminUser | null>(null);
@@ -56,6 +70,43 @@ export default function AdminUsersPage() {
   // Recovery email — per-user loading via mutation
   const sendRecovery = useSendAdminRecoveryEmail();
   const [sendingRecoveryId, setSendingRecoveryId] = useState<string | null>(null);
+
+  const openCreateDialog = () => {
+    setNewFullName("");
+    setNewEmail("");
+    setNewMethod("invite");
+    setNewPassword("");
+    setShowNewPassword(false);
+    setCreateSuccess(null);
+    createAdmin.reset();
+    setCreateOpen(true);
+  };
+
+  const closeCreateDialog = () => {
+    setCreateOpen(false);
+    setNewFullName("");
+    setNewEmail("");
+    setNewMethod("invite");
+    setNewPassword("");
+    setShowNewPassword(false);
+    setCreateSuccess(null);
+    createAdmin.reset();
+  };
+
+  const handleCreateAdmin = async () => {
+    const withPassword = newMethod === "password";
+    createAdmin.mutate(
+      {
+        email: newEmail,
+        fullName: newFullName || undefined,
+        password: withPassword ? newPassword : undefined,
+      },
+      {
+        onSuccess: () => setCreateSuccess(withPassword ? "password" : "invite"),
+        onError: (err) => toast.error(err.message),
+      }
+    );
+  };
 
   const openPasswordDialog = (user: AdminUser) => {
     setPasswordTarget(user);
@@ -107,7 +158,12 @@ export default function AdminUsersPage() {
         <PageHeader
           title="Admin Users"
           description="Manage administrator accounts and credentials"
-        />
+        >
+          <Button onClick={openCreateDialog}>
+            <UserPlus className="mr-2 h-4 w-4" />
+            New Admin
+          </Button>
+        </PageHeader>
 
         <div className="rounded-md border overflow-x-auto">
           <Table>
@@ -186,6 +242,159 @@ export default function AdminUsersPage() {
           </Table>
         </div>
       </div>
+
+      {/* New Admin Dialog */}
+      <Dialog open={createOpen} onOpenChange={(open) => !open && closeCreateDialog()}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>New Admin</DialogTitle>
+            <DialogDescription>
+              Create a new administrator account with full access.
+            </DialogDescription>
+          </DialogHeader>
+
+          {createSuccess ? (
+            <div className="py-4 text-center space-y-1">
+              <p className="font-medium text-green-600">
+                {createSuccess === "password"
+                  ? "Admin account created"
+                  : "Invitation sent"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {createSuccess === "password"
+                  ? `${newEmail} can now log in with the password below.`
+                  : `${newEmail} will receive an email to set their password.`}
+              </p>
+              {createSuccess === "password" && (
+                <p className="pt-2 font-mono text-sm break-all">{newPassword}</p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label htmlFor="new-admin-fullname">
+                  Full Name{" "}
+                  <span className="text-muted-foreground font-normal">(optional)</span>
+                </Label>
+                <Input
+                  id="new-admin-fullname"
+                  value={newFullName}
+                  onChange={(e) => setNewFullName(e.target.value)}
+                  placeholder="John Smith"
+                  disabled={createAdmin.isPending}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="new-admin-email">Email</Label>
+                <Input
+                  id="new-admin-email"
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="admin@company.com"
+                  disabled={createAdmin.isPending}
+                />
+              </div>
+
+              <RadioGroup
+                value={newMethod}
+                onValueChange={(value) => setNewMethod(value as "invite" | "password")}
+                disabled={createAdmin.isPending}
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="invite" id="new-admin-method-invite" />
+                  <Label htmlFor="new-admin-method-invite" className="font-normal">
+                    Send invite email
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="password" id="new-admin-method-password" />
+                  <Label htmlFor="new-admin-method-password" className="font-normal">
+                    Set password now
+                  </Label>
+                </div>
+              </RadioGroup>
+
+              {newMethod === "password" && (
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      type={showNewPassword ? "text" : "password"}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Enter or generate a password"
+                      className="pr-9"
+                      disabled={createAdmin.isPending}
+                    />
+                    {newPassword && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full px-2.5 hover:bg-transparent"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                      >
+                        {showNewPassword ? (
+                          <EyeOff className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      setNewPassword(generatePassword());
+                      setShowNewPassword(true);
+                    }}
+                    title="Generate password"
+                    disabled={createAdmin.isPending}
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+
+              {createAdmin.error && (
+                <p className="text-sm text-destructive">{createAdmin.error.message}</p>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            {createSuccess ? (
+              <Button onClick={closeCreateDialog}>Close</Button>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={closeCreateDialog}
+                  disabled={createAdmin.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreateAdmin}
+                  disabled={
+                    !newEmail ||
+                    (newMethod === "password" && newPassword.length < 8) ||
+                    createAdmin.isPending
+                  }
+                >
+                  {createAdmin.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {newMethod === "password" ? "Create Admin" : "Send Invite"}
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Set Password Dialog */}
       <Dialog open={!!passwordTarget} onOpenChange={(open) => !open && closePasswordDialog()}>

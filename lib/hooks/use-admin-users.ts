@@ -24,6 +24,33 @@ export function useAdminUsers() {
   });
 }
 
+export function useCreateAdminUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      email,
+      fullName,
+      password,
+    }: {
+      email: string;
+      fullName?: string;
+      password?: string;
+    }) => {
+      const response = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, fullName, password }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Failed to create admin user");
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+    },
+  });
+}
+
 export function useSetAdminPassword() {
   return useMutation({
     mutationFn: async ({ userId, password }: { userId: string; password: string }) => {
