@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { isManager } from "@/lib/auth/helpers";
+import { assertManagerOwnsCompany, isSubCompanyOf } from "@/lib/auth/manager-scope";
 import { registerUserEmailAfterResponse } from "@/lib/onesignal";
 
 /**
@@ -37,24 +38,16 @@ export async function POST(request: NextRequest) {
     const adminClient = createAdminClient();
 
     // Verify the target company belongs to this manager
-    const { data: managerProfile } = await adminClient
-      .from("profiles")
-      .select("company_id")
-      .eq("id", user.id)
-      .single();
+    const scope = await assertManagerOwnsCompany(adminClient, user.id, companyId);
 
-    const { data: targetCompany } = await adminClient
-      .from("companies")
-      .select("parent_company_id")
-      .eq("id", companyId)
-      .single();
-
-    if (!targetCompany || targetCompany.parent_company_id !== managerProfile?.company_id) {
+    if (!scope.ok) {
       return NextResponse.json(
         { error: "You can only invite users to your own sub-companies" },
         { status: 403 }
       );
     }
+
+    const managerCompanyId = scope.managerCompanyId;
 
     const userMetadata = {
       full_name: fullName || email,
@@ -81,7 +74,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: error.message }, { status: 400 });
         }
 
-        return await handleReInviteWithPassword(adminClient, { email, fullName, companyId, password });
+        return await handleReInviteWithPassword(adminClient, managerCompanyId, { email, fullName, companyId, password });
       }
 
       if (data.user?.id) {
@@ -119,7 +112,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: error.message }, { status: 400 });
       }
 
-      return await handleReInvite(adminClient, { email, fullName, companyId });
+      return await handleReInvite(adminClient, managerCompanyId, { email, fullName, companyId });
     }
 
     if (data.user?.id) {
@@ -144,11 +137,12 @@ export async function POST(request: NextRequest) {
 
 async function handleReInviteWithPassword(
   adminClient: ReturnType<typeof createAdminClient>,
+  managerCompanyId: string,
   body: { email: string; fullName?: string; companyId: string; password: string }
 ) {
   const { data: existingProfile } = await adminClient
     .from("profiles")
-    .select("id")
+    .select("id, role, company_id")
     .eq("email", body.email.toLowerCase().trim())
     .maybeSingle();
 
@@ -156,6 +150,13 @@ async function handleReInviteWithPassword(
     return NextResponse.json(
       { error: "User account is in an inconsistent state. Please contact support." },
       { status: 400 }
+    );
+  }
+
+  if (!(await isExistingUserInManagerScope(adminClient, managerCompanyId, existingProfile))) {
+    return NextResponse.json(
+      { error: "You can only manage users in your own sub-companies" },
+      { status: 403 }
     );
   }
 
@@ -198,11 +199,12 @@ async function handleReInviteWithPassword(
 
 async function handleReInvite(
   adminClient: ReturnType<typeof createAdminClient>,
+  managerCompanyId: string,
   body: { email: string; fullName?: string; companyId: string }
 ) {
   const { data: existingProfile } = await adminClient
     .from("profiles")
-    .select("id")
+    .select("id, role, company_id")
     .eq("email", body.email.toLowerCase().trim())
     .maybeSingle();
 
@@ -210,6 +212,13 @@ async function handleReInvite(
     return NextResponse.json(
       { error: "User account is in an inconsistent state. Please contact support." },
       { status: 400 }
+    );
+  }
+
+  if (!(await isExistingUserInManagerScope(adminClient, managerCompanyId, existingProfile))) {
+    return NextResponse.json(
+      { error: "You can only manage users in your own sub-companies" },
+      { status: 403 }
     );
   }
 
@@ -259,4 +268,23 @@ async function handleReInvite(
     userId: existingProfile.id,
     message: "Invitation email re-sent successfully",
   });
+}
+
+/**
+ * A re-invite overwrites credentials on an existing account, so the existing
+ * account must already be a client inside one of this manager's sub-companies.
+ * Without this, a manager could re-invite an admin's email and take over that
+ * account (the profiles.role column, which drives isAdmin(), is never changed
+ * by the re-invite path).
+ */
+async function isExistingUserInManagerScope(
+  adminClient: ReturnType<typeof createAdminClient>,
+  managerCompanyId: string,
+  existingProfile: { role: string | null; company_id: string | null }
+) {
+  if (existingProfile.role !== "client") {
+    return false;
+  }
+
+  return await isSubCompanyOf(adminClient, managerCompanyId, existingProfile.company_id);
 }

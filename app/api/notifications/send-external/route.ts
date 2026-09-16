@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isAdmin } from "@/lib/auth/helpers";
 import { onesignalClient, getEmailHtmlContent } from "@/lib/onesignal";
 import { sendExternalNotificationSchema } from "@/lib/validation/schemas";
 
@@ -13,13 +14,20 @@ const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
  * - userId: Send to a specific user
  * - role: Send to all users with a specific role (uses tag filter)
  * - companyId: Send to all users in a company (uses tag filter)
+ *
+ * This endpoint can address every admin, every user of a company, or any
+ * single user with caller-supplied content, delivered from our own trusted
+ * sender. It is therefore restricted to trusted callers only: either a
+ * server-to-server caller presenting the internal API key, or a signed-in
+ * admin. Application workflows should send notifications in-process via
+ * NotificationService rather than calling this route as a logged-in user.
  */
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
 
     const apiKey = request.headers.get("x-internal-api-key");
-    const hasValidApiKey = INTERNAL_API_KEY && apiKey === INTERNAL_API_KEY;
+    const hasValidApiKey = !!INTERNAL_API_KEY && apiKey === INTERNAL_API_KEY;
 
     if (!hasValidApiKey) {
       const {
@@ -28,6 +36,10 @@ export async function POST(request: NextRequest) {
 
       if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
+      if (!(await isAdmin(supabase, user.id))) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     }
 

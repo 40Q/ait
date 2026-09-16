@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { isManager } from "@/lib/auth/helpers";
+import { assertManagerOwnsCompany } from "@/lib/auth/manager-scope";
 
 /**
  * POST /api/manager/users/[id]
@@ -31,14 +32,6 @@ export async function POST(
 
     const adminClient = createAdminClient();
 
-    // Get manager's company_id
-    const { data: managerProfile } = await adminClient
-      .from("profiles")
-      .select("company_id")
-      .eq("id", user.id)
-      .single();
-
-    // Get target user's company
     const { data: targetProfile } = await adminClient
       .from("profiles")
       .select("email, company_id")
@@ -50,13 +43,13 @@ export async function POST(
     }
 
     // Verify the target user belongs to a sub-company of this manager
-    const { data: targetCompany } = await adminClient
-      .from("companies")
-      .select("parent_company_id")
-      .eq("id", targetProfile.company_id)
-      .single();
+    const scope = await assertManagerOwnsCompany(
+      adminClient,
+      user.id,
+      targetProfile.company_id
+    );
 
-    if (!targetCompany || targetCompany.parent_company_id !== managerProfile?.company_id) {
+    if (!scope.ok) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

@@ -3,6 +3,7 @@
 import { useMutation } from "@tanstack/react-query";
 
 interface ChangePasswordParams {
+  currentPassword: string;
   newPassword: string;
   confirmPassword: string;
 }
@@ -34,6 +35,7 @@ async function changePassword(
 /**
  * Hook to change the current user's password.
  * Calls the account API after current password has been verified client-side.
+ * The current password is also sent so the API can reauthenticate server-side.
  */
 export function useChangePassword() {
   return useMutation({

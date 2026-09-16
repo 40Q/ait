@@ -109,9 +109,10 @@ export function ChangePasswordCard() {
 
       setIsVerifying(false);
 
-      // Current password verified — update via API
+      // Current password verified client-side — the API verifies it again
+      // server-side, so it has to be sent along with the new one.
       changePassword.mutate(
-        { newPassword, confirmPassword },
+        { currentPassword, newPassword, confirmPassword },
         {
           onSuccess: () => {
             setSuccess(true);
