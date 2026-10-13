@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { createClient } from "@/lib/supabase/client";
@@ -41,6 +40,9 @@ export default function LoginPage() {
     const handleHashTokens = async () => {
       const hash = window.location.hash;
       if (!hash) {
+        if (new URLSearchParams(window.location.search).get("reason") === "session-ended") {
+          setError("Your session has ended. Please sign in again to continue.");
+        }
         setIsCheckingHash(false);
         return;
       }

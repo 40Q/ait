@@ -43,6 +43,13 @@ export async function uploadFile(
   file: File,
   options: UploadOptions
 ): Promise<UploadResult> {
+  // A password reset can revoke the session while the form remains open.
+  // Validate with Auth before Storage can fall back to an anonymous request.
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    throw new Error("Your session could not be verified. Please sign in again before uploading files.");
+  }
+
   const { bucket, folder, fileName, contentType } = options;
   const generatedName = generateFileName(file.name, fileName);
   const path = `${folder}/${generatedName}`;

@@ -34,6 +34,13 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Auth may refresh or remove cookies even when this request redirects.
+  const redirect = (url: URL) => {
+    const response = NextResponse.redirect(url);
+    supabaseResponse.cookies.getAll().forEach((cookie) => response.cookies.set(cookie));
+    return response;
+  };
+
   const pathname = request.nextUrl.pathname;
 
   // If auth code or token_hash arrives at a non-callback URL, forward to /auth/callback
@@ -42,7 +49,7 @@ export async function updateSession(request: NextRequest) {
   if ((code || tokenHash) && pathname !== "/auth/callback") {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/callback";
-    return NextResponse.redirect(url);
+    return redirect(url);
   }
 
   // API routes handle their own authentication - don't redirect
@@ -60,7 +67,7 @@ export async function updateSession(request: NextRequest) {
   if (!user && !isPublicRoute && pathname !== "/") {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    return NextResponse.redirect(url);
+    return redirect(url);
   }
 
   // For authenticated users, enforce role-based routing
@@ -83,28 +90,28 @@ export async function updateSession(request: NextRequest) {
     if (isAdminUser && !isAdminRoute) {
       const url = request.nextUrl.clone();
       url.pathname = "/admin/dashboard";
-      return NextResponse.redirect(url);
+      return redirect(url);
     }
 
     // Non-admins must not access /admin
     if (!isAdminUser && isAdminRoute) {
       const url = request.nextUrl.clone();
       url.pathname = getDashboardPath(role);
-      return NextResponse.redirect(url);
+      return redirect(url);
     }
 
     // Non-managers must not access /manager
     if (!isManagerUser && isManagerRoute) {
       const url = request.nextUrl.clone();
       url.pathname = getDashboardPath(role);
-      return NextResponse.redirect(url);
+      return redirect(url);
     }
 
     if (isLoginPage) {
       // Authenticated user on login page - redirect to their dashboard
       const url = request.nextUrl.clone();
       url.pathname = getDashboardPath(role);
-      return NextResponse.redirect(url);
+      return redirect(url);
     }
   }
 

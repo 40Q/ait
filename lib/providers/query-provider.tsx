@@ -2,7 +2,9 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { monitorAuthSession } from "@/lib/auth/session-monitor";
 
 interface QueryProviderProps {
   children: ReactNode;
@@ -26,6 +28,11 @@ export function QueryProvider({ children }: QueryProviderProps) {
         },
       })
   );
+
+  useEffect(() => {
+    const monitor = monitorAuthSession(createClient(), queryClient, window);
+    return monitor.dispose;
+  }, [queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>
